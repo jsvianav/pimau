@@ -1,0 +1,30 @@
+# PIMAU - Plataforma Inteligente de Monitoreo Ambiental Urbano
+# Incremento 1: base de datos y servicio de ingesta (RF-01 a RF-04).
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      retries: 20
+
+  ingesta:
+    build: ./backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      OPENAQ_API_KEY: ${OPENAQ_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["sh", "-c", "alembic upgrade head && python -m pimau.ingesta programador"]
+
+volumes:
+  pgdata:

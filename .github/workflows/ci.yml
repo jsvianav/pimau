@@ -1,0 +1,35 @@
+# Integración continua: pruebas automáticas en cada cambio (sección de
+# Construcción del Capítulo 3).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: pimau_test
+          POSTGRES_USER: pimau
+          POSTGRES_PASSWORD: pimau
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pimau -d pimau_test"
+          --health-interval 5s --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL_PRUEBAS: postgresql+psycopg://pimau:pimau@localhost:5432/pimau_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q

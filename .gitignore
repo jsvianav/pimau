@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.egg-info/
+# Entorno
+.env
+# Sistema
+.DS_Store
+# Datos locales
+data/
