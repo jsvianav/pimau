@@ -26,14 +26,19 @@ _PATRONES_PARAMETRO = [
     (re.compile(r"^\s*pm\s*10", re.IGNORECASE), "PM10"),
 ]
 
-_FORMATOS_FECHA = (
+_FORMATOS_ISO = (
     "%Y-%m-%dT%H:%M:%S.%f",
     "%Y-%m-%dT%H:%M:%S",
     "%Y-%m-%d %H:%M:%S",
     "%Y-%m-%d %H:%M",
-    "%m/%d/%Y %H:%M",
-    "%m/%d/%Y %H:%M:%S",
 )
+# Las fechas con barras son ambiguas (05/06/2019 puede ser 5 de junio o 6 de
+# mayo), por eso el orden se declara por recurso y no se adivina.
+_FORMATOS_BARRA = {
+    "mdy": ("%m/%d/%Y %H:%M", "%m/%d/%Y %H:%M:%S"),
+    "dmy": ("%d/%m/%Y %H:%M", "%d/%m/%Y %H:%M:%S"),
+}
+_PATRON_HORA_24 = re.compile(r"^(.*\D)24:00(:00)?$")
 
 
 def codigo_parametro(nombre_origen: str) -> str | None:
@@ -72,25 +77,55 @@ _ORIGEN_EXCEL = datetime(1899, 12, 30)
 _PATRON_SERIE_EXCEL = re.compile(r"^\d{5}([.,]\d+)?$")
 
 
-def leer_fecha(texto: str) -> datetime:
+def leer_fecha(texto: str, orden: str = "mdy", excel_invertido: bool = False) -> datetime:
     """Interpreta una fecha local de la fuente y la devuelve en UTC (ISO 8601).
 
-    Acepta texto en varios formatos y numeros de serie de Excel (por ejemplo
-    41646 o 41646,04167, con coma decimal), que aparecen en algunos archivos
-    del portal de Cali.
+    Acepta:
+    - fechas ISO;
+    - fechas con barras, en el orden declarado para el recurso ("mdy" o "dmy");
+    - la hora 24:00, que equivale a las 00:00 del dia siguiente;
+    - numeros de serie de Excel, con punto o coma decimal (41646,04167).
+
+    excel_invertido corrige un defecto de algunos archivos del portal de Cali:
+    Excel leyo fechas mes/dia como dia/mes cuando el dia era menor o igual a
+    12 y las convirtio en numeros de serie con el dia y el mes cambiados.
     """
     limpio = str(texto).strip()
     if _PATRON_SERIE_EXCEL.match(limpio):
         local = _ORIGEN_EXCEL + timedelta(days=float(limpio.replace(",", ".")))
         local = local.replace(second=0, microsecond=0) + timedelta(minutes=round(local.second / 60))
+        if excel_invertido:
+            local = local.replace(month=local.day, day=local.month)
         return local.replace(tzinfo=ZONA_FUENTES).astimezone(timezone.utc)
-    for formato in _FORMATOS_FECHA:
+    dia_siguiente = False
+    if coincidencia := _PATRON_HORA_24.match(limpio):
+        limpio = coincidencia.group(1) + "00:00"
+        dia_siguiente = True
+    for formato in _FORMATOS_ISO + _FORMATOS_BARRA[orden]:
         try:
             local = datetime.strptime(limpio, formato)
         except ValueError:
             continue
+        if dia_siguiente:
+            local += timedelta(days=1)
         return local.replace(tzinfo=ZONA_FUENTES).astimezone(timezone.utc)
     raise ValueError(f"Formato de fecha no reconocido: {texto!r}")
+
+
+def candidatos_fecha(texto: str, orden: str = "mdy") -> list[datetime]:
+    """Lecturas posibles de una fecha que puede venir con el dia y el mes invertidos.
+
+    Solo los numeros de serie de Excel con dia menor o igual a 12 (y distinto
+    del mes) tienen dos lecturas posibles. El conector elige la que encaja con
+    la secuencia de la serie.
+    """
+    lectura = leer_fecha(texto, orden)
+    if not _PATRON_SERIE_EXCEL.match(str(texto).strip()):
+        return [lectura]
+    local = lectura.astimezone(ZONA_FUENTES)
+    if local.day > 12 or local.day == local.month:
+        return [lectura]
+    return [lectura, leer_fecha(texto, orden, excel_invertido=True)]
 
 
 def bandera(codigo: str, valor: float | None) -> str:

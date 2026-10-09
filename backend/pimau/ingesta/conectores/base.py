@@ -10,6 +10,7 @@ from typing import Iterator
 
 import logging
 import time
+from datetime import timedelta
 
 import httpx
 
@@ -60,6 +61,10 @@ class ConectorMediciones:
     pueden guardar como medicion. Se cuentan en filas_descartadas y la
     ejecucion las reporta como advertencia.
     """
+
+    # Frecuencia con la que la fuente deberia reportar. Si no es None, la
+    # ingesta genera como faltantes los instantes que la fuente no publico.
+    frecuencia_esperada: timedelta | None = timedelta(hours=1)
 
     def __init__(self, cliente: httpx.Client | None = None):
         self.cliente = cliente or httpx.Client(timeout=300, follow_redirects=True)

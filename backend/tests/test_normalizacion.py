@@ -29,6 +29,24 @@ def test_leer_fecha_acepta_numeros_de_serie_de_excel():
     assert norma.leer_fecha("41646,04167") == datetime(2014, 1, 7, 6, 0, tzinfo=timezone.utc)
 
 
+def test_leer_fecha_respeta_el_orden_declarado():
+    # 05/06/2019 es ambigua: el orden lo declara cada recurso.
+    assert norma.leer_fecha("05/06/2019 10:00", orden="mdy").month == 5
+    assert norma.leer_fecha("05/06/2019 10:00", orden="dmy").month == 6
+
+
+def test_leer_fecha_convierte_la_hora_24_en_el_dia_siguiente():
+    # 31/12/2019 24:00 en Colombia es el 1 de enero de 2020 a las 05:00 UTC.
+    assert norma.leer_fecha("31/12/2019 24:00", orden="dmy") == datetime(2020, 1, 1, 5, 0, tzinfo=timezone.utc)
+
+
+def test_leer_fecha_corrige_fechas_de_excel_invertidas():
+    # En Cañaveralejo, despues de 06/30/2014 23:00 viene 41646, que Excel
+    # leyo como 7 de enero de 2014 pero corresponde al 1 de julio de 2014.
+    assert norma.leer_fecha("41646", excel_invertido=True) == datetime(2014, 7, 1, 5, 0, tzinfo=timezone.utc)
+    assert norma.leer_fecha("41980,95833", excel_invertido=True) == datetime(2014, 7, 13, 4, 0, tzinfo=timezone.utc)
+
+
 def test_leer_fecha_rechaza_formatos_desconocidos():
     with pytest.raises(ValueError):
         norma.leer_fecha("ayer a las tres")

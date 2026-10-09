@@ -77,6 +77,17 @@ def test_una_fuente_caida_no_afecta_a_las_demas(sesion, monkeypatch):
     assert sesion.scalar(select(func.count(Medicion.id))) == 1
 
 
+def test_genera_los_faltantes_implicitos_de_la_serie(sesion, monkeypatch):
+    # La fuente publica las 01:00 y las 04:00, pero no las 02:00 ni las 03:00.
+    monkeypatch.setitem(ejecutor.CONECTORES, "buena", lambda: ConectorFijo([_registro(1, 10.0), _registro(4, 12.0)]))
+    fuente = sesion.scalar(select(Fuente).where(Fuente.nombre == "buena"))
+    ejecucion = ejecutor.ejecutar_fuente(sesion, fuente)
+    assert ejecucion.registros == 4 and "2 faltantes implícitos" in ejecucion.mensaje_error
+    horas = sesion.execute(select(Medicion.instante, Medicion.bandera).order_by(Medicion.instante)).all()
+    assert [(h.hour, b) for h, b in horas] == [(1, "valido"), (2, "faltante"), (3, "faltante"), (4, "valido")]
+    assert ejecutor.ejecutar_fuente(sesion, fuente, completa=True).registros == 0  # no duplica
+
+
 def test_la_ingesta_incremental_solo_trae_datos_nuevos(sesion, monkeypatch):
     registros = [_registro(1, 10.0)]
     monkeypatch.setitem(ejecutor.CONECTORES, "buena", lambda: ConectorFijo(registros))

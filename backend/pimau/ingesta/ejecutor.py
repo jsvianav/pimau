@@ -53,9 +53,15 @@ def ejecutar_fuente(sesion: Session, fuente: Fuente, completa: bool = False) -> 
         if isinstance(conector, ConectorMediciones):
             desde = None if completa else _ultimo_instante(sesion, fuente)
             registros = _cargar_mediciones(sesion, fuente, ejecucion, conector.extraer(desde))
+            notas = []
+            if conector.frecuencia_esperada is not None:
+                faltantes = completar_faltantes(sesion, fuente, ejecucion, conector.frecuencia_esperada)
+                registros += faltantes
+                if faltantes:
+                    notas.append(f"incluye {faltantes} faltantes implícitos")
             if conector.filas_descartadas:
-                ejecucion.mensaje_error = (f"Advertencia: {conector.filas_descartadas} filas "
-                                           "descartadas por fecha ilegible")
+                notas.append(f"Advertencia: {conector.filas_descartadas} filas descartadas por fecha ilegible")
+            ejecucion.mensaje_error = ". ".join(notas) or None
         elif isinstance(conector, ConectorCapas):
             registros = _cargar_capas(sesion, conector.extraer())
         else:
@@ -104,6 +110,35 @@ def _cargar_mediciones(sesion, fuente, ejecucion, registros) -> int:
         insertadas += len(resultado.all())
         sesion.commit()
     return insertadas
+
+
+def completar_faltantes(sesion, fuente, ejecucion, frecuencia) -> int:
+    """Genera como faltantes los instantes que la fuente no publico (RF-03).
+
+    Algunas fuentes, como el IDEAM, no publican las horas sin medicion. Para
+    que todas las series se traten igual, cada instante esperado entre la
+    primera y la ultima medicion de una serie que no exista se guarda sin
+    valor y con la bandera faltante. Repetirlo no duplica datos.
+    """
+    resultado = sesion.execute(text("""
+        WITH series AS (
+            SELECT m.estacion_id, m.parametro_id, min(m.instante) AS desde, max(m.instante) AS hasta
+            FROM medicion m JOIN estacion e ON e.id = m.estacion_id
+            WHERE e.fuente_id = :fuente
+            GROUP BY m.estacion_id, m.parametro_id
+        ), nuevas AS (
+            INSERT INTO medicion (estacion_id, parametro_id, ejecucion_id, instante, valor, bandera)
+            SELECT s.estacion_id, s.parametro_id, :ejecucion, g.instante, NULL, 'faltante'
+            FROM series s
+            CROSS JOIN LATERAL generate_series(s.desde, s.hasta, :frecuencia) AS g(instante)
+            ON CONFLICT (estacion_id, parametro_id, instante) DO NOTHING
+            RETURNING 1
+        )
+        SELECT count(*) FROM nuevas
+    """), {"fuente": fuente.id, "ejecucion": ejecucion.id, "frecuencia": frecuencia})
+    total = resultado.scalar_one()
+    sesion.commit()
+    return total
 
 
 def _asegurar_estacion(sesion, fuente, estacion) -> int:

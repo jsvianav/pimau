@@ -147,9 +147,111 @@ y sectores). La carga completa tomó cerca de 8 minutos.
 
 - [ ] Enviar la solicitud de acceso a SATIC.
 - [ ] Crear la clave gratuita de OpenAQ y verificar si hay estaciones de Cali.
-- [ ] Verificar los puntos de corte del ICA contra la Resolución 2254 de 2017.
-- [ ] Cargar Base Aérea desde el archivo CSV del portal de Cali.
-- [ ] Generar los faltantes implícitos del IDEAM según la frecuencia horaria.
-- [ ] Cargar la capa de corregimientos de la IDESC.
+- [x] Verificar los puntos de corte del ICA contra la Resolución 2254 de 2017 (ver entrada siguiente).
+- [x] Cargar Base Aérea desde el archivo CSV del portal de Cali.
+- [x] Generar los faltantes implícitos del IDEAM según la frecuencia horaria.
+- [x] Cargar la capa de corregimientos de la IDESC.
 - [ ] Actualizar el Capítulo 3 con los hallazgos de esta entrada.
 - [ ] Incremento 2: API de consulta y visor.
+
+## 2026-10-09 — Cierre de los pendientes del incremento 1
+
+### Puntos de corte del ICA
+
+Se leyó la Tabla 6 de la Resolución 2254 de 2017 en la imagen que acompaña el
+texto oficial de la norma (Secretaría Jurídica Distrital de Bogotá, norma
+82634) y se cargaron en la migración `0003_puntos_corte_ica`.
+
+| Categoría | Color | PM10 (µg/m³, 24 h) | PM2.5 (µg/m³, 24 h) |
+| --- | --- | --- | --- |
+| Buena | Verde | 0–54 | 0–12 |
+| Aceptable | Amarillo | 55–154 | 13–37 |
+| Dañina a la salud de grupos sensibles | Naranja | 155–254 | 38–55 |
+| Dañina a la salud | Rojo | 255–354 | 56–150 |
+| Muy dañina a la salud | Púrpura | 355–424 | 151–250 |
+| Peligrosa | Marrón | 425–604 | 251–500 |
+
+La norma nombra los colores, pero no da códigos. Los códigos hexadecimales
+son una elección de diseño de la plataforma.
+
+**Pregunta abierta para el incremento 2:** los límites son enteros y las
+mediciones pueden tener decimales (por ejemplo, 12,5 µg/m³ queda entre
+"Buena" y "Aceptable"). Hay que definir la regla de clasificación
+(redondeo o intervalos continuos) y confirmarla con la norma o con el
+protocolo del IDEAM.
+
+### Fechas invertidas en Cañaveralejo y La Ermita
+
+**Hallazgo importante.** En esas dos estaciones, todas las fechas con barra
+tenían el día mayor que 12, y el resto venía como número de serie de Excel.
+Al revisar el orden de las filas se confirmó un defecto típico de Excel: las
+fechas mes/día con día menor o igual a 12 se leyeron como día/mes y se
+convirtieron en números con el día y el mes cambiados. Por ejemplo, después
+de `06/30/2014 23:00` viene `41646`, que Excel leyó como 7 de enero de 2014,
+pero corresponde al 1 de julio de 2014.
+
+El defecto solo afecta el periodo de 2014 a 2018. Desde 2019 los números de
+serie son correctos (`43478` es el 13 de enero de 2019). Por eso no sirve una
+regla fija por estación.
+
+**Decisión.** Cuando una fecha de Excel admite dos lecturas (día menor o igual
+a 12 y distinto del mes), se elige la que queda más cerca de una hora después
+de la fila anterior, porque las series son horarias y vienen ordenadas.
+
+**Verificación.** Con la regla aplicada, Cañaveralejo, La Ermita y Base Aérea
+no tienen ningún salto hacia atrás en el tiempo, y solo queda un hueco de dos
+horas en Cañaveralejo, que es un faltante real.
+
+**Corrección de datos.** Se eliminaron las 114 109 mediciones de esas dos
+estaciones cargadas con fechas erróneas y se recargaron. La recarga produjo
+exactamente 114 110 filas (las 114 109 originales y el único faltante real),
+sin ninguna fila descartada.
+
+### Base Aérea
+
+Se carga desde el archivo CSV del portal. El archivo usa `;` como separador y
+tiene marca BOM. Hasta 2018 las fechas son ISO, y en 2019 son día/mes/año con
+la hora `24:00` para la medianoche. La normalización ahora exige declarar el
+orden de las fechas con barras para cada recurso, porque una fecha como
+`05/06/2019` es ambigua.
+
+### Faltantes implícitos
+
+Después de cargar cada fuente horaria, la ingesta genera como faltantes las
+horas que la fuente no publicó, entre la primera y la última medición de cada
+serie. La operación es idempotente.
+
+Esto cambió por completo la lectura del IDEAM. Su 0 % de faltantes pasó a
+**57 %**, porque esa fuente simplemente no publicaba las horas sin dato.
+
+### Corregimientos
+
+Se cargó la capa `dapm:pdt_dpa_corregimientos` (15 corregimientos). Pance
+quedó en el corregimiento de Pance y Cascajal en el de El Hormiguero. Todas
+las estaciones quedan ubicadas en una comuna o en un corregimiento.
+
+### Estado de la base después de esta sesión
+
+| Fuente | Parámetro | Estaciones | Mediciones | Faltantes | Periodo |
+| --- | --- | ---: | ---: | ---: | --- |
+| Datos Abiertos de Cali | PM10 | 7 | 432 324 | 25,3 % | 2010-01-28 a 2020-08-01 |
+| Datos Abiertos de Cali | PM2.5 | 4 | 215 249 | 43,3 % | 2013-03-01 a 2020-01-01 |
+| IDEAM (datos.gov.co) | PM10 | 8 | 212 724 | 56,8 % | 2020-01-01 a 2025-01-01 |
+| IDEAM (datos.gov.co) | PM2.5 | 10 | 240 709 | 56,9 % | 2020-01-01 a 2025-01-01 |
+
+Total: 1 101 006 mediciones, ninguna fuera de rango. Capas: 22 comunas, 342
+barrios y sectores y 15 corregimientos. Umbrales: 12 puntos de corte del ICA
+y 4 valores guía de la OMS.
+
+Pruebas: 39, todas pasan.
+
+### Pendientes
+
+- [ ] Enviar la solicitud de acceso a SATIC.
+- [ ] Crear la clave gratuita de OpenAQ y verificar si hay estaciones de Cali.
+- [ ] Definir la regla de clasificación del ICA para valores con decimales.
+- [ ] Relacionar las estaciones del DAGMA que aparecen en dos fuentes.
+- [ ] Agregar la prueba automática de capas (ADR-01).
+- [ ] Actualizar el Capítulo 3 con los hallazgos de la bitácora.
+- [ ] Incremento 2: API de consulta y visor.
+

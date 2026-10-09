@@ -17,6 +17,8 @@ CRS_ESPERADO = "urn:ogc:def:crs:EPSG::4326"
 CAPAS = [
     ("comuna", "dapm:pdt_dpa_comunas", "comcodigo", "comnombre"),
     ("barrio", "dapm:pdt_dpa_barrios_sectores", "barcodigo", "barnombre"),
+    # La zona rural (por ejemplo Pance y Cascajal) esta en corregimientos.
+    ("corregimiento", "dapm:pdt_dpa_corregimientos", "corrcod", "corrnombre"),
 ]
 
 
