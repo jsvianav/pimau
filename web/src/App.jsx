@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api.js";
-import { agruparEstaciones, formatearFecha, PARAMETROS } from "./util.js";
+import { agruparEstaciones, formatearFecha } from "./util.js";
+import SelectorParametro from "./componentes/SelectorParametro.jsx";
 import Mapa from "./componentes/Mapa.jsx";
 import Ficha from "./componentes/Ficha.jsx";
 import ListaEstaciones from "./componentes/ListaEstaciones.jsx";
@@ -26,6 +27,7 @@ export default function App() {
   const [parametro, setParametro] = useState("PM25");
   const [datos, setDatos] = useState(null);
   const [umbrales, setUmbrales] = useState(null);
+  const [parametros, setParametros] = useState([]);
   const [error, setError] = useState(null);
   const [seleccion, setSeleccion] = useState(null);
   const [destinoHistorico, setDestinoHistorico] = useState(null);
@@ -36,12 +38,15 @@ export default function App() {
   useEffect(() => { panel.current?.scrollTo({ top: 0 }); }, [seleccion]);
 
   useEffect(() => {
-    Promise.all([api.estaciones(), api.umbrales()])
-      .then(([estaciones, limites]) => { setDatos(estaciones); setUmbrales(limites); })
+    Promise.all([api.estaciones(), api.umbrales(), api.parametros()])
+      .then(([estaciones, limites, lista]) => {
+        setDatos(estaciones); setUmbrales(limites); setParametros(lista.filter((p) => p.con_datos));
+      })
       .catch((e) => setError(e.message));
   }, []);
 
   const grupos = useMemo(() => (datos ? agruparEstaciones(datos) : []), [datos]);
+  const meta = useMemo(() => Object.fromEntries(parametros.map((p) => [p.codigo, p])), [parametros]);
   // Fecha del dato más reciente entre todas las fuentes, para dar contexto.
   const ultimoDato = useMemo(() => {
     const fechas = (datos?.features || []).flatMap((f) => Object.values(f.properties.parametros).map((p) => p.instante));
@@ -94,26 +99,24 @@ export default function App() {
       {pestana === "mapa" && (
         <main className="vista-mapa">
           <div className="mapa-contenedor">
-            <Mapa grupos={grupos} parametro={parametro} seleccion={seleccion} onSeleccionar={setSeleccion}>
+            <Mapa grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion} onSeleccionar={setSeleccion}>
               <label className="campo">
-                Contaminante
-                <select value={parametro} onChange={(e) => setParametro(e.target.value)}>
-                  {Object.entries(PARAMETROS).map(([codigo, nombre]) => <option key={codigo} value={codigo}>{nombre}</option>)}
-                </select>
+                Variable
+                <SelectorParametro parametros={parametros} valor={parametro} onCambiar={setParametro} />
               </label>
             </Mapa>
-            {umbrales && <Leyenda umbrales={umbrales} parametro={parametro} />}
+            {umbrales && <Leyenda umbrales={umbrales} parametro={parametro} meta={meta[parametro]} />}
           </div>
           <aside className="panel-lateral" ref={panel}>
-            <Ficha grupo={grupoSeleccionado} parametro={parametro} onVerHistorico={verHistorico} />
-            <ListaEstaciones grupos={grupos} parametro={parametro} seleccion={seleccion} onSeleccionar={setSeleccion} />
+            <Ficha grupo={grupoSeleccionado} parametro={parametro} meta={meta[parametro]} onVerHistorico={verHistorico} />
+            <ListaEstaciones grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion} onSeleccionar={setSeleccion} />
           </aside>
         </main>
       )}
 
       {pestana === "historico" && (
         <main className="vista-historico">
-          <Historico grupos={grupos} umbrales={umbrales} destino={destinoHistorico} />
+          <Historico grupos={grupos} umbrales={umbrales} parametros={parametros} meta={meta} destino={destinoHistorico} />
         </main>
       )}
 

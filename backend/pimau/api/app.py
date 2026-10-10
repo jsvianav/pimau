@@ -5,7 +5,10 @@ Solo lee la base de datos. No llama a la ingesta ni a las fuentes externas
 """
 import csv
 import io
+import logging
+import threading
 import time
+from contextlib import asynccontextmanager
 from collections import defaultdict, deque
 from datetime import date
 from typing import Literal
@@ -17,7 +20,37 @@ from sqlalchemy.orm import Session
 from pimau.api import consultas
 from pimau.db.sesion import Sesion
 
+log = logging.getLogger("pimau.api")
+DURACION_CACHE_S = 600
+
+
+def _renovar_indicadores():
+    """Calcula los indicadores en segundo plano y los deja en la cache (ADR-04).
+
+    El calculo de /api/estaciones recorre millones de mediciones y tarda varios
+    segundos. Al hacerlo en segundo plano, ninguna consulta de un usuario
+    espera ese calculo (escenario 2).
+    """
+    while True:
+        try:
+            with Sesion() as sesion:
+                inicio = time.monotonic()
+                _cache["estaciones"] = (time.monotonic(), consultas.estaciones(sesion))
+                _cache["umbrales"] = (time.monotonic(), consultas.umbrales(sesion))
+                log.info("Indicadores renovados en %.1f s", time.monotonic() - inicio)
+        except Exception:
+            log.exception("No se pudieron renovar los indicadores")
+        time.sleep(DURACION_CACHE_S - 60)
+
+
+@asynccontextmanager
+async def ciclo_de_vida(_app):
+    threading.Thread(target=_renovar_indicadores, daemon=True, name="indicadores").start()
+    yield
+
+
 app = FastAPI(
+    lifespan=ciclo_de_vida,
     title="PIMAU API",
     description="Consulta de los datos ambientales integrados de Santiago de Cali. "
                 "Cada dato incluye su fuente, su fecha y su bandera de calidad.",
@@ -28,9 +61,7 @@ app = FastAPI(
 
 MAXIMO_DIAS_HORARIO = 93
 SOLICITUDES_POR_MINUTO = 120
-DURACION_CACHE_S = 600
 
-Parametro = Literal["PM25", "PM10"]
 Agregacion = Literal["hora", "dia"]
 
 
@@ -93,7 +124,14 @@ def listar_estaciones(sesion: Session = Depends(sesion_bd)):
     return _en_cache("estaciones", lambda: consultas.estaciones(sesion))
 
 
-def _validar(sesion, estacion_id, desde, hasta, agregacion):
+def _validar_parametro(sesion, parametro: str):
+    codigos = _en_cache("codigos", lambda: consultas.codigos_parametros(sesion))
+    if parametro not in codigos:
+        raise HTTPException(422, f"Parámetro desconocido. Use uno de: {', '.join(sorted(codigos))}")
+
+
+def _validar(sesion, estacion_id, parametro, desde, hasta, agregacion):
+    _validar_parametro(sesion, parametro)
     estacion = consultas.estacion_existe(sesion, estacion_id)
     if estacion is None:
         raise HTTPException(404, "La estación no existe")
@@ -106,7 +144,8 @@ def _validar(sesion, estacion_id, desde, hasta, agregacion):
 
 
 @app.get("/api/estaciones/{estacion_id}/rango", summary="Fechas disponibles de una serie")
-def rango(estacion_id: int, parametro: Parametro = "PM25", sesion: Session = Depends(sesion_bd)):
+def rango(estacion_id: int, parametro: str = "PM25", sesion: Session = Depends(sesion_bd)):
+    _validar_parametro(sesion, parametro)
     resultado = consultas.rango_disponible(sesion, estacion_id, parametro)
     if resultado is None:
         raise HTTPException(404, "No hay datos de ese parámetro en la estación")
@@ -114,29 +153,30 @@ def rango(estacion_id: int, parametro: Parametro = "PM25", sesion: Session = Dep
 
 
 @app.get("/api/estaciones/{estacion_id}/series", summary="Serie histórica (RF-06)")
-def serie(estacion_id: int, parametro: Parametro = "PM25",
+def serie(estacion_id: int, parametro: str = "PM25",
           desde: date = Query(..., description="Día inicial (hora de Colombia)"),
           hasta: date = Query(..., description="Día final, incluido"),
           agregacion: Agregacion = "hora", sesion: Session = Depends(sesion_bd)):
-    estacion = _validar(sesion, estacion_id, desde, hasta, agregacion)
+    estacion = _validar(sesion, estacion_id, parametro, desde, hasta, agregacion)
     datos = (consultas.serie_horaria if agregacion == "hora" else consultas.serie_diaria)(
         sesion, estacion_id, parametro, desde, hasta)
     return {"estacion": estacion, "parametro": parametro, "agregacion": agregacion, "datos": datos}
 
 
 @app.get("/api/estaciones/{estacion_id}/series.csv", summary="Descarga de la serie en CSV (RF-08)")
-def serie_csv(estacion_id: int, parametro: Parametro = "PM25",
+def serie_csv(estacion_id: int, parametro: str = "PM25",
               desde: date = Query(...), hasta: date = Query(...),
               agregacion: Agregacion = "hora", sesion: Session = Depends(sesion_bd)):
-    estacion = _validar(sesion, estacion_id, desde, hasta, agregacion)
+    estacion = _validar(sesion, estacion_id, parametro, desde, hasta, agregacion)
     datos = (consultas.serie_horaria if agregacion == "hora" else consultas.serie_diaria)(
         sesion, estacion_id, parametro, desde, hasta)
     salida = io.StringIO()
     escritor = csv.writer(salida)
+    unidad = next(p["unidad"] for p in consultas.parametros(sesion) if p["codigo"] == parametro)
     escritor.writerow(["estacion", "fuente", "parametro", "unidad",
                        "instante" if agregacion == "hora" else "dia", "valor", "bandera"])
     for d in datos:
-        escritor.writerow([estacion["nombre"], estacion["fuente"], parametro, "µg/m³",
+        escritor.writerow([estacion["nombre"], estacion["fuente"], parametro, unidad,
                            d.get("instante") or d.get("dia"), "" if d["valor"] is None else d["valor"],
                            d["bandera"]])
     nombre = f"pimau_{estacion_id}_{parametro}_{desde}_{hasta}.csv"

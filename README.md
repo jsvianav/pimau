@@ -1,7 +1,7 @@
 # PIMAU · Plataforma Inteligente de Monitoreo Ambiental Urbano
 
-Plataforma web que integra los datos abiertos de calidad del aire de Santiago
-de Cali en un modelo de datos común, con su fuente, su fecha y su estado de
+Plataforma web que integra los datos abiertos de calidad del aire y de
+meteorología de Santiago de Cali en un modelo de datos común, con su fuente, su fecha y su estado de
 calidad. Es el producto del trabajo de grado de John Sebastian Viana Vargas
 (Ingeniería de Sistemas, Universidad de San Buenaventura Cali).
 

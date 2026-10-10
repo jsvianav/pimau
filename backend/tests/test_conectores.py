@@ -6,16 +6,34 @@ from pimau.ingesta.conectores import cali_ckan, ideam, idesc
 
 @respx.mock
 def test_ideam_normaliza_filas_de_cali():
-    respx.get(ideam.URL).mock(return_value=httpx.Response(200, json=[
+    filas = [
         {"estacion_id": "31820", "nombre_est": "CASCAJAL", "msfl_code": "PM2.5",
          "med_concentracion_estandar": "18", "med_fecha_final": "2024-12-31T23:00:00.000",
-         "latitud": "3.39", "longitud": "-76.49", "sigla_unidad": "ug/m3"},
-        {"estacion_id": "31820", "nombre_est": "CASCAJAL", "msfl_code": "TAire2",
+         "latitud": "3.39", "longitud": "-76.49", "sigla_unidad": "ug/m3", "duraci_n": "60"},
+        {"estacion_id": "31820", "nombre_est": "CASCAJAL", "msfl_code": "P",
+         "med_concentracion_estandar": "690", "med_fecha_final": "2024-12-31T23:00:00.000",
+         "latitud": "3.39", "longitud": "-76.49", "sigla_unidad": "mmHg", "duraci_n": "60"},
+        # Presion ya publicada en hPa aunque diga mmHg: no se convierte.
+        {"estacion_id": "30110", "nombre_est": "COMPARTIR", "msfl_code": "P",
+         "med_concentracion_estandar": "905.3", "med_fecha_final": "2024-12-31T23:00:00.000",
+         "latitud": "3.43", "longitud": "-76.47", "sigla_unidad": "mmHg", "duraci_n": "60"},
+        # Promedio diario: no se mezcla con los horarios.
+        {"estacion_id": "31820", "nombre_est": "CASCAJAL", "msfl_code": "PM10",
+         "med_concentracion_estandar": "40", "med_fecha_final": "2024-12-31T00:00:00.000",
+         "latitud": "3.39", "longitud": "-76.49", "sigla_unidad": "ug/m3", "duraci_n": "1440"},
+        # Temperatura a 10 m: no se usa.
+        {"estacion_id": "31820", "nombre_est": "CASCAJAL", "msfl_code": "TAire10",
          "med_concentracion_estandar": "25", "med_fecha_final": "2024-12-31T23:00:00.000",
-         "latitud": "3.39", "longitud": "-76.49", "sigla_unidad": "°C"},
-    ]))
+         "latitud": "3.39", "longitud": "-76.49", "sigla_unidad": "°C", "duraci_n": "60"},
+    ]
+    # La descarga es por meses: solo la ventana de diciembre de 2024 devuelve filas.
+    ruta = respx.get(ideam.URL).mock(side_effect=lambda request: httpx.Response(
+        200, json=filas if "> '2024-12-01" in request.url.params["$where"] else []))
     registros = list(ideam.ConectorIdeam().extraer(None))
-    assert len(registros) == 1  # la temperatura no es parte del MVP
+    assert ruta.call_count > 100  # una consulta por mes desde 2010
+    assert [r.parametro for r in registros] == ["PM25", "PRES", "PRES"]
+    assert registros[1].valor == round(690 * 1.333224, 4)  # mmHg a hPa
+    assert registros[2].valor == 905.3  # ya estaba en hPa
     r = registros[0]
     assert (r.parametro, r.valor, r.bandera, r.estacion.nombre) == ("PM25", 18.0, "valido", "Cascajal")
     assert r.instante.isoformat() == "2025-01-01T04:00:00+00:00"
@@ -33,7 +51,7 @@ def test_cali_ckan_marca_faltantes_sin_eliminarlos(monkeypatch):
             {"_id": 3, "Fecha & Hora": "#¡VALOR!", "PM2,5 (ug/m3)": "7", "O3  (ug/m3)": "17"},
         ]}}))
     conector = cali_ckan.ConectorCaliCkan()
-    registros = list(conector.extraer(None))
+    registros = [r for r in conector.extraer(None) if r.parametro == "PM25"]
     assert [(r.valor, r.bandera) for r in registros] == [(4.5, "valido"), (None, "faltante")]
     assert conector.filas_descartadas == 1
 
@@ -64,7 +82,7 @@ def test_cali_ckan_lee_base_aerea_desde_el_csv(monkeypatch):
     respx.get(cali_ckan.URL_RECURSO).mock(return_value=httpx.Response(200, json={"result": {"url": "https://ejemplo/ba.csv"}}))
     contenido = "\ufeff_id;Fecha & Hora;PM2.5 (ug/m3);SO2  (ug/m3)\r\n1;31/12/2019 23:00;10;ND\r\n2;31/12/2019 24:00;ND;ND\r\n"
     respx.get("https://ejemplo/ba.csv").mock(return_value=httpx.Response(200, content=contenido.encode("utf-8")))
-    registros = list(cali_ckan.ConectorCaliCkan().extraer(None))
+    registros = [r for r in cali_ckan.ConectorCaliCkan().extraer(None) if r.parametro == "PM25"]
     assert [(r.instante.isoformat(), r.valor, r.bandera) for r in registros] == [
         ("2020-01-01T04:00:00+00:00", 10.0, "valido"),
         ("2020-01-01T05:00:00+00:00", None, "faltante"),

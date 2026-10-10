@@ -11,19 +11,47 @@ from pimau.config import configuracion
 
 ZONA_FUENTES = ZoneInfo(configuracion.zona_horaria_fuentes)
 
-# Rango fisico posible por parametro, en µg/m³. Un valor fuera de este rango
-# casi siempre es un error del sensor (Capitulo 2, deteccion de anomalias).
+# Rango fisico posible por parametro, en la unidad comun. Un valor fuera de
+# este rango casi siempre es un error del sensor (Capitulo 2, deteccion de
+# anomalias). La humedad admite hasta 105 % porque los sensores marcan algo mas
+# de 100 % en saturacion.
 RANGOS_FISICOS = {
+    # Contaminantes, µg/m³
     "PM25": (0.0, 1000.0),
     "PM10": (0.0, 2000.0),
+    "O3": (0.0, 1200.0),
+    "NO2": (0.0, 4000.0),
+    "SO2": (0.0, 3000.0),
+    "CO": (0.0, 60000.0),
+    "H2S": (0.0, 1000.0),
+    # Meteorologia
+    "TEMP": (-5.0, 50.0),      # °C
+    "HUM": (0.0, 105.0),       # %
+    "VV": (0.0, 60.0),         # m/s
+    "DV": (0.0, 360.0),        # grados
+    "LLUVIA": (0.0, 200.0),    # mm en una hora
+    "RAD": (0.0, 1500.0),      # W/m²
+    "PRES": (600.0, 1100.0),   # hPa
 }
 
 # Textos con los que las fuentes indican un dato ausente.
 TEXTOS_FALTANTE = {"", "nd", "n/d", "na", "n/a", "-", "--", "sin dato", "null", "none"}
 
+# Nombres de columna del portal de Cali y su codigo comun.
 _PATRONES_PARAMETRO = [
     (re.compile(r"^\s*pm\s*2[.,]?5", re.IGNORECASE), "PM25"),
     (re.compile(r"^\s*pm\s*10", re.IGNORECASE), "PM10"),
+    (re.compile(r"^\s*o3\b", re.IGNORECASE), "O3"),
+    (re.compile(r"^\s*no2\b", re.IGNORECASE), "NO2"),
+    (re.compile(r"^\s*so2\b", re.IGNORECASE), "SO2"),
+    (re.compile(r"^\s*co\b", re.IGNORECASE), "CO"),
+    (re.compile(r"^\s*h2s\b", re.IGNORECASE), "H2S"),
+    (re.compile(r"^\s*vel\.?\s*viento", re.IGNORECASE), "VV"),
+    (re.compile(r"^\s*dir\.?\s*viento", re.IGNORECASE), "DV"),
+    (re.compile(r"^\s*temperatura", re.IGNORECASE), "TEMP"),
+    (re.compile(r"^\s*humedad", re.IGNORECASE), "HUM"),
+    (re.compile(r"^\s*radiaci", re.IGNORECASE), "RAD"),
+    (re.compile(r"^\s*lluvia", re.IGNORECASE), "LLUVIA"),
 ]
 
 _FORMATOS_ISO = (

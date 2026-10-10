@@ -12,6 +12,7 @@ async function obtener(ruta) {
 export const api = {
   estaciones: () => obtener("/api/estaciones"),
   umbrales: () => obtener("/api/umbrales"),
+  parametros: () => obtener("/api/parametros"),
   capa: (tipo) => obtener(`/api/capas/${tipo}`),
   rango: (id, parametro) => obtener(`/api/estaciones/${id}/rango?parametro=${parametro}`),
   serie: (id, p) => obtener(`/api/estaciones/${id}/series?${new URLSearchParams(p)}`),

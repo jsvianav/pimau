@@ -370,3 +370,89 @@ Aérea la noche del 31 de diciembre de 2019 coincide con la pólvora de Año
 Nuevo. Es un buen caso para la detección de anomalías del Semestre 8, porque es
 un evento real y no un error del sensor.
 
+## 2026-10-10 — Cambio de alcance: meteorología y otros contaminantes
+
+### Cambio de alcance aprobado
+
+**Decisión del estudiante, 2026-10-10:** adelantar al Semestre 7 la integración
+de la meteorología y de los demás contaminantes criterio, que el plan inicial
+dejaba para el Semestre 8 dentro de RF-15.
+
+- **Por qué:** las variables ya estaban en las fuentes integradas, el modelo de
+  datos común las admite sin cambiar su estructura (ADR-02 y escenario 5) y
+  hacen el visor más útil para los usuarios.
+- **Qué cambia en los requisitos:** RF-01, RF-05 y RF-07 se amplían a todas
+  esas variables. RF-15 queda limitado al ruido ambiental y la cobertura
+  vegetal, que siguen en el Semestre 8.
+- **Documento:** se actualizaron el Capítulo 3 (incrementos, requisitos,
+  disponibilidad de datos y un párrafo del cambio de alcance) y el Anexo A.
+
+### Variables agregadas
+
+| Grupo | Variables | Fuentes |
+| --- | --- | --- |
+| Contaminantes | O₃, NO₂, SO₂, CO, H₂S | Portal de Cali; O₃ y SO₂ también del IDEAM |
+| Meteorología | Temperatura, humedad, velocidad y dirección del viento, lluvia, radiación solar, presión | Portal de Cali e IDEAM (la presión solo del IDEAM) |
+
+### Decisiones
+
+- **ICA de cada contaminante con su tiempo de exposición.** Los puntos de corte
+  se leyeron en la Tabla 6 de la Resolución 2254 de 2017 (imagen del texto
+  oficial): CO y O₃ con promedio de 8 horas, SO₂ y NO₂ con 1 hora. Se exige el
+  75 % de horas válidas en cada ventana (18 de 24 y 6 de 8).
+- **Ozono por encima de 393 µg/m³.** La norma pide usar el ICA de 1 hora en ese
+  caso. No se calcula, y el visor lo indica. En Cali ese valor es muy
+  improbable.
+- **H₂S** no tiene puntos de corte en la Resolución 2254, así que se muestra sin
+  ICA.
+- **Guías de la OMS 2021** cargadas: O₃ 100 µg/m³ (8 h), NO₂ 25 (24 h) y 10
+  (anual), SO₂ 40 (24 h) y CO 4000 (24 h). El visor solo compara con la guía
+  cuando su periodo coincide con el del ICA. Si no coincide, la muestra como
+  referencia sin compararla.
+- **Unidades.** La presión del IDEAM se convierte de mmHg a hPa. La radiación
+  del IDEAM viene en Wh/m² por hora, que equivale a W/m² promedio en esa hora,
+  la misma unidad del portal de Cali.
+- **Temperatura y humedad del IDEAM a 2 m**, la altura estándar. Las de 10 m no
+  se usan para no duplicar la variable.
+- **Rangos físicos** por variable (RF-03). La humedad admite hasta 105 % porque
+  los sensores marcan algo más de 100 % en saturación (se observaron valores de
+  100,4 %).
+- **Resumen diario por variable.** La lluvia se suma y la dirección del viento
+  se promedia como ángulo (el promedio de 350° y 10° es 0°, no 180°). El resto
+  se promedia.
+- **Visor.** El selector agrupa contaminantes y meteorología. Las variables sin
+  ICA se dibujan en un solo color con su valor junto a cada estación. En la
+  gráfica, las referencias que superan el doble del máximo del periodo no se
+  dibujan, para no aplastar la serie, y la meteorología usa un eje ajustado a
+  los datos (la presión ronda 900 hPa).
+
+### Error corregido
+
+El conjunto del IDEAM incluye 33 promedios **diarios** de PM10 (duración de
+1440 minutos) además de los horarios, y el conector los había cargado como si
+fueran horarios. Ahora se filtran por duración y se recargó el IDEAM completo.
+
+### Verificación
+
+84 pruebas del backend (nuevas: conversión de unidades, filtro de promedios
+diarios, ventanas del ICA, ozono sobre 393, suma de lluvia y promedio angular
+del viento) y 8 del visor.
+
+### Problemas durante la carga y su solución
+
+| Problema | Causa | Solución |
+| --- | --- | --- |
+| La carga del IDEAM se volvía cada vez más lenta y terminó agotando el tiempo de espera. | datos.gov.co pagina con desplazamientos, y con desplazamientos de cientos de miles de filas cada página tardaba minutos. | Descarga por ventanas mensuales. La carga completa del IDEAM bajó a 13 minutos. |
+| El 22 % de la presión del IDEAM quedó fuera de rango. | **Hallazgo de calidad de datos:** las estaciones del DAGMA declaran la presión en mmHg, pero en algunos periodos publican valores ya en hPa (cerca de 905). La conversión los multiplicaba otra vez. | Un valor de 800 o más ya está en hPa y no se convierte (en Cali la presión en mmHg ronda 670). Se corrigieron 65 936 valores guardados. Quedan 279 valores en 0 marcados como fuera de rango, que son errores del sensor. |
+| `/api/estaciones` tardaba 5,7 s sin caché con 6 millones de mediciones. | El cálculo del último ICA representativo recorre todas las series. | La API calcula los indicadores al arrancar y los renueva en segundo plano cada 10 minutos (ADR-04). La primera consulta de un usuario tarda 23 ms. |
+
+### Estado de la base después del cambio
+
+6 130 963 mediciones de 14 variables, de 2010 a 2025. Las series de NO₂, CO
+y H₂S solo vienen del portal de Cali y terminan en 2020.
+
+### Anexos del documento
+
+Se completaron el Anexo C (guía de instalación y manual del visor) y el Anexo
+D (enlace del repositorio, bitácora e integración continua).
+

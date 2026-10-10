@@ -31,3 +31,17 @@ def test_valores_sin_ica():
     assert ica.calcular(None, CORTES_PM25) is None
     assert ica.calcular(-1, CORTES_PM25) is None
     assert ica.calcular(700, CORTES_PM25).categoria == "Peligrosa"
+
+
+def test_ventanas_y_minimos_por_contaminante():
+    assert (ica.VENTANAS_HORAS["CO"], ica.minimo_horas("CO")) == (8, 6)
+    assert (ica.VENTANAS_HORAS["NO2"], ica.minimo_horas("NO2")) == (1, 1)
+    assert ica.minimo_horas("PM25") == 18
+
+
+def test_ozono_por_encima_de_393_no_se_clasifica_con_8_horas():
+    cortes_o3 = [ica.PuntoCorte(c, i, s, None) for c, i, s in [
+        ("Buena", 0, 106), ("Aceptable", 107, 138), ("Dañina a la salud de grupos sensibles", 139, 167),
+        ("Dañina a la salud", 168, 207), ("Muy dañina a la salud", 208, 393)]]
+    assert ica.calcular(120, cortes_o3, sin_categoria_superior=True).categoria == "Aceptable"
+    assert ica.calcular(400, cortes_o3, sin_categoria_superior=True) is None

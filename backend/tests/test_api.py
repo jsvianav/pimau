@@ -66,8 +66,9 @@ def test_estaciones_con_ica_del_promedio_24h_y_guia_oms(cliente):
     assert propiedades["fuente"] == "Fuente de prueba"
     assert pm25["instante"].startswith("2024-12-31T23:00")
     assert pm25["instante_ica"].startswith("2024-12-31T23:00")
-    assert (pm25["promedio_24h"], pm25["horas_validas_24h"]) == (20.0, 20)
-    assert (pm25["categoria"], pm25["ica"], pm25["guia_oms_24h"]) == ("Aceptable", 65, 15.0)  # (100-51)/(37-13)*(20-13)+51 = 65,3
+    assert (pm25["promedio_ica"], pm25["horas_validas_ica"], pm25["ventana_ica_horas"]) == (20.0, 20, 24)
+    assert (pm25["categoria"], pm25["ica"]) == ("Aceptable", 65)  # (100-51)/(37-13)*(20-13)+51 = 65,3
+    assert pm25["guia_oms"] == {"periodo": "24 horas", "valor": 15.0, "comparable": True}
 
 
 def test_el_ica_usa_el_ultimo_periodo_representativo(cliente):
@@ -81,6 +82,34 @@ def test_el_ica_usa_el_ultimo_periodo_representativo(cliente):
     assert pm25["valor_horario"] == 90.0
     assert pm25["instante_ica"].startswith("2024-12-31T23:00")
     assert pm25["categoria"] == "Aceptable"
+
+
+def test_parametros_sin_ica_y_agregacion_diaria(cliente):
+    from sqlalchemy import create_engine
+    with create_engine(URL).begin() as c:
+        c.execute(text("""INSERT INTO parametro (id, codigo, nombre, unidad, variable)
+                          VALUES (3, 'LLUVIA', 'Lluvia', 'mm', 'meteorologia'), (4, 'DV', 'Dirección del viento', '°', 'meteorologia')"""))
+        for h in range(24):
+            instante = FIN - timedelta(hours=h)
+            c.execute(text("""INSERT INTO medicion (estacion_id, parametro_id, ejecucion_id, instante, valor, bandera)
+                              VALUES (1, 3, 1, :i, 1, 'valido'), (1, 4, 1, :i, :d, 'valido')"""),
+                      {"i": instante, "d": 350 if h % 2 else 10})
+    lluvia = cliente.get("/api/estaciones").json()["features"][0]["properties"]["parametros"]["LLUVIA"]
+    assert lluvia["ica"] is None and lluvia["ventana_ica_horas"] is None and lluvia["valor_horario"] == 1.0
+    dias = {d["dia"]: d for d in cliente.get("/api/estaciones/1/series", params={
+        "parametro": "LLUVIA", "desde": "2024-12-31", "hasta": "2025-01-01", "agregacion": "dia"}).json()["datos"]}
+    # El 31 de diciembre (hora de Colombia) tiene 19 horas con 1 mm: la lluvia se suma.
+    assert dias["2024-12-31"]["valor"] == 19.0
+    viento = cliente.get("/api/estaciones/1/series", params={
+        "parametro": "DV", "desde": "2024-12-31", "hasta": "2024-12-31", "agregacion": "dia"}).json()["datos"][0]
+    # El promedio de 350° y 10° es cercano a 0°, no 180°. Ese dia tiene 19 horas
+    # (10 de un lado y 9 del otro), por eso no da exactamente 0°.
+    assert viento["valor"] < 1 or viento["valor"] > 359
+
+
+def test_rechaza_parametros_desconocidos(cliente):
+    r = cliente.get("/api/estaciones/1/series", params={"parametro": "XYZ", "desde": "2024-12-31", "hasta": "2024-12-31"})
+    assert r.status_code == 422
 
 
 def test_serie_horaria_conserva_los_faltantes(cliente):

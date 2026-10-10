@@ -1,4 +1,4 @@
-import { antiguedad, formatearFecha, formatearNumero, HORAS_MINIMAS_ICA, PARAMETROS } from "../util.js";
+import { antiguedad, formatearFecha, formatearNumero, nombreCorto } from "../util.js";
 
 const RANGOS_INDICE = [[0, 50], [51, 100], [101, 150], [151, 200], [201, 300], [301, 500]];
 const COLORES_ICA = ["#00E400", "#FFFF00", "#FF7E00", "#FF0000", "#8F3F97", "#7E0023"];
@@ -13,11 +13,13 @@ function posicionEnEscala(ica) {
 }
 
 function EscalaIca({ estado }) {
+  if (!estado.ventana_ica_horas) return null;
   if (!estado.categoria) {
+    const minimo = Math.ceil(estado.ventana_ica_horas * 0.75);
     return (
       <p className="sin-ica">
-        No se puede calcular el ICA: ningún periodo de 24 horas de esta serie tiene las {HORAS_MINIMAS_ICA} horas
-        válidas que exige el cálculo.
+        No se puede calcular el ICA: ningún periodo de esta serie tiene las {minimo} de {estado.ventana_ica_horas}{" "}
+        horas válidas que exige el cálculo, o el valor está fuera de la escala de {estado.ventana_ica_horas} horas.
       </p>
     );
   }
@@ -37,52 +39,70 @@ function EscalaIca({ estado }) {
       </div>
       <div className="escala-extremos" aria-hidden="true"><span>Buena</span><span>Peligrosa</span></div>
       <p className="escala-detalle">
-        Promedio de {formatearNumero(estado.promedio_24h)} µg/m³ en las 24 horas que terminan el{" "}
-        {formatearFecha(estado.instante_ica)}, con {estado.horas_validas_24h} horas válidas.
+        {estado.ventana_ica_horas === 1
+          ? <>Valor de {formatearNumero(estado.promedio_ica)} µg/m³ en la hora que termina el {formatearFecha(estado.instante_ica)}.</>
+          : <>Promedio de {formatearNumero(estado.promedio_ica)} µg/m³ en las {estado.ventana_ica_horas} horas que terminan
+              el {formatearFecha(estado.instante_ica)}, con {estado.horas_validas_ica} horas válidas.</>}
       </p>
     </div>
   );
 }
 
-function DatoFuente({ registro, parametro, onVerHistorico }) {
+function GuiaOms({ estado }) {
+  const guia = estado.guia_oms;
+  if (!guia) return null;
+  if (guia.comparable && estado.promedio_ica != null) {
+    const supera = estado.promedio_ica > guia.valor;
+    return (
+      <p className="oms">
+        La guía de la OMS recomienda no superar {formatearNumero(guia.valor)} µg/m³ en {guia.periodo}. Ese promedio{" "}
+        {supera ? "la supera" : "está por debajo"}.
+      </p>
+    );
+  }
+  return (
+    <p className="oms">
+      Guía de la OMS: {formatearNumero(guia.valor)} µg/m³ como promedio de {guia.periodo}. No se compara porque el ICA
+      usa otro periodo.
+    </p>
+  );
+}
+
+function DatoFuente({ registro, parametro, meta, onVerHistorico }) {
   const estado = registro.parametros[parametro];
+  const nombre = nombreCorto(parametro);
   if (!estado) {
     return (
       <section className="fuente-dato">
         <h3>{registro.fuente}</h3>
-        <p className="nota">Esta fuente no publica {PARAMETROS[parametro]} para la estación.</p>
+        <p className="nota">Esta fuente no publica {nombre} para la estación.</p>
       </section>
     );
   }
-  const superaOms = estado.promedio_24h != null && estado.guia_oms_24h != null && estado.promedio_24h > estado.guia_oms_24h;
   return (
     <section className="fuente-dato">
       <h3>{registro.fuente}</h3>
       <p className="cifra">
         <strong>{formatearNumero(estado.valor_horario)}</strong>
-        <span>µg/m³ de {PARAMETROS[parametro]}, último valor horario</span>
+        <span>{meta?.unidad} de {nombre}, último valor horario</span>
       </p>
       <p className="fecha-dato">
         Medido el {formatearFecha(estado.instante)}, <span className="antiguedad">{antiguedad(estado.instante)}</span>
       </p>
       <EscalaIca estado={estado} />
-      {estado.guia_oms_24h != null && estado.promedio_24h != null && (
-        <p className="oms">
-          La guía de la OMS recomienda no superar {estado.guia_oms_24h} µg/m³ en 24 horas. Ese promedio{" "}
-          {superaOms ? "la supera" : "está por debajo"}.
-        </p>
-      )}
+      <GuiaOms estado={estado} />
       <button className="boton" onClick={() => onVerHistorico(registro.id)}>Ver el histórico de esta fuente</button>
     </section>
   );
 }
 
-export default function Ficha({ grupo, parametro, onVerHistorico }) {
+export default function Ficha({ grupo, parametro, meta, onVerHistorico }) {
   if (!grupo) {
     return (
       <section className="ficha vacia">
         <h2>Elija una estación</h2>
-        <p>Toque una estación en el mapa o búsquela en la lista para ver su último dato y su categoría del ICA.</p>
+        <p>Toque una estación en el mapa o búsquela en la lista para ver su último dato y, en los contaminantes, su
+          categoría del ICA.</p>
       </section>
     );
   }
@@ -93,7 +113,7 @@ export default function Ficha({ grupo, parametro, onVerHistorico }) {
         <p className="nota">Dos fuentes publican datos de esta estación. Se muestran por separado.</p>
       )}
       {grupo.registros.map((r) => (
-        <DatoFuente key={r.id} registro={r} parametro={parametro} onVerHistorico={onVerHistorico} />
+        <DatoFuente key={r.id} registro={r} parametro={parametro} meta={meta} onVerHistorico={onVerHistorico} />
       ))}
     </section>
   );

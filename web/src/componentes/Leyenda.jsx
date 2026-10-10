@@ -1,11 +1,27 @@
-import { PARAMETROS } from "../util.js";
+import { nombreCorto, textoVentana } from "../util.js";
 
-export default function Leyenda({ umbrales, parametro }) {
+export default function Leyenda({ umbrales, parametro, meta }) {
   const cortes = umbrales[parametro]?.ica || [];
+  if (!cortes.length) {
+    return (
+      <section className="flotante leyenda" aria-label="Leyenda">
+        <h2>{meta?.nombre || nombreCorto(parametro)}</h2>
+        <p>
+          {meta?.variable === "meteorologia"
+            ? "Variable meteorológica: no tiene escala de calidad del aire."
+            : "Este contaminante no tiene puntos de corte en la Resolución 2254 de 2017."}{" "}
+          El último valor aparece junto a cada estación, en {meta?.unidad}.
+        </p>
+      </section>
+    );
+  }
   return (
     <section className="flotante leyenda" aria-label="Leyenda del Índice de Calidad del Aire">
       <h2>Índice de Calidad del Aire</h2>
-      <p>{PARAMETROS[parametro]}, promedio de 24 horas, según la Resolución 2254 de 2017.</p>
+      <p>
+        {nombreCorto(parametro)}, {textoVentana(meta?.ventana_ica_horas)}, según la Resolución 2254 de 2017.
+        Concentraciones en µg/m³.
+      </p>
       <ol>
         {cortes.map((c) => (
           <li key={c.categoria}>

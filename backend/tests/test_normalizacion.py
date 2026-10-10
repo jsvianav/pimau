@@ -54,7 +54,11 @@ def test_leer_fecha_rechaza_formatos_desconocidos():
 
 @pytest.mark.parametrize("columna, codigo", [
     ("PM2,5 (ug/m3)", "PM25"), ("PM2.5 (ug/m3)", "PM25"), ("PM2.5", "PM25"),
-    ("PM10 (ug/m3)", "PM10"), ("PM10", "PM10"), ("O3  (ug/m3)", None), ("Fecha & Hora", None),
+    ("PM10 (ug/m3)", "PM10"), ("PM10", "PM10"), ("O3  (ug/m3)", "O3"), ("O3 \n(ug/m3)", "O3"),
+    ("CO  (ug/m3)", "CO"), ("NO2  (ug/m3)", "NO2"), ("SO2  (ug/m3)", "SO2"), ("H2S (ug/m3)", "H2S"),
+    ("Vel Viento  (m/s)", "VV"), ("Dir Viento (Grados)", "DV"), ("Temperatura (C°)", "TEMP"),
+    ("Humedad (%)", "HUM"), ("Radiacion Solar (Watt/M2)", "RAD"), ("Lluvia (mm)", "LLUVIA"),
+    ("Fecha & Hora", None), ("Comuna", None),
 ])
 def test_codigo_parametro(columna, codigo):
     assert norma.codigo_parametro(columna) == codigo

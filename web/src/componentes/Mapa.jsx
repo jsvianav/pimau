@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import { api } from "../api.js";
-import { estadoMasReciente } from "../util.js";
+import { estadoMasReciente, formatearNumero } from "../util.js";
 
 const ESTILO_BASE = "https://tiles.openfreemap.org/styles/positron";
 const COLOR_SIN_ICA = "#9aa3ad";
+const COLOR_SIN_ESCALA = "#0b6fb3";
 const CAPAS = [
   { tipo: "comuna", nombre: "Comunas", color: "#17322e", visible: true },
   { tipo: "corregimiento", nombre: "Corregimientos", color: "#5b7f63", visible: false },
   { tipo: "barrio", nombre: "Barrios", color: "#8a9a95", visible: false },
 ];
 
-function aGeoJSON(grupos, parametro) {
+function aGeoJSON(grupos, parametro, meta) {
+  const conIca = Boolean(meta?.ventana_ica_horas);
   return {
     type: "FeatureCollection",
     features: grupos.map((g) => {
@@ -23,15 +25,17 @@ function aGeoJSON(grupos, parametro) {
         properties: {
           id: g.id,
           nombre: g.nombre,
-          color: actual?.estado.color || COLOR_SIN_ICA,
+          // Las variables sin escala del ICA se dibujan en un solo color y con su valor.
+          color: conIca ? actual?.estado.color || COLOR_SIN_ICA : COLOR_SIN_ESCALA,
           conDatos: Boolean(actual),
+          valor: !conIca && actual ? `${formatearNumero(actual.estado.valor_horario)} ${meta?.unidad || ""}` : "",
         },
       };
     }),
   };
 }
 
-export default function Mapa({ grupos, parametro, seleccion, onSeleccionar, children }) {
+export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar, children }) {
   const contenedor = useRef(null);
   const mapa = useRef(null);
   const [listo, setListo] = useState(false);
@@ -64,7 +68,9 @@ export default function Mapa({ grupos, parametro, seleccion, onSeleccionar, chil
       });
       m.addLayer({
         id: "estaciones-nombre", type: "symbol", source: "estaciones",
-        layout: { "text-field": ["get", "nombre"], "text-font": ["Noto Sans Regular"], "text-size": 11,
+        layout: { "text-field": ["format", ["get", "nombre"], {},
+                                 ["case", ["==", ["get", "valor"], ""], "", ["concat", "\n", ["get", "valor"]]], { "font-scale": 1.1 }],
+                  "text-font": ["Noto Sans Regular"], "text-size": 11,
                   "text-offset": [0, 1.3], "text-anchor": "top" },
         paint: { "text-color": "#17322e", "text-halo-color": "#fff", "text-halo-width": 1.6 },
       });
@@ -95,8 +101,8 @@ export default function Mapa({ grupos, parametro, seleccion, onSeleccionar, chil
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (listo) mapa.current.getSource("estaciones").setData(aGeoJSON(grupos, parametro));
-  }, [listo, grupos, parametro]);
+    if (listo) mapa.current.getSource("estaciones").setData(aGeoJSON(grupos, parametro, meta));
+  }, [listo, grupos, parametro, meta]);
 
   useEffect(() => {
     if (!listo) return;

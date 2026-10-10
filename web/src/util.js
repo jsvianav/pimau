@@ -1,7 +1,20 @@
 // Utilidades del visor sin dependencias del navegador, para poder probarlas.
 
 export const ZONA = "America/Bogota";
-export const PARAMETROS = { PM25: "PM2.5", PM10: "PM10" };
+// Nombres cortos para etiquetas. El nombre completo y la unidad vienen de la API.
+export const PARAMETROS = {
+  PM25: "PM2.5", PM10: "PM10", O3: "O₃", NO2: "NO₂", SO2: "SO₂", CO: "CO", H2S: "H₂S",
+  TEMP: "Temperatura", HUM: "Humedad", VV: "Viento", DV: "Dirección del viento",
+  LLUVIA: "Lluvia", RAD: "Radiación solar", PRES: "Presión",
+};
+
+export function nombreCorto(codigo) {
+  return PARAMETROS[codigo] || codigo;
+}
+
+export function textoVentana(horas) {
+  return horas === 1 ? "valor de 1 hora" : `promedio de ${horas} horas`;
+}
 export const HORAS_MINIMAS_ICA = 18;
 
 // Clave para reconocer la misma estación en fuentes distintas: "ERA - Obrero"

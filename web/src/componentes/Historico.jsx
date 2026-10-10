@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../api.js";
-import { fechaISO, formatearFecha, formatearNumero, PARAMETROS, restarDias } from "../util.js";
+import { fechaISO, formatearFecha, formatearNumero, nombreCorto, restarDias, textoVentana } from "../util.js";
+import SelectorParametro from "./SelectorParametro.jsx";
 
 const MAXIMO_DIAS_HORARIO = 93;
 
@@ -9,7 +10,7 @@ function diasEntre(desde, hasta) {
   return Math.round((new Date(hasta) - new Date(desde)) / 86400000);
 }
 
-export default function Historico({ grupos, umbrales, destino }) {
+export default function Historico({ grupos, umbrales, parametros, meta, destino }) {
   const opciones = useMemo(
     () => grupos.flatMap((g) => g.registros.map((r) => ({ id: r.id, etiqueta: `${g.nombre} (${r.fuente})`, registro: r })))
       .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, "es")),
@@ -60,8 +61,21 @@ export default function Historico({ grupos, umbrales, destino }) {
   const validos = puntos.filter((p) => p.valor != null);
   const promedio = validos.length ? validos.reduce((s, p) => s + p.valor, 0) / validos.length : null;
   const limites = umbrales?.[parametro];
+  const datosParametro = meta?.[parametro];
+  const unidadMedida = datosParametro?.unidad || "";
+  const ventana = datosParametro?.ventana_ica_horas;
   const limiteAceptable = limites?.ica.find((c) => c.categoria === "Aceptable")?.superior;
-  const guiaOms = limites?.oms["24 horas"];
+  const periodoOms = limites?.oms && (ventana && limites.oms[`${ventana} horas`] ? `${ventana} horas`
+    : Object.keys(limites.oms).find((p) => p !== "Anual"));
+  const guiaOms = periodoOms ? limites.oms[periodoOms] : undefined;
+  const nombre = nombreCorto(parametro);
+  // Una referencia muy por encima de los datos aplastaría la serie: solo se
+  // dibuja si no supera el doble del máximo del periodo.
+  const maximo = validos.reduce((m, p) => Math.max(m, p.valor), 0);
+  const visible = (limite) => limite != null && maximo > 0 && limite <= maximo * 2;
+  const verAceptable = visible(limiteAceptable);
+  const verOms = visible(guiaOms);
+  const ejeDesdeCero = datosParametro?.variable !== "meteorologia" || ["LLUVIA", "RAD"].includes(parametro);
   const unidad = agregacion === "hora" ? "horas" : "días";
   const seleccionada = opciones.find((o) => o.id === estacionId);
   const fechaEje = (t) => (t.length > 10 ? t : t + "T12:00:00Z");
@@ -76,10 +90,8 @@ export default function Historico({ grupos, umbrales, destino }) {
             {opciones.map((o) => <option key={o.id} value={o.id}>{o.etiqueta}</option>)}
           </select>
         </label>
-        <label>Contaminante
-          <select value={parametro} onChange={(e) => setParametro(e.target.value)}>
-            {Object.entries(PARAMETROS).map(([c, n]) => <option key={c} value={c}>{n}</option>)}
-          </select>
+        <label>Variable
+          <SelectorParametro parametros={parametros} valor={parametro} onCambiar={setParametro} />
         </label>
         <label>Desde
           <input type="date" value={desde} min={rango?.desde} max={hasta} onChange={(e) => setDesde(e.target.value)} />
@@ -102,15 +114,19 @@ export default function Historico({ grupos, umbrales, destino }) {
       {serie && (
         <div className="lienzo">
           <div className="lienzo-encabezado">
-            <h3>{PARAMETROS[parametro]} en {seleccionada?.etiqueta}</h3>
+            <h3>{nombre} en {seleccionada?.etiqueta}</h3>
           </div>
           <dl className="cifras">
-            <div><dt>Promedio del periodo</dt><dd>{promedio != null ? `${formatearNumero(promedio)} µg/m³` : "—"}</dd></div>
+            <div><dt>{parametro === "LLUVIA" ? "Lluvia del periodo" : "Promedio del periodo"}</dt>
+              <dd>{promedio != null ? `${formatearNumero(parametro === "LLUVIA" ? promedio * validos.length : promedio)} ${unidadMedida}` : "—"}</dd></div>
             <div><dt>{agregacion === "hora" ? "Horas con dato" : "Días con dato"}</dt><dd>{validos.length}</dd></div>
             <div><dt>Sin dato</dt><dd>{puntos.length ? `${Math.round((100 * faltantes) / puntos.length)} %` : "—"}</dd></div>
           </dl>
-          <p className="unidad-eje">Concentración en µg/m³, {agregacion === "hora" ? "valores horarios" : "promedios diarios"}</p>
-          <div role="img" aria-label={`Serie de ${PARAMETROS[parametro]} con ${validos.length} ${unidad} con dato y ${faltantes} sin dato`}>
+          <p className="unidad-eje">
+            {nombre} en {unidadMedida},{" "}
+            {agregacion === "hora" ? "valores horarios" : parametro === "LLUVIA" ? "totales diarios" : "promedios diarios"}
+          </p>
+          <div role="img" aria-label={`Serie de ${nombre} con ${validos.length} ${unidad} con dato y ${faltantes} sin dato`}>
             <ResponsiveContainer width="100%" height={340}>
               <LineChart data={puntos} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
                 <CartesianGrid stroke="#e3e9e6" vertical={false} />
@@ -118,15 +134,17 @@ export default function Historico({ grupos, umbrales, destino }) {
                        tick={{ fontSize: 12, fill: "#4a5d58" }} axisLine={{ stroke: "#d3dcd8" }} tickLine={false} />
                 <YAxis width={44} tick={{ fontSize: 12, fill: "#4a5d58" }} tickFormatter={formatearNumero}
                        axisLine={false} tickLine={false}
-                       domain={[0, (maximo) => Math.ceil(Math.max(maximo, limiteAceptable ?? 0, guiaOms ?? 0) * 1.1)]} />
+                       domain={ejeDesdeCero
+                         ? [0, (max) => Math.ceil(Math.max(max, verAceptable ? limiteAceptable : 0, verOms ? guiaOms : 0) * 1.1)]
+                         : ["auto", "auto"]} />
                 <Tooltip cursor={{ stroke: "#17322e", strokeWidth: 1 }}
                          contentStyle={{ borderRadius: 8, borderColor: "#d3dcd8", fontFamily: "inherit" }}
-                         formatter={(v) => [v == null ? "sin dato" : `${formatearNumero(v)} µg/m³`, PARAMETROS[parametro]]}
+                         formatter={(v) => [v == null ? "sin dato" : `${formatearNumero(v)} ${unidadMedida}`, nombre]}
                          labelFormatter={(t) => formatearFecha(fechaEje(t), agregacion === "hora")} />
-                {limiteAceptable != null && (
+                {verAceptable && (
                   <ReferenceLine y={limiteAceptable} stroke="#17322e" strokeDasharray="5 4" strokeWidth={1} />
                 )}
-                {guiaOms != null && (
+                {verOms && (
                   <ReferenceLine y={guiaOms} stroke="#6b7c77" strokeDasharray="2 3" strokeWidth={1} />
                 )}
                 <Line type="linear" dataKey="valor" stroke="var(--serie)" strokeWidth={2} connectNulls={false}
@@ -138,24 +156,28 @@ export default function Historico({ grupos, umbrales, destino }) {
           <ul className="referencias">
             <li>
               <svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="var(--serie)" strokeWidth="2" /></svg>
-              {PARAMETROS[parametro]} medido
+              {nombre} medido
             </li>
-            {limiteAceptable != null && (
+            {verAceptable && (
               <li>
                 <svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="#17322e" strokeDasharray="5 4" /></svg>
-                Fin de la categoría Aceptable del ICA ({limiteAceptable} µg/m³)
+                Fin de la categoría Aceptable del ICA ({limiteAceptable} µg/m³, {textoVentana(ventana)})
               </li>
             )}
-            {guiaOms != null && (
+            {verOms && (
               <li>
                 <svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="#6b7c77" strokeDasharray="2 3" /></svg>
-                Guía de la OMS para 24 horas ({guiaOms} µg/m³)
+                Guía de la OMS ({formatearNumero(guiaOms)} µg/m³, promedio de {periodoOms})
               </li>
             )}
           </ul>
           <p className="resumen">
-            Los huecos de la línea son {unidad} sin dato: se dejan vacíos y no se rellenan. Las líneas de referencia del
-            ICA y de la OMS corresponden a promedios de 24 horas.
+            Los huecos de la línea son {unidad} sin dato: se dejan vacíos y no se rellenan.
+            {(verAceptable || verOms) &&
+              " Cada línea de referencia corresponde al periodo que indica su clave, no necesariamente al de la gráfica."}
+            {((limiteAceptable != null && !verAceptable) || (guiaOms != null && !verOms)) &&
+              ` Las referencias de la norma o de la OMS que superan el doble del valor máximo del periodo no se dibujan${
+                limiteAceptable != null ? ` (fin de "Aceptable" en el ICA: ${formatearNumero(limiteAceptable)} µg/m³)` : ""}.`}
           </p>
           <div className="acciones">
             <a className="boton" href={api.urlCsv(estacionId, consulta)} download>Descargar los datos en CSV</a>
@@ -167,7 +189,7 @@ export default function Historico({ grupos, umbrales, destino }) {
           {verTabla && (
             <div className="tabla-datos">
               <table>
-                <thead><tr><th scope="col">{agregacion === "hora" ? "Fecha y hora" : "Día"}</th><th scope="col">Valor (µg/m³)</th></tr></thead>
+                <thead><tr><th scope="col">{agregacion === "hora" ? "Fecha y hora" : "Día"}</th><th scope="col">Valor ({unidadMedida})</th></tr></thead>
                 <tbody>
                   {puntos.map((p) => (
                     <tr key={p.t}>
