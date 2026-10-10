@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api.js";
-import { agruparEstaciones, PARAMETROS } from "./util.js";
+import { agruparEstaciones, formatearFecha, PARAMETROS } from "./util.js";
 import Mapa from "./componentes/Mapa.jsx";
 import Ficha from "./componentes/Ficha.jsx";
 import ListaEstaciones from "./componentes/ListaEstaciones.jsx";
@@ -21,6 +21,10 @@ export default function App() {
   const [error, setError] = useState(null);
   const [seleccion, setSeleccion] = useState(null);
   const [destinoHistorico, setDestinoHistorico] = useState(null);
+  const panel = useRef(null);
+
+  // Al elegir una estación, la ficha se muestra desde el inicio.
+  useEffect(() => { panel.current?.scrollTo({ top: 0 }); }, [seleccion]);
 
   useEffect(() => {
     Promise.all([api.estaciones(), api.umbrales()])
@@ -29,6 +33,11 @@ export default function App() {
   }, []);
 
   const grupos = useMemo(() => (datos ? agruparEstaciones(datos) : []), [datos]);
+  // Fecha del dato más reciente entre todas las fuentes, para dar contexto.
+  const ultimoDato = useMemo(() => {
+    const fechas = (datos?.features || []).flatMap((f) => Object.values(f.properties.parametros).map((p) => p.instante));
+    return fechas.length ? fechas.sort().at(-1) : null;
+  }, [datos]);
   const grupoSeleccionado = grupos.find((g) => g.id === seleccion) || null;
 
   function verHistorico(estacionId) {
@@ -39,8 +48,11 @@ export default function App() {
   return (
     <div className="aplicacion">
       <header className="encabezado">
-        <h1>PIMAU <span>· Calidad del aire en Cali</span></h1>
-        <nav aria-label="Secciones">
+        <div className="marca">
+          <h1>PIMAU</h1>
+          <p>Calidad del aire en Santiago de Cali</p>
+        </div>
+        <nav className="pestanas" aria-label="Secciones">
           {PESTANAS.map((p) => (
             <button key={p.id} className="pestana" aria-current={pestana === p.id ? "page" : undefined}
                     disabled={p.deshabilitada} title={p.nota} onClick={() => setPestana(p.id)}>
@@ -50,23 +62,28 @@ export default function App() {
         </nav>
       </header>
 
+      {ultimoDato && (
+        <p className="contexto">
+          Los datos abiertos de calidad del aire de Cali llegan hasta el {formatearFecha(ultimoDato, false)}. Cada
+          estación muestra la fecha de su último dato y la fuente que lo publicó.
+        </p>
+      )}
       {error && <p className="aviso error" role="alert">No fue posible cargar los datos: {error}</p>}
 
       {pestana === "mapa" && (
         <main className="vista-mapa">
           <div className="mapa-contenedor">
-            <div className="controles-mapa">
-              <label>
-                Parámetro{" "}
+            <Mapa grupos={grupos} parametro={parametro} seleccion={seleccion} onSeleccionar={setSeleccion}>
+              <label className="campo">
+                Contaminante
                 <select value={parametro} onChange={(e) => setParametro(e.target.value)}>
                   {Object.entries(PARAMETROS).map(([codigo, nombre]) => <option key={codigo} value={codigo}>{nombre}</option>)}
                 </select>
               </label>
-            </div>
-            <Mapa grupos={grupos} parametro={parametro} seleccion={seleccion} onSeleccionar={setSeleccion} />
+            </Mapa>
             {umbrales && <Leyenda umbrales={umbrales} parametro={parametro} />}
           </div>
-          <aside className="panel-lateral">
+          <aside className="panel-lateral" ref={panel}>
             <Ficha grupo={grupoSeleccionado} parametro={parametro} onVerHistorico={verHistorico} />
             <ListaEstaciones grupos={grupos} parametro={parametro} seleccion={seleccion} onSeleccionar={setSeleccion} />
           </aside>
@@ -80,8 +97,9 @@ export default function App() {
       )}
 
       <footer className="pie">
-        Fuentes: IDEAM (datos.gov.co), Portal de Datos Abiertos de Cali (DAGMA) e IDESC. Mapa base © OpenStreetMap,
-        OpenFreeMap. Cada dato muestra su fecha y su fuente. <a href="/api/docs">Documentación de la API</a>
+        Datos del IDEAM (datos.gov.co), del Portal de Datos Abiertos de Cali (DAGMA) y de la IDESC. Mapa base de
+        OpenFreeMap con datos de OpenStreetMap. Los datos se pueden consultar en la{" "}
+        <a href="/api/docs">documentación de la API</a>.
       </footer>
     </div>
   );

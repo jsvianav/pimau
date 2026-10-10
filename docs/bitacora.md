@@ -339,3 +339,34 @@ plataforma registra la procedencia de cada dato.
 - [ ] Incremento 3: panel de administración (RF-10 y RF-11).
 - [ ] Actualizar el Capítulo 3 con los hallazgos de la bitácora.
 
+## 2026-10-09 — Rediseño del visor
+
+Se rediseñó la interfaz con un sistema de diseño propio, en lugar de la
+apariencia genérica de la primera versión.
+
+- **Color.** La interfaz usa tonos apagados inspirados en los Farallones
+  (verde pizarra sobre un fondo neblina) para que los colores del ICA, que fija
+  la Resolución 2254, sean lo único que resalte en el mapa y en la ficha.
+- **Tipografía.** Public Sans para el texto (diseñada para información de
+  servicio público, muy legible) y Bricolage Grotesque para títulos y cifras.
+  Se probó Atkinson Hyperlegible, pero su cero tachado se leía raro en fechas y
+  cifras en español. Las fuentes se sirven desde el propio visor, sin depender
+  de un servicio externo.
+- **Escala del ICA en la ficha.** Muestra las seis categorías con un marcador
+  en el valor de la estación, para que la norma se vea y no solo se lea.
+- **Contexto de los datos.** Una franja bajo el encabezado indica hasta qué
+  fecha llegan los datos abiertos de Cali.
+- **Gráfica del histórico.** Se siguió la guía de visualización de datos: el
+  color de la serie se validó con un script de contraste y croma, las líneas de
+  referencia van en tinta neutra (sin reutilizar los colores del ICA) y su
+  explicación está en una clave bajo la gráfica, y hay una vista en tabla como
+  alternativa accesible.
+- **Detalles de uso.** El mapa ocupa la ventana y el panel hace scroll por su
+  cuenta. Al elegir una estación, la ficha se muestra desde el inicio. Se
+  respeta la preferencia de movimiento reducido del sistema.
+
+**Hallazgo en los datos:** el pico de PM2.5 de cerca de 200 µg/m³ en Base
+Aérea la noche del 31 de diciembre de 2019 coincide con la pólvora de Año
+Nuevo. Es un buen caso para la detección de anomalías del Semestre 8, porque es
+un evento real y no un error del sensor.
+

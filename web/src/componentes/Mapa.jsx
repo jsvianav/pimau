@@ -6,9 +6,9 @@ import { estadoMasReciente } from "../util.js";
 const ESTILO_BASE = "https://tiles.openfreemap.org/styles/positron";
 const COLOR_SIN_ICA = "#9aa3ad";
 const CAPAS = [
-  { tipo: "comuna", nombre: "Comunas", color: "#1168BD", visible: true },
-  { tipo: "corregimiento", nombre: "Corregimientos", color: "#2E7D32", visible: false },
-  { tipo: "barrio", nombre: "Barrios", color: "#6B7280", visible: false },
+  { tipo: "comuna", nombre: "Comunas", color: "#17322e", visible: true },
+  { tipo: "corregimiento", nombre: "Corregimientos", color: "#5b7f63", visible: false },
+  { tipo: "barrio", nombre: "Barrios", color: "#8a9a95", visible: false },
 ];
 
 function aGeoJSON(grupos, parametro) {
@@ -31,7 +31,7 @@ function aGeoJSON(grupos, parametro) {
   };
 }
 
-export default function Mapa({ grupos, parametro, seleccion, onSeleccionar }) {
+export default function Mapa({ grupos, parametro, seleccion, onSeleccionar, children }) {
   const contenedor = useRef(null);
   const mapa = useRef(null);
   const [listo, setListo] = useState(false);
@@ -55,9 +55,9 @@ export default function Mapa({ grupos, parametro, seleccion, onSeleccionar }) {
       m.addLayer({
         id: "estaciones", type: "circle", source: "estaciones",
         paint: {
-          "circle-radius": ["case", ["boolean", ["feature-state", "seleccionada"], false], 11, 8],
+          "circle-radius": ["case", ["boolean", ["feature-state", "seleccionada"], false], 12, 9],
           "circle-color": ["get", "color"],
-          "circle-stroke-color": ["case", ["boolean", ["feature-state", "seleccionada"], false], "#111", "#fff"],
+          "circle-stroke-color": ["case", ["boolean", ["feature-state", "seleccionada"], false], "#17322e", "#fff"],
           "circle-stroke-width": ["case", ["boolean", ["feature-state", "seleccionada"], false], 3, 2],
           "circle-opacity": ["case", ["get", "conDatos"], 1, 0.45],
         },
@@ -66,7 +66,7 @@ export default function Mapa({ grupos, parametro, seleccion, onSeleccionar }) {
         id: "estaciones-nombre", type: "symbol", source: "estaciones",
         layout: { "text-field": ["get", "nombre"], "text-font": ["Noto Sans Regular"], "text-size": 11,
                   "text-offset": [0, 1.3], "text-anchor": "top" },
-        paint: { "text-color": "#1f2937", "text-halo-color": "#fff", "text-halo-width": 1.5 },
+        paint: { "text-color": "#17322e", "text-halo-color": "#fff", "text-halo-width": 1.6 },
       });
       m.on("click", "estaciones", (e) => onSeleccionar(e.features[0].properties.id));
       m.on("mouseenter", "estaciones", () => { m.getCanvas().style.cursor = "pointer"; });
@@ -80,7 +80,7 @@ export default function Mapa({ grupos, parametro, seleccion, onSeleccionar }) {
           m.addLayer({
             id: `capa-${capa.tipo}`, type: "line", source: `capa-${capa.tipo}`,
             layout: { visibility: capasVisiblesRef.current[capa.tipo] ? "visible" : "none" },
-            paint: { "line-color": capa.color, "line-width": capa.tipo === "barrio" ? 0.6 : 1.2, "line-opacity": 0.7 },
+            paint: { "line-color": capa.color, "line-width": capa.tipo === "barrio" ? 0.6 : 1.1, "line-opacity": 0.55 },
           }, "estaciones");
         }).catch(() => {
           // Si una capa no carga, el mapa sigue funcionando con las estaciones.
@@ -103,7 +103,8 @@ export default function Mapa({ grupos, parametro, seleccion, onSeleccionar }) {
     const m = mapa.current;
     grupos.forEach((g) => m.setFeatureState({ source: "estaciones", id: g.id }, { seleccionada: g.id === seleccion }));
     const g = grupos.find((x) => x.id === seleccion);
-    if (g) m.easeTo({ center: g.coordenadas, duration: 600 });
+    const sinMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (g) m.easeTo({ center: g.coordenadas, duration: sinMovimiento ? 0 : 600 });
   }, [listo, grupos, seleccion]);
 
   function alternarCapa(tipo) {
@@ -118,15 +119,18 @@ export default function Mapa({ grupos, parametro, seleccion, onSeleccionar }) {
     <>
       <div ref={contenedor} className="mapa" role="region"
            aria-label="Mapa de estaciones. Las estaciones también se pueden elegir en la lista." />
-      <fieldset className="selector-capas">
-        <legend>Capas del territorio (IDESC)</legend>
-        {CAPAS.map((c) => (
-          <label key={c.tipo}>
-            <input type="checkbox" checked={capasVisibles[c.tipo]} onChange={() => alternarCapa(c.tipo)} />
-            <span className="muestra-linea" style={{ background: c.color }} /> {c.nombre}
-          </label>
-        ))}
-      </fieldset>
+      <div className="flotante controles-mapa">
+        {children}
+        <fieldset className="selector-capas">
+          <legend>Límites del territorio</legend>
+          {CAPAS.map((c) => (
+            <label key={c.tipo}>
+              <input type="checkbox" checked={capasVisibles[c.tipo]} onChange={() => alternarCapa(c.tipo)} />
+              <span className="muestra-linea" style={{ borderColor: c.color }} aria-hidden="true" /> {c.nombre}
+            </label>
+          ))}
+        </fieldset>
+      </div>
     </>
   );
 }
