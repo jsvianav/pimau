@@ -128,6 +128,20 @@ def candidatos_fecha(texto: str, orden: str = "mdy") -> list[datetime]:
     return [lectura, leer_fecha(texto, orden, excel_invertido=True)]
 
 
+_PALABRAS_MENORES = {"de", "del", "la", "las", "los", "el", "y"}
+
+
+def nombre_propio(texto: str) -> str:
+    """Pone en mayuscula inicial un nombre que la fuente publica en mayusculas,
+    sin capitalizar los articulos y preposiciones (Universidad del Valle)."""
+    def capitalizar(palabra):
+        return "-".join(s[:1].upper() + s[1:] for s in palabra.split("-"))
+
+    palabras = str(texto).strip().lower().split()
+    return " ".join(p if i and p in _PALABRAS_MENORES else capitalizar(p)
+                    for i, p in enumerate(palabras))
+
+
 def bandera(codigo: str, valor: float | None) -> str:
     """Asigna la bandera de calidad de una medicion (RF-03)."""
     if valor is None:

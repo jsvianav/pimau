@@ -53,7 +53,7 @@ class ConectorIdeam(ConectorMediciones):
             raise ValueError(f"Unidad inesperada para {codigo}: {fila.get('sigla_unidad')}")
         estacion = EstacionOrigen(
             codigo=str(fila["estacion_id"]),
-            nombre=fila["nombre_est"].strip().title(),
+            nombre=norma.nombre_propio(fila["nombre_est"]),
             latitud=float(fila["latitud"]),
             longitud=float(fila["longitud"]),
         )

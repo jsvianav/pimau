@@ -9,8 +9,8 @@ calidad. Es el producto del trabajo de grado de John Sebastian Viana Vargas
 
 | Incremento | Requisitos | Estado |
 | --- | --- | --- |
-| 1. Integración de datos | RF-01 a RF-04 | En curso |
-| 2. Consulta y visualización | RF-05 a RF-09 | Pendiente |
+| 1. Integración de datos | RF-01 a RF-04 | Hecho |
+| 2. Consulta y visualización | RF-05 a RF-09 | En curso: API y visor funcionando |
 | 3. Administración | RF-10 y RF-11 | Pendiente |
 | 4. Analítica (Semestre 8) | RF-12 a RF-14 | Pendiente |
 | 5. Nuevas variables (Semestre 8) | RF-15 | Pendiente |
@@ -31,12 +31,13 @@ El avance, las decisiones y los problemas se registran en
 ## Estructura
 
 ```
-backend/            Paquete Python: modelo de datos, migraciones e ingesta
-  pimau/db/         Modelo de datos común (ADR-02)
-  pimau/ingesta/    Conectores, normalización y ejecución de la ingesta
+backend/            Paquete Python con un módulo por capa del ADR-01
+  pimau/db/         Almacenamiento: modelo de datos común (ADR-02)
+  pimau/ingesta/    Ingesta y normalización: conectores por fuente
+  pimau/api/        Servicios: API de consulta con FastAPI y cálculo del ICA
   migrations/       Migraciones de Alembic
-  tests/            Pruebas unitarias y de integración
-web/                Aplicación web (incremento 2)
+  tests/            Pruebas unitarias, de integración y de arquitectura
+web/                Presentación: visor con React y MapLibre GL JS
 analitica/          Servicio analítico (Semestre 8)
 docs/               Bitácora y documentos de gestión
 ```
@@ -53,13 +54,31 @@ docker compose run --rm ingesta python -m pimau.ingesta ejecutar --completa
 docker compose run --rm ingesta python -m pimau.ingesta estado
 ```
 
-Para dejar la ingesta programada según la frecuencia de cada fuente:
+Para levantar toda la plataforma (base de datos, ingesta programada, API y
+visor):
 
 ```bash
 docker compose up -d
 ```
 
+- Visor: http://localhost:8080
+- API y su documentación: http://localhost:8080/api/docs
+
+Para desarrollar el visor con recarga automática (requiere Node 22):
+
+```bash
+cd web && npm install && npm run dev
+```
+
 ## Pruebas
+
+Visor:
+
+```bash
+cd web && npm test
+```
+
+Backend:
 
 ```bash
 docker compose exec db psql -U pimau -c "CREATE DATABASE pimau_test"

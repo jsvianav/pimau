@@ -249,9 +249,93 @@ Pruebas: 39, todas pasan.
 
 - [ ] Enviar la solicitud de acceso a SATIC.
 - [ ] Crear la clave gratuita de OpenAQ y verificar si hay estaciones de Cali.
-- [ ] Definir la regla de clasificación del ICA para valores con decimales.
+- [x] Definir la regla de clasificación del ICA para valores con decimales.
 - [ ] Relacionar las estaciones del DAGMA que aparecen en dos fuentes.
-- [ ] Agregar la prueba automática de capas (ADR-01).
+- [x] Agregar la prueba automática de capas (ADR-01).
 - [ ] Actualizar el Capítulo 3 con los hallazgos de la bitácora.
 - [ ] Incremento 2: API de consulta y visor.
+
+## 2026-10-09 — Incremento 2: API de consulta y visor
+
+**Objetivo del incremento:** API y visor con el mapa, las series y las
+descargas (RF-05 a RF-09).
+
+### Qué se construyó
+
+- **API de consulta** (`backend/pimau/api`, FastAPI), capa de servicios del
+  ADR-01. Solo lee la base de datos.
+  - `/api/estaciones`: GeoJSON con la última medición válida de cada estación,
+    el ICA del último periodo de 24 horas representativo y el valor guía de la
+    OMS (RF-05 y RF-07).
+  - `/api/estaciones/{id}/series`: serie horaria (hasta 93 días) o promedio
+    diario (RF-06).
+  - `/api/estaciones/{id}/series.csv`: descarga con estación, fuente, unidad,
+    instante, valor y bandera (RF-08).
+  - `/api/capas/{comuna|barrio|corregimiento}`: capas de la IDESC (RF-09).
+  - Documentación OpenAPI en `/api/docs` (RF-08).
+  - Caché en memoria de 10 minutos y límite de 120 solicitudes por minuto por
+    IP (ADR-04).
+- **Visor** (`web/`, React y MapLibre GL JS), capa de presentación. Sigue los
+  bocetos F1 y F2 del Capítulo 3: mapa con estaciones coloreadas por ICA,
+  leyenda con nombres de categoría, capas de comunas, corregimientos y
+  barrios, ficha por fuente, lista de estaciones como alternativa accesible al
+  mapa e histórico con gráfica, faltantes visibles y descarga en CSV.
+- **Contenedores:** `api` (uvicorn) y `web` (nginx, que sirve el visor y
+  reenvía `/api` a la API).
+- **Mapa base:** OpenFreeMap (datos de OpenStreetMap), gratuito y sin clave,
+  como exige la restricción económica.
+- **Prueba de arquitectura:** una prueba falla si la API, la ingesta o la
+  analítica importan código de otra capa. Así la regla del ADR-01 queda
+  verificada en cada cambio.
+
+### Decisiones
+
+- **Cálculo del ICA.** Se verificó en el texto oficial de la Resolución 2254
+  (artículo 21 y su parágrafo 3) que el ICA se obtiene por interpolación entre
+  los puntos de corte y que, para el reporte en tiempo real, se usa el promedio
+  móvil del tiempo de exposición, que para PM2.5 y PM10 es de 24 horas.
+- **Decimales.** Los puntos de corte son enteros. La concentración se trunca al
+  entero antes de clasificarla, así que 12,5 µg/m³ queda en "Buena" (0–12).
+  Esta regla es una decisión del proyecto: la norma no la define.
+- **Representatividad.** Un promedio de 24 horas se usa para el ICA solo si
+  tiene al menos 18 horas válidas (75 %). Es una decisión del proyecto y es
+  configurable.
+- **Último ICA y no último dato.** Al final de muchas series hay muy pocos
+  datos, así que el ICA de las 24 horas que terminan en el último dato casi
+  nunca es representativo. La API devuelve por separado la última medición y
+  el ICA del último periodo de 24 horas representativo, cada uno con su
+  fecha, y el visor muestra ambos.
+- **Misma estación en dos fuentes.** El visor agrupa las estaciones por nombre
+  normalizado y muestra cada fuente por separado en la ficha. Se descartó
+  agrupar por distancia por el hallazgo siguiente.
+
+### Hallazgo: coordenadas del IDEAM
+
+El IDEAM publica la estación **Era Obrero con las coordenadas exactas de Base
+Aérea** (0 m entre ellas), y su Base Aérea queda a 470 m. La IDESC ubica
+ERA-Obrero a 1,7 km, en el barrio El Obrero (comuna 9), lo que coincide con su
+nombre. Se toman como oficiales las coordenadas de la IDESC. Conviene
+reportarlo al IDEAM y mencionarlo en el Capítulo 3 como ejemplo de por qué la
+plataforma registra la procedencia de cada dato.
+
+### Verificación
+
+- Backend: 68 pruebas pasan (cálculo del ICA en los límites de cada categoría,
+  API contra PostGIS real, arquitectura de capas). Visor: 8 pruebas pasan.
+- Tiempos medidos sobre 1,1 millones de mediciones: `/api/estaciones` tarda
+  cerca de 1,7 s sin caché y 2 ms con caché; una serie diaria de cinco años,
+  22 ms. Cumplen el escenario 2 (consultas de 1,5 s o menos con caché y carga
+  inicial de 3 s o menos).
+- Se probó en el navegador: mapa, ficha con dos fuentes, histórico con
+  huecos, descarga en CSV y vista de celular.
+
+### Pendientes
+
+- [ ] Reportar al IDEAM la inconsistencia de coordenadas de Era Obrero.
+- [ ] Guardar en la base la relación entre estaciones de distintas fuentes,
+      en lugar de resolverla en el visor.
+- [ ] Revisión de accesibilidad con una herramienta automática (RNF-07).
+- [ ] Medición formal de tiempos de carga del visor (escenario 2).
+- [ ] Incremento 3: panel de administración (RF-10 y RF-11).
+- [ ] Actualizar el Capítulo 3 con los hallazgos de la bitácora.
 

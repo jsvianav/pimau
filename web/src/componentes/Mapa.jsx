@@ -1,0 +1,132 @@
+import { useEffect, useRef, useState } from "react";
+import maplibregl from "maplibre-gl";
+import { api } from "../api.js";
+import { estadoMasReciente } from "../util.js";
+
+const ESTILO_BASE = "https://tiles.openfreemap.org/styles/positron";
+const COLOR_SIN_ICA = "#9aa3ad";
+const CAPAS = [
+  { tipo: "comuna", nombre: "Comunas", color: "#1168BD", visible: true },
+  { tipo: "corregimiento", nombre: "Corregimientos", color: "#2E7D32", visible: false },
+  { tipo: "barrio", nombre: "Barrios", color: "#6B7280", visible: false },
+];
+
+function aGeoJSON(grupos, parametro) {
+  return {
+    type: "FeatureCollection",
+    features: grupos.map((g) => {
+      const actual = estadoMasReciente(g, parametro);
+      return {
+        type: "Feature",
+        id: g.id,
+        geometry: { type: "Point", coordinates: g.coordenadas },
+        properties: {
+          id: g.id,
+          nombre: g.nombre,
+          color: actual?.estado.color || COLOR_SIN_ICA,
+          conDatos: Boolean(actual),
+        },
+      };
+    }),
+  };
+}
+
+export default function Mapa({ grupos, parametro, seleccion, onSeleccionar }) {
+  const contenedor = useRef(null);
+  const mapa = useRef(null);
+  const [listo, setListo] = useState(false);
+  const [capasVisibles, setCapasVisibles] = useState(
+    Object.fromEntries(CAPAS.map((c) => [c.tipo, c.visible])));
+  const capasVisiblesRef = useRef(capasVisibles);
+  capasVisiblesRef.current = capasVisibles;
+
+  useEffect(() => {
+    const m = new maplibregl.Map({
+      container: contenedor.current,
+      style: ESTILO_BASE,
+      center: [-76.52, 3.40],
+      zoom: 11,
+      attributionControl: { compact: true },
+    });
+    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    m.on("load", () => {
+      // Primero las estaciones, para que aparezcan sin esperar las capas.
+      m.addSource("estaciones", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      m.addLayer({
+        id: "estaciones", type: "circle", source: "estaciones",
+        paint: {
+          "circle-radius": ["case", ["boolean", ["feature-state", "seleccionada"], false], 11, 8],
+          "circle-color": ["get", "color"],
+          "circle-stroke-color": ["case", ["boolean", ["feature-state", "seleccionada"], false], "#111", "#fff"],
+          "circle-stroke-width": ["case", ["boolean", ["feature-state", "seleccionada"], false], 3, 2],
+          "circle-opacity": ["case", ["get", "conDatos"], 1, 0.45],
+        },
+      });
+      m.addLayer({
+        id: "estaciones-nombre", type: "symbol", source: "estaciones",
+        layout: { "text-field": ["get", "nombre"], "text-font": ["Noto Sans Regular"], "text-size": 11,
+                  "text-offset": [0, 1.3], "text-anchor": "top" },
+        paint: { "text-color": "#1f2937", "text-halo-color": "#fff", "text-halo-width": 1.5 },
+      });
+      m.on("click", "estaciones", (e) => onSeleccionar(e.features[0].properties.id));
+      m.on("mouseenter", "estaciones", () => { m.getCanvas().style.cursor = "pointer"; });
+      m.on("mouseleave", "estaciones", () => { m.getCanvas().style.cursor = ""; });
+      setListo(true);
+
+      // Las capas del territorio se cargan en paralelo y se dibujan debajo de las estaciones.
+      for (const capa of CAPAS) {
+        api.capa(capa.tipo).then((datos) => {
+          m.addSource(`capa-${capa.tipo}`, { type: "geojson", data: datos });
+          m.addLayer({
+            id: `capa-${capa.tipo}`, type: "line", source: `capa-${capa.tipo}`,
+            layout: { visibility: capasVisiblesRef.current[capa.tipo] ? "visible" : "none" },
+            paint: { "line-color": capa.color, "line-width": capa.tipo === "barrio" ? 0.6 : 1.2, "line-opacity": 0.7 },
+          }, "estaciones");
+        }).catch(() => {
+          // Si una capa no carga, el mapa sigue funcionando con las estaciones.
+        });
+      }
+    });
+    // El contenedor puede cambiar de tamaño después de crear el mapa.
+    const observador = new ResizeObserver(() => m.resize());
+    observador.observe(contenedor.current);
+    mapa.current = m;
+    return () => { observador.disconnect(); m.remove(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (listo) mapa.current.getSource("estaciones").setData(aGeoJSON(grupos, parametro));
+  }, [listo, grupos, parametro]);
+
+  useEffect(() => {
+    if (!listo) return;
+    const m = mapa.current;
+    grupos.forEach((g) => m.setFeatureState({ source: "estaciones", id: g.id }, { seleccionada: g.id === seleccion }));
+    const g = grupos.find((x) => x.id === seleccion);
+    if (g) m.easeTo({ center: g.coordenadas, duration: 600 });
+  }, [listo, grupos, seleccion]);
+
+  function alternarCapa(tipo) {
+    const visible = !capasVisibles[tipo];
+    setCapasVisibles({ ...capasVisibles, [tipo]: visible });
+    if (mapa.current?.getLayer(`capa-${tipo}`)) {
+      mapa.current.setLayoutProperty(`capa-${tipo}`, "visibility", visible ? "visible" : "none");
+    }
+  }
+
+  return (
+    <>
+      <div ref={contenedor} className="mapa" role="region"
+           aria-label="Mapa de estaciones. Las estaciones también se pueden elegir en la lista." />
+      <fieldset className="selector-capas">
+        <legend>Capas del territorio (IDESC)</legend>
+        {CAPAS.map((c) => (
+          <label key={c.tipo}>
+            <input type="checkbox" checked={capasVisibles[c.tipo]} onChange={() => alternarCapa(c.tipo)} />
+            <span className="muestra-linea" style={{ background: c.color }} /> {c.nombre}
+          </label>
+        ))}
+      </fieldset>
+    </>
+  );
+}

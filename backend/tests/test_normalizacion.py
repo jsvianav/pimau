@@ -65,3 +65,12 @@ def test_codigo_parametro(columna, codigo):
 ])
 def test_bandera_pm25(valor, esperada):
     assert norma.bandera("PM25", valor) == esperada
+
+
+@pytest.mark.parametrize("texto, esperado", [
+    ("UNIVERSIDAD DEL VALLE", "Universidad del Valle"), ("BASE AÉREA", "Base Aérea"),
+    ("ERA OBRERO", "Era Obrero"), ("LA FLORA", "La Flora"),
+    ("TRANSITORIA-NAVARRO", "Transitoria-Navarro"),
+])
+def test_nombre_propio(texto, esperado):
+    assert norma.nombre_propio(texto) == esperado

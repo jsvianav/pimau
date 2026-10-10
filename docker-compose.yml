@@ -1,5 +1,6 @@
 # PIMAU - Plataforma Inteligente de Monitoreo Ambiental Urbano
-# Incremento 1: base de datos y servicio de ingesta (RF-01 a RF-04).
+# Contenedores de las capas del ADR-01: almacenamiento (db), ingesta,
+# servicios (api) y presentación (web).
 services:
   db:
     image: postgis/postgis:16-3.4
@@ -25,6 +26,24 @@ services:
       db:
         condition: service_healthy
     command: ["sh", "-c", "alembic upgrade head && python -m pimau.ingesta programador"]
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["uvicorn", "pimau.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+    ports:
+      - "8000:8000"
+
+  web:
+    build: ./web
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
 
 volumes:
   pgdata:
