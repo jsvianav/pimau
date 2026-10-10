@@ -54,9 +54,15 @@ a { color: var(--acento); }
 
 /* Franja de contexto: la antigüedad de los datos es parte de la información. */
 .contexto {
-  margin: 0; padding: 8px 24px; background: var(--aviso-fondo); color: var(--aviso);
-  border-bottom: 1px solid #f1dcb6; font-size: 0.92rem;
+  display: flex; align-items: center; gap: 16px; padding: 8px 12px 8px 24px;
+  background: var(--aviso-fondo); color: var(--aviso); border-bottom: 1px solid #f1dcb6; font-size: 0.92rem;
 }
+.contexto p { margin: 0; flex: 1; }
+.cerrar {
+  flex: none; display: grid; place-items: center; width: 32px; height: 32px; padding: 0;
+  border: 0; border-radius: 8px; background: transparent; color: var(--aviso); cursor: pointer;
+}
+.cerrar:hover { background: #f8e3bf; }
 
 /* Vista del mapa */
 .vista-mapa { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 380px; min-height: 0; overflow: hidden; }
@@ -166,6 +172,17 @@ select, input[type="date"] {
 .aviso { margin: 12px 24px; padding: 10px 12px; border-radius: 8px; }
 .aviso.error { background: #fdecec; color: #8f1d1d; border: 1px solid #f5c2c2; }
 .pie { padding: 12px 24px; font-size: 0.82rem; color: var(--tinta-suave); background: var(--papel); border-top: 1px solid var(--linea); }
+
+@media (max-width: 640px) {
+  .pestanas { width: 100%; }
+  .pestana { flex: 1; padding: 6px 8px; font-size: 0.9rem; }
+  .marca h1 { font-size: 1.4rem; }
+  .contexto { padding-left: 16px; }
+}
+
+@media (max-width: 360px) {
+  .pestana { padding: 6px 4px; font-size: 0.82rem; min-width: 0; }
+}
 
 @media (max-width: 900px) {
   .aplicacion:has(.vista-mapa) { height: auto; }

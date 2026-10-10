@@ -7,6 +7,14 @@ import ListaEstaciones from "./componentes/ListaEstaciones.jsx";
 import Leyenda from "./componentes/Leyenda.jsx";
 import Historico from "./componentes/Historico.jsx";
 
+const CLAVE_AVISO = "pimau.aviso-datos-cerrado";
+
+// Preferencia del navegador: si el almacenamiento no está disponible
+// (navegación privada, por ejemplo), el aviso simplemente vuelve a aparecer.
+function avisoCerrado() {
+  try { return window.localStorage.getItem(CLAVE_AVISO) === "1"; } catch { return false; }
+}
+
 const PESTANAS = [
   { id: "mapa", nombre: "Mapa" },
   { id: "historico", nombre: "Histórico" },
@@ -21,6 +29,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [seleccion, setSeleccion] = useState(null);
   const [destinoHistorico, setDestinoHistorico] = useState(null);
+  const [mostrarAviso, setMostrarAviso] = useState(() => !avisoCerrado());
   const panel = useRef(null);
 
   // Al elegir una estación, la ficha se muestra desde el inicio.
@@ -39,6 +48,11 @@ export default function App() {
     return fechas.length ? fechas.sort().at(-1) : null;
   }, [datos]);
   const grupoSeleccionado = grupos.find((g) => g.id === seleccion) || null;
+
+  function cerrarAviso() {
+    setMostrarAviso(false);
+    try { window.localStorage.setItem(CLAVE_AVISO, "1"); } catch { /* sin almacenamiento */ }
+  }
 
   function verHistorico(estacionId) {
     setDestinoHistorico({ estacionId, parametro });
@@ -62,11 +76,18 @@ export default function App() {
         </nav>
       </header>
 
-      {ultimoDato && (
-        <p className="contexto">
-          Los datos abiertos de calidad del aire de Cali llegan hasta el {formatearFecha(ultimoDato, false)}. Cada
-          estación muestra la fecha de su último dato y la fuente que lo publicó.
-        </p>
+      {ultimoDato && mostrarAviso && (
+        <div className="contexto" role="note">
+          <p>
+            Los datos abiertos de calidad del aire de Cali llegan hasta el {formatearFecha(ultimoDato, false)}. Cada
+            estación muestra la fecha de su último dato y la fuente que lo publicó.
+          </p>
+          <button className="cerrar" onClick={cerrarAviso} aria-label="Cerrar el aviso sobre la fecha de los datos">
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
       )}
       {error && <p className="aviso error" role="alert">No fue posible cargar los datos: {error}</p>}
 
