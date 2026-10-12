@@ -456,3 +456,11 @@ y H₂S solo vienen del portal de Cali y terminan en 2020.
 Se completaron el Anexo C (guía de instalación y manual del visor) y el Anexo
 D (enlace del repositorio, bitácora e integración continua).
 
+
+## 2026-10-12 — Prueba de viabilidad de la teledetección (NDVI)
+
+**Qué se hizo.** Se consultó el catálogo público de Sentinel-2 L2A en AWS (Earth Search, sin registro) para la zona urbana de Cali (bbox -76,59 3,33 -76,46 3,50) en 2025, y se calculó el NDVI de las 12 imágenes con menos nubes, enmascarando nubes y sombras con la capa SCL.
+
+**Resultados.** Hay 90 imágenes en 2025 (una cada cuatro días aproximadamente). Ninguna tiene menos del 10 % de nubes y solo cuatro tienen menos del 30 %. En las mejores, entre el 60 % y el 86 % de la zona urbana queda despejada. El NDVI promedio de la ciudad sale entre 0,39 y 0,52.
+
+**Decisión.** El NDVI se calculará como un compuesto mensual por comuna con los píxeles despejados del mes, no por imagen. Al implementarlo hay que aplicar el desplazamiento de reflectancia (BOA_ADD_OFFSET) de las imágenes procesadas desde 2022, que la prueba no aplicó. Se ajustaron los capítulos 1 y 2 del documento con esta decisión.
