@@ -464,3 +464,11 @@ D (enlace del repositorio, bitácora e integración continua).
 **Resultados.** Hay 90 imágenes en 2025 (una cada cuatro días aproximadamente). Ninguna tiene menos del 10 % de nubes y solo cuatro tienen menos del 30 %. En las mejores, entre el 60 % y el 86 % de la zona urbana queda despejada. El NDVI promedio de la ciudad sale entre 0,39 y 0,52.
 
 **Decisión.** El NDVI se calculará como un compuesto mensual por comuna con los píxeles despejados del mes, no por imagen. Al implementarlo hay que aplicar el desplazamiento de reflectancia (BOA_ADD_OFFSET) de las imágenes procesadas desde 2022, que la prueba no aplicó. Se ajustaron los capítulos 1 y 2 del documento con esta decisión.
+
+## 2026-10-12 — Cambio de alcance: se retira la cobertura vegetal
+
+**Decisión.** Se retira del alcance la cobertura vegetal (NDVI con imágenes Sentinel-2). RF-15 queda solo con el ruido ambiental.
+
+**Justificación.** La prueba del mismo día mostró que el cálculo es viable, pero la nubosidad de Cali solo permite un valor mensual por comuna. Además, el estudio de Nowak, Crane y Stevens (2006) encontró que la mejora promedio de la calidad del aire por la vegetación urbana es casi siempre menor al 1 % en cada ciudad. El aporte no justifica el esfuerzo de una variable más en un proyecto de una persona.
+
+**Cambios en el documento.** Se quitó la sección de teledetección del marco teórico, el término NDVI, el antecedente de Somvanshi y Kumari (los antecedentes académicos pasan de 21 a 20) y la entrada de cobertura vegetal de la Figura 1. El capítulo 3 explica la decisión en el párrafo del cambio de alcance.
