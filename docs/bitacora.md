@@ -472,3 +472,19 @@ D (enlace del repositorio, bitácora e integración continua).
 **Justificación.** La prueba del mismo día mostró que el cálculo es viable, pero la nubosidad de Cali solo permite un valor mensual por comuna. Además, el estudio de Nowak, Crane y Stevens (2006) encontró que la mejora promedio de la calidad del aire por la vegetación urbana es casi siempre menor al 1 % en cada ciudad. El aporte no justifica el esfuerzo de una variable más en un proyecto de una persona.
 
 **Cambios en el documento.** Se quitó la sección de teledetección del marco teórico, el término NDVI, el antecedente de Somvanshi y Kumari (los antecedentes académicos pasan de 21 a 20) y la entrada de cobertura vegetal de la Figura 1. El capítulo 3 explica la decisión en el párrafo del cambio de alcance.
+
+## 2026-10-12 — Prácticas de construcción: linter, dependencias, imágenes y respaldos
+
+**Contexto.** La revisión del documento encontró que el Capítulo 3 declaraba prácticas que el repositorio no tenía. Se implementaron.
+
+**Qué se hizo.**
+- Linter de Python con Ruff (`backend/ruff.toml`). Corrigió solo el estilo (orden de imports, sintaxis moderna, líneas largas), sin cambios de comportamiento: las 84 pruebas siguen pasando.
+- Linter del visor con ESLint (`web/eslint.config.js`). Encontró cuatro usos de efectos de React que provocaban renderizados de más en el histórico y el mapa. Se reorganizó el histórico para que cambiar de estación o variable limpie la consulta en el mismo evento y para ignorar respuestas viejas si el usuario cambia de opción antes de que lleguen.
+- Revisión de dependencias con `pip-audit` y `npm audit`. Encontró 7 vulnerabilidades en Starlette 0.41.3 (se subió FastAPI a 0.141.1 con Starlette 1.6.0) y una crítica de XSS en MapLibre 4.7.1, que llega al navegador del usuario (se subió a 6.11.2). También se actualizaron Vite (8.3.1) y Vitest (5.0.2). Se eligieron versiones con más de dos semanas de publicadas.
+- MapLibre 6 cambió la forma de importarse y carga su proceso en segundo plano desde un archivo aparte, así que se ajustó el import y `setWorkerUrl`.
+- La integración continua ahora corre los linters, las pruebas, la revisión de dependencias y la construcción de las imágenes Docker.
+- Respaldo diario con el servicio `respaldo` (`scripts/respaldo.sh`): un volcado por día en `respaldos/`, se conservan 7. Se probó la restauración en una base temporal y recuperó las 6.130.963 filas.
+- La base de datos ya no publica su puerto (el análisis de amenazas pide que no tenga acceso desde fuera). Apareció porque el Mac tiene otro PostgreSQL en el puerto 5432.
+- nginx guardaba la dirección de la API al arrancar y respondía 502 cuando el contenedor de la API se recreaba. Ahora la vuelve a consultar en el DNS de Docker.
+
+**Decisión sobre las solicitudes de integración.** No se protege la rama principal ni se exigen solicitudes de integración, porque el equipo es de una persona y nadie más las revisaría. Cada cambio entra a la rama principal con un mensaje que nombra lo que atiende, y la integración continua lo verifica.

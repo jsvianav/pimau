@@ -7,8 +7,8 @@ el incremento 2, despues de verificarlos contra el texto oficial
 Revision ID: 0002_datos_iniciales
 Revises: 2a2aa756f389
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "0002_datos_iniciales"
 down_revision = "2a2aa756f389"
@@ -44,11 +44,11 @@ GUIAS_OMS = [
 def upgrade():
     fuente = sa.table("fuente", sa.column("nombre"), sa.column("tipo_api"),
                       sa.column("url_base"), sa.column("activa"), sa.column("frecuencia_min"))
-    op.bulk_insert(fuente, [dict(zip(("nombre", "tipo_api", "url_base", "activa", "frecuencia_min"), f))
+    op.bulk_insert(fuente, [dict(zip(("nombre", "tipo_api", "url_base", "activa", "frecuencia_min"), f, strict=False))
                             for f in FUENTES])
     parametro = sa.table("parametro", sa.column("codigo"), sa.column("nombre"),
                          sa.column("unidad"), sa.column("variable"))
-    op.bulk_insert(parametro, [dict(zip(("codigo", "nombre", "unidad", "variable"), p))
+    op.bulk_insert(parametro, [dict(zip(("codigo", "nombre", "unidad", "variable"), p, strict=False))
                                for p in PARAMETROS])
     for codigo, referencia, categoria, inferior, superior in GUIAS_OMS:
         op.execute(sa.text(

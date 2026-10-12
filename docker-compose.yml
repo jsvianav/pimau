@@ -10,8 +10,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # Sin puerto publicado: solo los demás contenedores llegan a la base, por
+    # la red interna de Docker (análisis de amenazas del Capítulo 3).
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -38,6 +38,25 @@ services:
     ports:
       - "8000:8000"
 
+  # Respaldo diario de la base de datos (Construcción, Capítulo 3, y ADR-01).
+  # Guarda un archivo por día en ./respaldos y conserva los últimos 7.
+  respaldo:
+    image: postgis/postgis:16-3.4
+    environment:
+      PGHOST: db
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./respaldos:/respaldos
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["sh", "/scripts/respaldo.sh"]
+    configs:
+      - source: respaldo
+        target: /scripts/respaldo.sh
+
   web:
     build: ./web
     depends_on:
@@ -47,3 +66,7 @@ services:
 
 volumes:
   pgdata:
+
+configs:
+  respaldo:
+    file: ./scripts/respaldo.sh

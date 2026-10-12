@@ -57,7 +57,7 @@ def calcular(concentracion: float | None, cortes: list[PuntoCorte],
         return None
     ordenados = sorted(cortes, key=lambda c: c.inferior)
     c = math.floor(concentracion)
-    for corte, (i_bajo, i_alto) in zip(ordenados, RANGOS_INDICE):
+    for corte, (i_bajo, i_alto) in zip(ordenados, RANGOS_INDICE, strict=False):
         if corte.inferior <= c <= corte.superior:
             pendiente = (i_alto - i_bajo) / (corte.superior - corte.inferior)
             indice = round(pendiente * (c - corte.inferior) + i_bajo)

@@ -6,8 +6,17 @@ incremento 4.
 from datetime import datetime
 
 from geoalchemy2 import Geometry
-from sqlalchemy import (BigInteger, Boolean, CheckConstraint, DateTime,
-                        ForeignKey, Integer, Numeric, Text, UniqueConstraint)
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 

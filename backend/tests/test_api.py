@@ -1,6 +1,6 @@
 """Pruebas de la API contra PostGIS real, con datos sembrados."""
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,7 +13,7 @@ from pimau.db.modelos import Base
 URL = os.environ.get("DATABASE_URL_PRUEBAS")
 pytestmark = pytest.mark.skipif(not URL, reason="Requiere DATABASE_URL_PRUEBAS")
 
-FIN = datetime(2024, 12, 31, 23, tzinfo=timezone.utc)
+FIN = datetime(2024, 12, 31, 23, tzinfo=UTC)
 
 
 @pytest.fixture

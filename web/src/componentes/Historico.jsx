@@ -15,7 +15,7 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
     () => grupos.flatMap((g) => g.registros.map((r) => ({ id: r.id, etiqueta: `${g.nombre} (${r.fuente})`, registro: r })))
       .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, "es")),
     [grupos]);
-  const [estacionId, setEstacionId] = useState(destino?.estacionId ?? null);
+  const [estacionElegida, setEstacionElegida] = useState(destino?.estacionId ?? null);
   const [parametro, setParametro] = useState(destino?.parametro ?? "PM25");
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
@@ -24,24 +24,43 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
   const [verTabla, setVerTabla] = useState(false);
+  // Sin una estación elegida se muestra la primera de la lista.
+  const estacionId = estacionElegida ?? opciones[0]?.id ?? null;
 
-  useEffect(() => {
-    if (estacionId == null && opciones.length) setEstacionId(opciones[0].id);
-  }, [opciones, estacionId]);
+  // Cambiar de estación o de parámetro borra la consulta anterior.
+  function limpiarConsulta() {
+    setRango(null); setSerie(null); setError(null);
+  }
+  function cambiarEstacion(id) { setEstacionElegida(id); limpiarConsulta(); }
+  function cambiarParametro(codigo) { setParametro(codigo); limpiarConsulta(); }
+
+  function pedirSerie(id, consulta, vigente = () => true) {
+    setCargando(true); setError(null);
+    return api.serie(id, consulta)
+      .then((s) => { if (vigente()) setSerie(s); })
+      .catch((e) => { if (vigente()) setError(e.message); })
+      .finally(() => { if (vigente()) setCargando(false); });
+  }
 
   // Al cambiar de estación o parámetro se proponen 30 días que terminan en el
-  // último periodo representativo de la serie. Al final de muchas series hay
-  // muy pocos datos, y empezar ahí mostraría una gráfica casi vacía.
+  // último periodo representativo de la serie y se consulta ese periodo. Al
+  // final de muchas series hay muy pocos datos, y empezar ahí mostraría una
+  // gráfica casi vacía.
   useEffect(() => {
     if (estacionId == null) return;
-    setRango(null); setSerie(null); setError(null);
+    let activa = true;
+    const vigente = () => activa;
     const estado = opciones.find((o) => o.id === estacionId)?.registro.parametros[parametro];
     api.rango(estacionId, parametro)
       .then((r) => {
+        if (!activa) return;
         const fin = estado?.instante_ica ? fechaISO(new Date(estado.instante_ica)) : r.hasta;
-        setRango(r); setHasta(fin); setDesde(restarDias(fin, 30));
+        const inicio = restarDias(fin, 30);
+        setRango(r); setHasta(fin); setDesde(inicio);
+        return pedirSerie(estacionId, { parametro, desde: inicio, hasta: fin, agregacion: "hora" }, vigente);
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => { if (activa) setError(e.message); });
+    return () => { activa = false; };
   }, [estacionId, parametro]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const agregacion = desde && hasta && diasEntre(desde, hasta) > MAXIMO_DIAS_HORARIO ? "dia" : "hora";
@@ -49,12 +68,8 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
 
   function consultar() {
     if (!desde || !hasta) return;
-    setCargando(true); setError(null);
-    api.serie(estacionId, consulta)
-      .then(setSerie).catch((e) => setError(e.message)).finally(() => setCargando(false));
+    pedirSerie(estacionId, consulta);
   }
-
-  useEffect(() => { if (rango && desde && hasta) consultar(); }, [rango]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const puntos = (serie?.datos || []).map((d) => ({ t: d.instante || d.dia, valor: d.valor }));
   const faltantes = puntos.filter((p) => p.valor == null).length;
@@ -86,12 +101,12 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
       <p className="nota">Consulte la serie de una estación, compárela con la norma y descargue los datos.</p>
       <form className="filtros" onSubmit={(e) => { e.preventDefault(); consultar(); }}>
         <label>Estación y fuente
-          <select value={estacionId ?? ""} onChange={(e) => setEstacionId(Number(e.target.value))}>
+          <select value={estacionId ?? ""} onChange={(e) => cambiarEstacion(Number(e.target.value))}>
             {opciones.map((o) => <option key={o.id} value={o.id}>{o.etiqueta}</option>)}
           </select>
         </label>
         <label>Variable
-          <SelectorParametro parametros={parametros} valor={parametro} onCambiar={setParametro} />
+          <SelectorParametro parametros={parametros} valor={parametro} onCambiar={cambiarParametro} />
         </label>
         <label>Desde
           <input type="date" value={desde} min={rango?.desde} max={hasta} onChange={(e) => setDesde(e.target.value)} />

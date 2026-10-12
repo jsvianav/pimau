@@ -4,15 +4,14 @@ Cada fuente corre en su propia ejecucion y su propia transaccion. Si una
 fuente falla, el error queda registrado y las demas siguen (escenario 6).
 """
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from itertools import islice
 
 from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from pimau.db.modelos import (CapaTerritorial, EjecucionIngesta, Estacion,
-                              Fuente, Medicion, Parametro)
+from pimau.db.modelos import CapaTerritorial, EjecucionIngesta, Estacion, Fuente, Medicion, Parametro
 from pimau.ingesta.conectores.base import ConectorCapas, ConectorMediciones
 from pimau.ingesta.conectores.cali_ckan import ConectorCaliCkan
 from pimau.ingesta.conectores.ideam import ConectorIdeam
@@ -31,7 +30,7 @@ TAMANO_LOTE = 5000
 
 
 def _ahora():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _lotes(iterable, tamano):
@@ -60,7 +59,8 @@ def ejecutar_fuente(sesion: Session, fuente: Fuente, completa: bool = False) -> 
                 if faltantes:
                     notas.append(f"incluye {faltantes} faltantes implícitos")
             if conector.filas_descartadas:
-                notas.append(f"Advertencia: {conector.filas_descartadas} filas descartadas por fecha ilegible")
+                notas.append(f"Advertencia: {conector.filas_descartadas} filas descartadas "
+                             "por fecha ilegible")
             ejecucion.mensaje_error = ". ".join(notas) or None
         elif isinstance(conector, ConectorCapas):
             registros = _cargar_capas(sesion, conector.extraer())

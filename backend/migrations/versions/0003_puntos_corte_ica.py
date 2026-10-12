@@ -11,8 +11,8 @@ plataforma.
 Revision ID: 0003_puntos_corte_ica
 Revises: 0002_datos_iniciales
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "0003_puntos_corte_ica"
 down_revision = "0002_datos_iniciales"

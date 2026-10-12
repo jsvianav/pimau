@@ -1,12 +1,12 @@
 """modelo de datos comun
 
 Revision ID: 2a2aa756f389
-Revises: 
+Revises:
 Create Date: 2026-10-09 22:23:36.949803
 """
-from alembic import op
-import sqlalchemy as sa
 import geoalchemy2
+import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = '2a2aa756f389'

@@ -6,7 +6,7 @@
 """
 import argparse
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from sqlalchemy import func, select
@@ -42,7 +42,7 @@ def comando_programador(_):
                 if f is not None and f.activa:
                     ejecutar_fuente(s, f)
         programador.add_job(trabajo, "interval", minutes=fuente.frecuencia_min,
-                            next_run_time=datetime.now(timezone.utc), id=f"fuente-{fuente.id}")
+                            next_run_time=datetime.now(UTC), id=f"fuente-{fuente.id}")
         logging.info("Programada %s cada %s minutos", fuente.nombre, fuente.frecuencia_min)
     programador.start()
 
@@ -71,7 +71,8 @@ def main():
     p.add_argument("--fuente", help="Nombre de la fuente; por defecto, todas las activas")
     p.add_argument("--completa", action="store_true", help="Descarga todo el histórico")
     p.set_defaults(funcion=comando_ejecutar)
-    sub.add_parser("programador", help="Ejecuta las fuentes según su frecuencia").set_defaults(funcion=comando_programador)
+    programador = sub.add_parser("programador", help="Ejecuta las fuentes según su frecuencia")
+    programador.set_defaults(funcion=comando_programador)
     sub.add_parser("estado", help="Muestra el estado de la ingesta").set_defaults(funcion=comando_estado)
     argumentos = analizador.parse_args()
     argumentos.funcion(argumentos)

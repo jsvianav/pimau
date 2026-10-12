@@ -16,8 +16,8 @@ Valores guia de la OMS 2021 en µg/m³: O3 100 (8 horas), NO2 25 (24 horas) y 10
 Revision ID: 0004_meteorologia_contaminantes
 Revises: 0003_puntos_corte_ica
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "0004_meteorologia_contaminantes"
 down_revision = "0003_puntos_corte_ica"
@@ -64,12 +64,12 @@ GUIAS_OMS = [
 def upgrade():
     parametro = sa.table("parametro", sa.column("codigo"), sa.column("nombre"),
                          sa.column("unidad"), sa.column("variable"))
-    op.bulk_insert(parametro, [dict(zip(("codigo", "nombre", "unidad", "variable"), p)) for p in PARAMETROS])
+    op.bulk_insert(parametro, [dict(zip(("codigo", "nombre", "unidad", "variable"), p, strict=False)) for p in PARAMETROS])
     insertar = sa.text(
         "INSERT INTO umbral_referencia (parametro_id, referencia, categoria, limite_inferior, limite_superior, color) "
         "SELECT id, :r, :c, :i, :s, :color FROM parametro WHERE codigo = :p")
     for codigo, cortes in CORTES.items():
-        for (categoria, color), (inferior, superior) in zip(CATEGORIAS, cortes):
+        for (categoria, color), (inferior, superior) in zip(CATEGORIAS, cortes, strict=False):
             op.execute(insertar.bindparams(r=REFERENCIA_ICA, c=categoria, i=inferior, s=superior, color=color, p=codigo))
     for codigo, periodo, valor in GUIAS_OMS:
         op.execute(insertar.bindparams(r=REFERENCIA_OMS, c=periodo, i=None, s=valor, color=None, p=codigo))

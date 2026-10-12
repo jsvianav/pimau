@@ -4,7 +4,7 @@ La ingesta no elimina ni rellena datos. Cada valor se guarda con una bandera:
 valido, faltante o fuera_de_rango.
 """
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from pimau.config import configuracion
@@ -81,7 +81,7 @@ def leer_numero(texto) -> float | None:
     """Convierte un valor de origen en numero. Devuelve None si el dato falta."""
     if texto is None:
         return None
-    if isinstance(texto, (int, float)):
+    if isinstance(texto, int | float):
         return float(texto)
     limpio = str(texto).strip()
     if limpio.lower() in TEXTOS_FALTANTE:
@@ -124,7 +124,7 @@ def leer_fecha(texto: str, orden: str = "mdy", excel_invertido: bool = False) ->
         local = local.replace(second=0, microsecond=0) + timedelta(minutes=round(local.second / 60))
         if excel_invertido:
             local = local.replace(month=local.day, day=local.month)
-        return local.replace(tzinfo=ZONA_FUENTES).astimezone(timezone.utc)
+        return local.replace(tzinfo=ZONA_FUENTES).astimezone(UTC)
     dia_siguiente = False
     if coincidencia := _PATRON_HORA_24.match(limpio):
         limpio = coincidencia.group(1) + "00:00"
@@ -136,7 +136,7 @@ def leer_fecha(texto: str, orden: str = "mdy", excel_invertido: bool = False) ->
             continue
         if dia_siguiente:
             local += timedelta(days=1)
-        return local.replace(tzinfo=ZONA_FUENTES).astimezone(timezone.utc)
+        return local.replace(tzinfo=ZONA_FUENTES).astimezone(UTC)
     raise ValueError(f"Formato de fecha no reconocido: {texto!r}")
 
 

@@ -3,16 +3,15 @@
 Usan la base indicada en DATABASE_URL_PRUEBAS y la reconstruyen en cada prueba.
 """
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import sessionmaker
 
-from pimau.db.modelos import Base, EjecucionIngesta, Fuente, Medicion, Parametro
+from pimau.db.modelos import Base, Fuente, Medicion, Parametro
 from pimau.ingesta import ejecutor
-from pimau.ingesta.conectores.base import (ConectorMediciones, EstacionOrigen,
-                                           RegistroMedicion)
+from pimau.ingesta.conectores.base import ConectorMediciones, EstacionOrigen, RegistroMedicion
 
 URL = os.environ.get("DATABASE_URL_PRUEBAS")
 pytestmark = pytest.mark.skipif(not URL, reason="Requiere DATABASE_URL_PRUEBAS")
@@ -21,7 +20,7 @@ ESTACION = EstacionOrigen("X1", "Estación de prueba", 3.4, -76.5)
 
 
 def _registro(hora, valor, bandera="valido"):
-    return RegistroMedicion(ESTACION, "PM25", datetime(2024, 1, 1, hora, tzinfo=timezone.utc), valor, bandera)
+    return RegistroMedicion(ESTACION, "PM25", datetime(2024, 1, 1, hora, tzinfo=UTC), valor, bandera)
 
 
 class ConectorFijo(ConectorMediciones):

@@ -14,13 +14,12 @@ IDESC, consultada el 2026-10-09.
 """
 import csv
 import io
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Iterable, Iterator
 
 from pimau.ingesta import normalizacion as norma
-from pimau.ingesta.conectores.base import (ConectorMediciones, EstacionOrigen,
-                                           RegistroMedicion, obtener)
+from pimau.ingesta.conectores.base import ConectorMediciones, EstacionOrigen, RegistroMedicion, obtener
 
 URL = "https://datos.cali.gov.co/api/3/action/datastore_search"
 URL_RECURSO = "https://datos.cali.gov.co/api/3/action/resource_show"

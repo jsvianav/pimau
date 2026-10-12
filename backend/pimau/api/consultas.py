@@ -1,6 +1,6 @@
 """Consultas de la capa de servicios. Solo leen la base de datos (ADR-01)."""
 import json
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import text
@@ -100,7 +100,8 @@ def estaciones(sesion: Session) -> dict:
                    minimo
             FROM ventanas
         ), representativa AS (
-            SELECT DISTINCT ON (estacion_id, parametro_id) estacion_id, parametro_id, instante, promedio, horas_validas
+            SELECT DISTINCT ON (estacion_id, parametro_id)
+                   estacion_id, parametro_id, instante, promedio, horas_validas
             FROM elegidas WHERE horas_validas >= minimo
             ORDER BY estacion_id, parametro_id, instante DESC
         )
@@ -154,8 +155,8 @@ def estacion_existe(sesion: Session, estacion_id: int) -> dict | None:
 
 def _limites_utc(desde: date, hasta: date) -> tuple[datetime, datetime]:
     """Convierte un rango de dias de Colombia en instantes UTC [inicio, fin)."""
-    inicio = datetime.combine(desde, time(0), ZONA_COLOMBIA).astimezone(timezone.utc)
-    fin = datetime.combine(hasta + timedelta(days=1), time(0), ZONA_COLOMBIA).astimezone(timezone.utc)
+    inicio = datetime.combine(desde, time(0), ZONA_COLOMBIA).astimezone(UTC)
+    fin = datetime.combine(hasta + timedelta(days=1), time(0), ZONA_COLOMBIA).astimezone(UTC)
     return inicio, fin
 
 

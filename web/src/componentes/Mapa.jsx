@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+// MapLibre 6 dibuja el mapa con un proceso en segundo plano (worker) que va en
+// un archivo aparte. Vite lo empaqueta y aquí se le indica a MapLibre dónde está.
+import urlProcesoMapa from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { api } from "../api.js";
 import { estadoMasReciente, formatearNumero } from "../util.js";
+
+maplibregl.setWorkerUrl(urlProcesoMapa);
 
 const ESTILO_BASE = "https://tiles.openfreemap.org/styles/positron";
 const COLOR_SIN_ICA = "#9aa3ad";
@@ -42,7 +47,7 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
   const [capasVisibles, setCapasVisibles] = useState(
     Object.fromEntries(CAPAS.map((c) => [c.tipo, c.visible])));
   const capasVisiblesRef = useRef(capasVisibles);
-  capasVisiblesRef.current = capasVisibles;
+  useEffect(() => { capasVisiblesRef.current = capasVisibles; }, [capasVisibles]);
 
   useEffect(() => {
     const m = new maplibregl.Map({

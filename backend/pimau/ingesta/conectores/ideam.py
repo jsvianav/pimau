@@ -5,13 +5,12 @@ de Santiago de Cali, los registros horarios (duracion de 60 minutos) y las
 variables de VARIABLES. El conjunto tambien trae algunos promedios diarios
 (duracion de 1440 minutos), que no se mezclan con los horarios.
 """
+from collections.abc import Iterator
 from datetime import datetime
-from typing import Iterator
 from zoneinfo import ZoneInfo
 
 from pimau.ingesta import normalizacion as norma
-from pimau.ingesta.conectores.base import (ConectorMediciones, EstacionOrigen,
-                                           RegistroMedicion, obtener)
+from pimau.ingesta.conectores.base import ConectorMediciones, EstacionOrigen, RegistroMedicion, obtener
 
 URL = "https://www.datos.gov.co/resource/g4t8-zkc3.json"
 TAMANO_PAGINA = 10000

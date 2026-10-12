@@ -12,3 +12,6 @@ __pycache__/
 data/
 node_modules/
 dist/
+
+# Respaldos de la base de datos
+respaldos/

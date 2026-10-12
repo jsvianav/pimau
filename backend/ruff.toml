@@ -1,0 +1,20 @@
+# Linter de Python (PEP 8 y errores comunes). Ver la sección de
+# Construcción del Capítulo 3.
+line-length = 110
+target-version = "py312"
+
+[lint]
+# E/W: estilo PEP 8, F: errores (variables sin usar, imports que sobran),
+# I: orden de los imports, B: errores frecuentes, UP: sintaxis moderna.
+select = ["E", "W", "F", "I", "B", "UP"]
+
+[lint.flake8-bugbear]
+# FastAPI declara los parámetros con Query() y Depends() como valor por defecto.
+extend-immutable-calls = ["fastapi.Query", "fastapi.Depends", "fastapi.Path"]
+
+[lint.per-file-ignores]
+# Las migraciones de Alembic contienen datos (puntos de corte del ICA,
+# valores guía) en líneas largas que se leen mejor sin partir.
+"migrations/versions/*" = ["E501"]
+# Las pruebas usan filas de datos de ejemplo completas en una sola línea.
+"tests/*" = ["E501"]

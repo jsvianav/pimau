@@ -4,13 +4,11 @@ Cada conector es la correspondencia entre una fuente y el modelo comun
 (Capitulo 2, integracion de datos). Agregar una fuente es agregar un
 conector, sin tocar el resto del sistema (escenario 3).
 """
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Iterator
-
 import logging
 import time
-from datetime import timedelta
+from collections.abc import Iterator
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 import httpx
 

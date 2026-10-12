@@ -70,22 +70,39 @@ Para desarrollar el visor con recarga automática (requiere Node 22):
 cd web && npm install && npm run dev
 ```
 
-## Pruebas
+## Pruebas y linter
 
 Visor:
 
 ```bash
-cd web && npm test
+cd web && npm run lint && npm test
 ```
 
-Backend:
+Backend (Ruff revisa el estilo PEP 8 y los errores comunes):
 
 ```bash
 docker compose exec db psql -U pimau -c "CREATE DATABASE pimau_test"
-docker compose run --rm \
+docker compose run --rm -v "$PWD/backend:/app" \
   -e DATABASE_URL_PRUEBAS=postgresql+psycopg://pimau:<clave>@db:5432/pimau_test \
-  ingesta pytest -q
+  ingesta sh -c "pip install -q -r requirements-dev.txt && ruff check . && pytest -q"
 ```
+
+La integración continua (`.github/workflows/ci.yml`) corre lo mismo en cada
+cambio, revisa las dependencias vulnerables (`pip-audit` y `npm audit`) y
+construye las imágenes de los contenedores.
+
+## Respaldos
+
+El servicio `respaldo` guarda cada día un volcado de la base en `respaldos/`
+y conserva los últimos 7. Para restaurar uno:
+
+```bash
+docker compose run --rm --entrypoint sh respaldo -c \
+  "pg_restore --clean -d pimau /respaldos/pimau_AAAAMMDD.dump"
+```
+
+La base de datos no publica su puerto: solo los demás contenedores llegan a
+ella por la red interna de Docker.
 
 ## Licencia
 

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -18,15 +18,15 @@ def test_leer_numero(texto, esperado):
 ])
 def test_leer_fecha_convierte_hora_de_colombia_a_utc(texto):
     # 01:00 en Colombia (UTC-5) son las 06:00 UTC.
-    assert norma.leer_fecha(texto) == datetime(2013 if "2013" in texto else 2020, 3 if "2013" in texto else 1, 1, 6, 0, tzinfo=timezone.utc)
+    assert norma.leer_fecha(texto) == datetime(2013 if "2013" in texto else 2020, 3 if "2013" in texto else 1, 1, 6, 0, tzinfo=UTC)
 
 
 def test_leer_fecha_acepta_numeros_de_serie_de_excel():
     # 41646 es el 7 de enero de 2014 a las 00:00 en Colombia.
-    assert norma.leer_fecha("41646") == datetime(2014, 1, 7, 5, 0, tzinfo=timezone.utc)
-    assert norma.leer_fecha("41646.5") == datetime(2014, 1, 7, 17, 0, tzinfo=timezone.utc)
+    assert norma.leer_fecha("41646") == datetime(2014, 1, 7, 5, 0, tzinfo=UTC)
+    assert norma.leer_fecha("41646.5") == datetime(2014, 1, 7, 17, 0, tzinfo=UTC)
     # Con coma decimal, como en Cañaveralejo y La Ermita: 01:00 en Colombia.
-    assert norma.leer_fecha("41646,04167") == datetime(2014, 1, 7, 6, 0, tzinfo=timezone.utc)
+    assert norma.leer_fecha("41646,04167") == datetime(2014, 1, 7, 6, 0, tzinfo=UTC)
 
 
 def test_leer_fecha_respeta_el_orden_declarado():
@@ -37,14 +37,14 @@ def test_leer_fecha_respeta_el_orden_declarado():
 
 def test_leer_fecha_convierte_la_hora_24_en_el_dia_siguiente():
     # 31/12/2019 24:00 en Colombia es el 1 de enero de 2020 a las 05:00 UTC.
-    assert norma.leer_fecha("31/12/2019 24:00", orden="dmy") == datetime(2020, 1, 1, 5, 0, tzinfo=timezone.utc)
+    assert norma.leer_fecha("31/12/2019 24:00", orden="dmy") == datetime(2020, 1, 1, 5, 0, tzinfo=UTC)
 
 
 def test_leer_fecha_corrige_fechas_de_excel_invertidas():
     # En Cañaveralejo, despues de 06/30/2014 23:00 viene 41646, que Excel
     # leyo como 7 de enero de 2014 pero corresponde al 1 de julio de 2014.
-    assert norma.leer_fecha("41646", excel_invertido=True) == datetime(2014, 7, 1, 5, 0, tzinfo=timezone.utc)
-    assert norma.leer_fecha("41980,95833", excel_invertido=True) == datetime(2014, 7, 13, 4, 0, tzinfo=timezone.utc)
+    assert norma.leer_fecha("41646", excel_invertido=True) == datetime(2014, 7, 1, 5, 0, tzinfo=UTC)
+    assert norma.leer_fecha("41980,95833", excel_invertido=True) == datetime(2014, 7, 13, 4, 0, tzinfo=UTC)
 
 
 def test_leer_fecha_rechaza_formatos_desconocidos():
