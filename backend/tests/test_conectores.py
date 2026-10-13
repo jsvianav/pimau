@@ -99,3 +99,29 @@ def test_idesc_rechaza_capas_en_otro_sistema_de_coordenadas():
         assert "EPSG:4326" in str(error)
     else:
         raise AssertionError("Debía rechazar una capa en EPSG:6249")
+
+
+@respx.mock
+def test_ideam_guarda_la_fecha_de_publicacion_del_conjunto():
+    """La fecha de la última actualización del conjunto queda en cada medición (RF-04)."""
+    from datetime import UTC, datetime
+    fila = {"estacion_id": "31820", "nombre_est": "CASCAJAL", "msfl_code": "PM2.5",
+            "med_concentracion_estandar": "18", "med_fecha_final": "2024-12-31T23:00:00.000",
+            "latitud": "3.39", "longitud": "-76.49", "sigla_unidad": "ug/m3", "duraci_n": "60"}
+    respx.get(ideam.URL_METADATOS).mock(return_value=httpx.Response(200, json={"rowsUpdatedAt": 1771590892}))
+    respx.get(ideam.URL).mock(side_effect=lambda request: httpx.Response(
+        200, json=[fila] if "> '2024-12-01" in request.url.params["$where"] else []))
+    registros = list(ideam.ConectorIdeam().extraer(None))
+    assert registros[0].fecha_publicacion == datetime(2026, 2, 20, 12, 34, 52, tzinfo=UTC)
+
+
+@respx.mock
+def test_cali_ckan_guarda_la_fecha_de_publicacion_del_recurso(monkeypatch):
+    from datetime import UTC, datetime
+    monkeypatch.setattr(cali_ckan, "ESTACIONES", [cali_ckan.RecursoEstacion("UV", "Universidad del Valle", 3.37, -76.53, "r1")])
+    respx.get(cali_ckan.URL_RECURSO).mock(return_value=httpx.Response(200, json={"result": {
+        "last_modified": "2020-09-18T20:25:12.459029"}}))
+    respx.get(cali_ckan.URL).mock(return_value=httpx.Response(200, json={"result": {
+        "total": 1, "records": [{"_id": 1, "Fecha & Hora": "2013-03-01T01:00:00", "PM2,5 (ug/m3)": "4,5"}]}}))
+    registro = next(cali_ckan.ConectorCaliCkan().extraer(None))
+    assert registro.fecha_publicacion == datetime(2020, 9, 18, 20, 25, 12, 459029, tzinfo=UTC)

@@ -488,3 +488,13 @@ D (enlace del repositorio, bitácora e integración continua).
 - nginx guardaba la dirección de la API al arrancar y respondía 502 cuando el contenedor de la API se recreaba. Ahora la vuelve a consultar en el DNS de Docker.
 
 **Decisión sobre las solicitudes de integración.** No se protege la rama principal ni se exigen solicitudes de integración, porque el equipo es de una persona y nadie más las revisaría. Cada cambio entra a la rama principal con un mensaje que nombra lo que atiende, y la integración continua lo verifica.
+
+## 2026-10-13 — Revisión del Capítulo 3 contra el código: esquemas de respuesta y fecha de publicación
+
+**Contexto.** Al revisar el Capítulo 3 contra el código aparecieron dos afirmaciones que el sistema no cumplía del todo.
+
+**Esquemas de respuesta de la API.** El texto decía que la API valida su entrada y su salida con esquemas tipados, pero las respuestas no tenían esquema. Se agregó `pimau/api/esquemas.py` (Pydantic) y cada ruta declara su `response_model`. FastAPI valida cada respuesta antes de enviarla y los esquemas aparecen en la documentación OpenAPI. Los instantes se dejaron como texto ISO 8601 para no cambiar el formato que usa el visor.
+
+**Fecha de publicación (RF-04).** El campo `fecha_publicacion` existía pero ningún conector lo llenaba. Ahora el conector del portal de Cali guarda el `last_modified` de cada recurso en CKAN, y el del IDEAM el `rowsUpdatedAt` del conjunto en datos.gov.co. Si la fuente no responde, la ingesta sigue y la medición queda sin esa fecha. Las 6.130.963 mediciones ya cargadas se completaron con la fecha que informa cada fuente, que es anterior a la descarga y por lo tanto corresponde a la versión descargada. Portal de Cali: entre mayo de 2020 y diciembre de 2021 según la estación. IDEAM: 20 de febrero de 2026.
+
+**Pruebas.** Tres pruebas nuevas (fecha de publicación en ambos conectores y esquemas en OpenAPI). Pasan 87.

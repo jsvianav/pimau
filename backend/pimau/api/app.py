@@ -17,7 +17,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
-from pimau.api import consultas
+from pimau.api import consultas, esquemas
 from pimau.db.sesion import Sesion
 
 log = logging.getLogger("pimau.api")
@@ -102,22 +102,24 @@ def _en_cache(clave: str, calcular):
 
 
 # --- Rutas ------------------------------------------------------------------
-@app.get("/api/salud", summary="Estado del servicio")
+@app.get("/api/salud", summary="Estado del servicio", response_model=esquemas.Salud)
 def salud():
     return {"estado": "ok"}
 
 
-@app.get("/api/parametros", summary="Parámetros disponibles")
+@app.get("/api/parametros", summary="Parámetros disponibles", response_model=list[esquemas.Parametro])
 def listar_parametros(sesion: Session = Depends(sesion_bd)):
     return consultas.parametros(sesion)
 
 
-@app.get("/api/umbrales", summary="Puntos de corte del ICA y guías de la OMS")
+@app.get("/api/umbrales", summary="Puntos de corte del ICA y guías de la OMS",
+         response_model=dict[str, esquemas.UmbralesParametro])
 def listar_umbrales(sesion: Session = Depends(sesion_bd)):
     return _en_cache("umbrales", lambda: consultas.umbrales(sesion))
 
 
-@app.get("/api/estaciones", summary="Estaciones con su último estado (RF-05, RF-07)")
+@app.get("/api/estaciones", summary="Estaciones con su último estado (RF-05, RF-07)",
+         response_model=esquemas.ColeccionEstaciones)
 def listar_estaciones(sesion: Session = Depends(sesion_bd)):
     """GeoJSON con la última medición válida de cada estación, el promedio de
     24 horas, su categoría del ICA y el valor guía de la OMS."""
@@ -143,7 +145,8 @@ def _validar(sesion, estacion_id, parametro, desde, hasta, agregacion):
     return estacion
 
 
-@app.get("/api/estaciones/{estacion_id}/rango", summary="Fechas disponibles de una serie")
+@app.get("/api/estaciones/{estacion_id}/rango", summary="Fechas disponibles de una serie",
+         response_model=esquemas.Rango)
 def rango(estacion_id: int, parametro: str = "PM25", sesion: Session = Depends(sesion_bd)):
     _validar_parametro(sesion, parametro)
     resultado = consultas.rango_disponible(sesion, estacion_id, parametro)
@@ -152,7 +155,8 @@ def rango(estacion_id: int, parametro: str = "PM25", sesion: Session = Depends(s
     return resultado
 
 
-@app.get("/api/estaciones/{estacion_id}/series", summary="Serie histórica (RF-06)")
+@app.get("/api/estaciones/{estacion_id}/series", summary="Serie histórica (RF-06)",
+         response_model=esquemas.Serie)
 def serie(estacion_id: int, parametro: str = "PM25",
           desde: date = Query(..., description="Día inicial (hora de Colombia)"),
           hasta: date = Query(..., description="Día final, incluido"),
@@ -184,6 +188,6 @@ def serie_csv(estacion_id: int, parametro: str = "PM25",
                              headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
 
 
-@app.get("/api/capas/{tipo}", summary="Capas territoriales (RF-09)")
+@app.get("/api/capas/{tipo}", summary="Capas territoriales (RF-09)", response_model=esquemas.Capa)
 def capa(tipo: Literal["comuna", "barrio", "corregimiento"], sesion: Session = Depends(sesion_bd)):
     return _en_cache(f"capa-{tipo}", lambda: consultas.capa(sesion, tipo))

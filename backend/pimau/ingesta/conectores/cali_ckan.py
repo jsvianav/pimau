@@ -14,17 +14,25 @@ IDESC, consultada el 2026-10-09.
 """
 import csv
 import io
+import logging
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from pimau.ingesta import normalizacion as norma
-from pimau.ingesta.conectores.base import ConectorMediciones, EstacionOrigen, RegistroMedicion, obtener
+from pimau.ingesta.conectores.base import (
+    ConectorMediciones,
+    EstacionOrigen,
+    RegistroMedicion,
+    fecha_utc,
+    obtener,
+)
 
 URL = "https://datos.cali.gov.co/api/3/action/datastore_search"
 URL_RECURSO = "https://datos.cali.gov.co/api/3/action/resource_show"
 TAMANO_PAGINA = 20000
 COLUMNA_FECHA = "Fecha & Hora"
+log = logging.getLogger("pimau.ingesta")
 
 
 @dataclass(frozen=True)
@@ -71,8 +79,22 @@ class ConectorCaliCkan(ConectorMediciones):
     def extraer(self, desde: datetime | None) -> Iterator[RegistroMedicion]:
         for recurso in ESTACIONES:
             estacion = EstacionOrigen(recurso.codigo, recurso.nombre, recurso.latitud, recurso.longitud)
-            filas = self._filas_csv(recurso) if recurso.acceso == "csv" else self._filas_datastore(recurso)
-            yield from self._normalizar(estacion, recurso, filas, desde)
+            metadatos = self._metadatos(recurso)
+            publicacion = fecha_utc(metadatos.get("last_modified") or metadatos.get("created"))
+            filas = (self._filas_csv(metadatos) if recurso.acceso == "csv"
+                     else self._filas_datastore(recurso))
+            yield from self._normalizar(estacion, recurso, filas, desde, publicacion)
+
+    def _metadatos(self, recurso: RecursoEstacion) -> dict:
+        """Metadatos del recurso en CKAN: la URL del archivo y la fecha de su
+        última actualización, que se guarda como fecha de publicación (RF-04)."""
+        try:
+            return obtener(self.cliente, URL_RECURSO, params={"id": recurso.recurso}).json()["result"]
+        except Exception:
+            if recurso.acceso == "csv":
+                raise
+            log.warning("No se pudieron leer los metadatos de %s", recurso.nombre, exc_info=True)
+            return {}
 
     def _filas_datastore(self, recurso: RecursoEstacion) -> Iterator[dict]:
         desplazamiento = 0
@@ -87,14 +109,14 @@ class ConectorCaliCkan(ConectorMediciones):
             if not resultado["records"] or desplazamiento >= resultado["total"]:
                 return
 
-    def _filas_csv(self, recurso: RecursoEstacion) -> Iterator[dict]:
-        metadatos = obtener(self.cliente, URL_RECURSO, params={"id": recurso.recurso}).json()["result"]
+    def _filas_csv(self, metadatos: dict) -> Iterator[dict]:
         contenido = obtener(self.cliente, metadatos["url"]).content.decode("utf-8-sig")
         separador = csv.Sniffer().sniff(contenido[:2000], delimiters=";,").delimiter
         yield from csv.DictReader(io.StringIO(contenido), delimiter=separador)
 
     def _normalizar(self, estacion: EstacionOrigen, recurso: RecursoEstacion,
-                    filas: Iterable[dict], desde: datetime | None) -> Iterator[RegistroMedicion]:
+                    filas: Iterable[dict], desde: datetime | None,
+                    publicacion: datetime | None = None) -> Iterator[RegistroMedicion]:
         columnas = None
         anterior = None
         for fila in filas:
@@ -114,7 +136,8 @@ class ConectorCaliCkan(ConectorMediciones):
                 valor = norma.leer_numero(fila.get(columna))
                 yield RegistroMedicion(estacion=estacion, parametro=codigo,
                                        instante=instante, valor=valor,
-                                       bandera=norma.bandera(codigo, valor))
+                                       bandera=norma.bandera(codigo, valor),
+                                       fecha_publicacion=publicacion)
 
     @staticmethod
     def _leer_instante(texto, recurso: RecursoEstacion, anterior: datetime | None) -> datetime:

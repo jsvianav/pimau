@@ -5,14 +5,26 @@ de Santiago de Cali, los registros horarios (duracion de 60 minutos) y las
 variables de VARIABLES. El conjunto tambien trae algunos promedios diarios
 (duracion de 1440 minutos), que no se mezclan con los horarios.
 """
+import dataclasses
+import logging
 from collections.abc import Iterator
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from pimau.ingesta import normalizacion as norma
-from pimau.ingesta.conectores.base import ConectorMediciones, EstacionOrigen, RegistroMedicion, obtener
+from pimau.ingesta.conectores.base import (
+    ConectorMediciones,
+    EstacionOrigen,
+    RegistroMedicion,
+    fecha_utc,
+    obtener,
+)
 
 URL = "https://www.datos.gov.co/resource/g4t8-zkc3.json"
+# Metadatos del conjunto: rowsUpdatedAt es la última actualización de los datos
+# (procedencia, RF-04).
+URL_METADATOS = "https://www.datos.gov.co/api/views/g4t8-zkc3.json"
+log = logging.getLogger("pimau.ingesta")
 TAMANO_PAGINA = 10000
 DURACION_HORARIA = "60"
 # El conjunto de Cali empieza en 2020, pero se consulta desde antes por si se
@@ -62,6 +74,7 @@ class ConectorIdeam(ConectorMediciones):
         grandes se vuelve muy lento en datos.gov.co (ver bitacora), y una
         consulta por mes se mantiene pequena y rapida."""
         zona = ZoneInfo("America/Bogota")
+        self.fecha_publicacion = self._fecha_publicacion()
         inicio = desde.astimezone(zona).replace(tzinfo=None) if desde else INICIO_HISTORICO
         limite = datetime.now(zona).replace(tzinfo=None)
         while inicio < limite:
@@ -82,10 +95,19 @@ class ConectorIdeam(ConectorMediciones):
             for fila in filas:
                 registro = self._normalizar(fila)
                 if registro is not None:
-                    yield registro
+                    yield dataclasses.replace(registro, fecha_publicacion=self.fecha_publicacion)
             if len(filas) < TAMANO_PAGINA:
                 return
             desplazamiento += TAMANO_PAGINA
+
+    def _fecha_publicacion(self) -> datetime | None:
+        """Fecha de la última actualización del conjunto. Si no se puede leer,
+        la ingesta sigue y la medición queda sin fecha de publicación."""
+        try:
+            return fecha_utc(obtener(self.cliente, URL_METADATOS).json().get("rowsUpdatedAt"))
+        except Exception:
+            log.warning("No se pudo leer la fecha de publicación del IDEAM", exc_info=True)
+            return None
 
     @staticmethod
     def _normalizar(fila: dict) -> RegistroMedicion | None:

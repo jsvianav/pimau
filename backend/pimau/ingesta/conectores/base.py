@@ -8,7 +8,7 @@ import logging
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import httpx
 
@@ -50,6 +50,17 @@ def obtener(cliente: httpx.Client, url: str, intentos: int = 3, **kwargs) -> htt
             log.warning("Reintento %s de %s para %s: %s", intento, intentos, url, error)
             time.sleep(5 * intento)
     raise RuntimeError("inalcanzable")
+
+
+def fecha_utc(texto_o_segundos) -> datetime | None:
+    """Convierte la fecha de actualización que informa una fuente (texto ISO
+    sin zona, que las fuentes usan en UTC, o segundos desde 1970) a UTC."""
+    if texto_o_segundos in (None, ""):
+        return None
+    if isinstance(texto_o_segundos, int | float):
+        return datetime.fromtimestamp(texto_o_segundos, UTC)
+    fecha = datetime.fromisoformat(str(texto_o_segundos))
+    return fecha if fecha.tzinfo else fecha.replace(tzinfo=UTC)
 
 
 class ConectorMediciones:

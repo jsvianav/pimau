@@ -147,3 +147,10 @@ def test_capa_de_comunas(cliente):
     capa = cliente.get("/api/capas/comuna").json()
     assert capa["features"][0]["properties"]["nombre"] == "Comuna 01"
     assert cliente.get("/api/capas/otra").status_code == 422
+
+
+def test_las_respuestas_estan_documentadas_con_esquemas(cliente):
+    """Cada ruta declara el esquema de su respuesta en OpenAPI (RF-08)."""
+    esquemas = cliente.get("/api/openapi.json").json()["components"]["schemas"]
+    for nombre in ["ColeccionEstaciones", "EstadoParametro", "Serie", "Parametro", "Rango", "Capa"]:
+        assert nombre in esquemas
