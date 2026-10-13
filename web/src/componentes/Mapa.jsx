@@ -171,12 +171,12 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
           if (capa.tipo === "comuna") {
             // Número de cada comuna en el centro de su área, en gris suave.
             m.addLayer({
-              id: "capa-comuna-numero", type: "symbol", source: "capa-comuna", minzoom: 10.5,
+              id: "capa-comuna-numero", type: "symbol", source: "capa-comuna", minzoom: 9.5,
               layout: { visibility: visibilidad, "text-field": ["to-string", ["to-number", ["get", "codigo"]]],
-                        "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 11, 11, 14, 15],
-                        "text-allow-overlap": false, "text-padding": 4 },
-              paint: { "text-color": "#2f4a45", "text-opacity": 0.45,
-                       "text-halo-color": "rgba(255,255,255,0.85)", "text-halo-width": 1.4 },
+                        "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 10, 12, 14, 17],
+                        "text-allow-overlap": true, "text-ignore-placement": true },
+              paint: { "text-color": "#2f4a45", "text-opacity": 0.7,
+                       "text-halo-color": "rgba(255,255,255,0.9)", "text-halo-width": 1.6 },
             }, "estaciones-halo");
           }
           let encima = null;
