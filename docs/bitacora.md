@@ -498,3 +498,11 @@ D (enlace del repositorio, bitácora e integración continua).
 **Fecha de publicación (RF-04).** El campo `fecha_publicacion` existía pero ningún conector lo llenaba. Ahora el conector del portal de Cali guarda el `last_modified` de cada recurso en CKAN, y el del IDEAM el `rowsUpdatedAt` del conjunto en datos.gov.co. Si la fuente no responde, la ingesta sigue y la medición queda sin esa fecha. Las 6.130.963 mediciones ya cargadas se completaron con la fecha que informa cada fuente, que es anterior a la descarga y por lo tanto corresponde a la versión descargada. Portal de Cali: entre mayo de 2020 y diciembre de 2021 según la estación. IDEAM: 20 de febrero de 2026.
 
 **Pruebas.** Tres pruebas nuevas (fecha de publicación en ambos conectores y esquemas en OpenAPI). Pasan 87.
+
+## 2026-10-13 — Rediseño minimalista del visor
+
+**Qué cambió.** El mapa ocupa toda la pantalla y el panel de la estación, los controles y la leyenda flotan encima como tarjetas con sombra suave. El encabezado es más delgado y las pestañas son texto subrayado. El aviso de la fecha de los datos es una etiqueta pequeña sobre el mapa.
+
+**Mapa.** Se atenuó el mapa base de OpenFreeMap (agua y parques en tonos apagados, sin escudos de vías, rutas férreas ni el rótulo de la ciudad, que tapaba estaciones). Cada estación tiene un halo del color de su categoría del ICA y su nombre en negrita. Las comunas son líneas finas que se resaltan al pasar el puntero. Al abrir, el mapa encuadra todas las estaciones dejando libre el espacio de las tarjetas, y al elegir una estación la centra en ese espacio.
+
+**Verificación.** Capturas con Playwright y Chrome a 1440 × 900 y a 390 × 844. El panel del navegador del editor no dibuja WebGL cuando se simula un tamaño mayor que el suyo, así que las capturas de escritorio se tomaron fuera de él. ESLint, las 8 pruebas del visor y la construcción pasan.

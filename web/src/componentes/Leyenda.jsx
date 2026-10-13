@@ -18,10 +18,7 @@ export default function Leyenda({ umbrales, parametro, meta }) {
   return (
     <section className="flotante leyenda" aria-label="Leyenda del Índice de Calidad del Aire">
       <h2>Índice de Calidad del Aire</h2>
-      <p>
-        {nombreCorto(parametro)}, {textoVentana(meta?.ventana_ica_horas)}, según la Resolución 2254 de 2017.
-        Concentraciones en µg/m³.
-      </p>
+      <p>{nombreCorto(parametro)}, {textoVentana(meta?.ventana_ica_horas)}. Resolución 2254 de 2017, en µg/m³.</p>
       <ol>
         {cortes.map((c) => (
           <li key={c.categoria}>

@@ -81,19 +81,6 @@ export default function App() {
         </nav>
       </header>
 
-      {ultimoDato && mostrarAviso && (
-        <div className="contexto" role="note">
-          <p>
-            Los datos abiertos de calidad del aire de Cali llegan hasta el {formatearFecha(ultimoDato, false)}. Cada
-            estación muestra la fecha de su último dato y la fuente que lo publicó.
-          </p>
-          <button className="cerrar" onClick={cerrarAviso} aria-label="Cerrar el aviso sobre la fecha de los datos">
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-              <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-      )}
       {error && <p className="aviso error" role="alert">No fue posible cargar los datos: {error}</p>}
 
       {pestana === "mapa" && (
@@ -105,11 +92,28 @@ export default function App() {
                 <SelectorParametro parametros={parametros} valor={parametro} onCambiar={setParametro} />
               </label>
             </Mapa>
+            {ultimoDato && mostrarAviso && (
+              <div className="contexto" role="note">
+                <p>
+                  Datos abiertos disponibles hasta el {formatearFecha(ultimoDato, false)}. Cada estación muestra la
+                  fecha de su último dato.
+                </p>
+                <button className="cerrar" onClick={cerrarAviso} aria-label="Cerrar el aviso sobre la fecha de los datos">
+                  <svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true">
+                    <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
+            )}
             {umbrales && <Leyenda umbrales={umbrales} parametro={parametro} meta={meta[parametro]} />}
           </div>
           <aside className="panel-lateral" ref={panel}>
             <Ficha grupo={grupoSeleccionado} parametro={parametro} meta={meta[parametro]} onVerHistorico={verHistorico} />
             <ListaEstaciones grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion} onSeleccionar={setSeleccion} />
+            <p className="fuentes">
+              Datos del IDEAM, del portal de Datos Abiertos de Cali (DAGMA) y de la IDESC.{" "}
+              <a href="/api/docs">Documentación de la API</a>.
+            </p>
           </aside>
         </main>
       )}
@@ -120,11 +124,13 @@ export default function App() {
         </main>
       )}
 
-      <footer className="pie">
-        Datos del IDEAM (datos.gov.co), del Portal de Datos Abiertos de Cali (DAGMA) y de la IDESC. Mapa base de
-        OpenFreeMap con datos de OpenStreetMap. Los datos se pueden consultar en la{" "}
-        <a href="/api/docs">documentación de la API</a>.
-      </footer>
+      {pestana !== "mapa" && (
+        <footer className="pie">
+          Datos del IDEAM (datos.gov.co), del Portal de Datos Abiertos de Cali (DAGMA) y de la IDESC. Mapa base de
+          OpenFreeMap con datos de OpenStreetMap. Los datos se pueden consultar en la{" "}
+          <a href="/api/docs">documentación de la API</a>.
+        </footer>
+      )}
     </div>
   );
 }

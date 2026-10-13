@@ -12,10 +12,43 @@ const ESTILO_BASE = "https://tiles.openfreemap.org/styles/positron";
 const COLOR_SIN_ICA = "#9aa3ad";
 const COLOR_SIN_ESCALA = "#0b6fb3";
 const CAPAS = [
-  { tipo: "comuna", nombre: "Comunas", color: "#17322e", visible: true },
+  { tipo: "comuna", nombre: "Comunas", color: "#2f4a45", visible: true },
   { tipo: "corregimiento", nombre: "Corregimientos", color: "#5b7f63", visible: false },
   { tipo: "barrio", nombre: "Barrios", color: "#8a9a95", visible: false },
 ];
+
+// Ajustes al mapa base para que el fondo quede en segundo plano y los colores
+// del ICA sean lo único que resalte: menos rótulos, calles más claras y agua y
+// parques en tonos apagados.
+const COLORES_BASE = {
+  background: { "background-color": "#f3f5f4" },
+  park: { "fill-color": "#e2ece4" },
+  landcover_wood: { "fill-color": "#dfe9e0" },
+  landuse_residential: { "fill-color": "#eef1ef" },
+  water: { "fill-color": "#d4e1e6" },
+  waterway: { "line-color": "#d4e1e6" },
+  building: { "fill-color": "#e9ecea" },
+};
+const OCULTAR_BASE = [/^highway-shield/, /^road_shield/, /^highway-name-(path|minor)$/, /^railway/,
+                      /^aeroway/, /^airport$/, /^label_(country|state)/,
+                      // Toda la plataforma es sobre Cali: el rótulo de la ciudad solo tapa estaciones.
+                      /^label_city/];
+
+function suavizarMapaBase(m) {
+  for (const capa of m.getStyle().layers) {
+    if (OCULTAR_BASE.some((patron) => patron.test(capa.id))) {
+      m.setLayoutProperty(capa.id, "visibility", "none");
+      continue;
+    }
+    for (const [propiedad, valor] of Object.entries(COLORES_BASE[capa.id] || {})) {
+      m.setPaintProperty(capa.id, propiedad, valor);
+    }
+    if (capa.type === "symbol" && capa.id.startsWith("label_")) {
+      m.setPaintProperty(capa.id, "text-color", "#8a9692");
+      m.setPaintProperty(capa.id, "text-opacity", capa.id === "label_other" ? 0.7 : 0.9);
+    }
+  }
+}
 
 function aGeoJSON(grupos, parametro, meta) {
   const conIca = Boolean(meta?.ventana_ica_horas);
@@ -53,31 +86,46 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
     const m = new maplibregl.Map({
       container: contenedor.current,
       style: ESTILO_BASE,
-      center: [-76.52, 3.40],
-      zoom: 11,
+      center: [-76.53, 3.42],
+      zoom: 11.6,
+      minZoom: 9,
       attributionControl: { compact: true },
     });
-    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     m.on("load", () => {
+      suavizarMapaBase(m);
+      const seleccionada = ["boolean", ["feature-state", "seleccionada"], false];
       // Primero las estaciones, para que aparezcan sin esperar las capas.
       m.addSource("estaciones", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      // Halo del color de la categoría: hace visible el estado sin agrandar el punto.
+      m.addLayer({
+        id: "estaciones-halo", type: "circle", source: "estaciones",
+        paint: {
+          "circle-radius": ["case", seleccionada, 26, 17],
+          "circle-color": ["get", "color"],
+          "circle-opacity": ["case", ["get", "conDatos"], ["case", seleccionada, 0.32, 0.22], 0.12],
+          "circle-blur": 0.35,
+        },
+      });
       m.addLayer({
         id: "estaciones", type: "circle", source: "estaciones",
         paint: {
-          "circle-radius": ["case", ["boolean", ["feature-state", "seleccionada"], false], 12, 9],
+          "circle-radius": ["case", seleccionada, 10, 7.5],
           "circle-color": ["get", "color"],
-          "circle-stroke-color": ["case", ["boolean", ["feature-state", "seleccionada"], false], "#17322e", "#fff"],
-          "circle-stroke-width": ["case", ["boolean", ["feature-state", "seleccionada"], false], 3, 2],
-          "circle-opacity": ["case", ["get", "conDatos"], 1, 0.45],
+          "circle-stroke-color": ["case", seleccionada, "#1b2b28", "#ffffff"],
+          "circle-stroke-width": ["case", seleccionada, 3, 2.5],
+          "circle-opacity": ["case", ["get", "conDatos"], 1, 0.5],
+          "circle-stroke-opacity": ["case", ["get", "conDatos"], 1, 0.6],
         },
       });
       m.addLayer({
         id: "estaciones-nombre", type: "symbol", source: "estaciones",
-        layout: { "text-field": ["format", ["get", "nombre"], {},
-                                 ["case", ["==", ["get", "valor"], ""], "", ["concat", "\n", ["get", "valor"]]], { "font-scale": 1.1 }],
-                  "text-font": ["Noto Sans Regular"], "text-size": 11,
-                  "text-offset": [0, 1.3], "text-anchor": "top" },
-        paint: { "text-color": "#17322e", "text-halo-color": "#fff", "text-halo-width": 1.6 },
+        layout: { "text-field": ["format", ["get", "nombre"], { "text-font": ["literal", ["Noto Sans Bold"]] },
+                                 ["case", ["==", ["get", "valor"], ""], "", ["concat", "\n", ["get", "valor"]]],
+                                 { "text-font": ["literal", ["Noto Sans Regular"]], "font-scale": 1.05 }],
+                  "text-font": ["Noto Sans Regular"], "text-size": 11.5, "text-letter-spacing": 0.01,
+                  "text-offset": [0, 1.5], "text-anchor": "top" },
+        paint: { "text-color": "#1b2b28", "text-halo-color": "rgba(255,255,255,0.92)", "text-halo-width": 1.8 },
       });
       m.on("click", "estaciones", (e) => onSeleccionar(e.features[0].properties.id));
       m.on("mouseenter", "estaciones", () => { m.getCanvas().style.cursor = "pointer"; });
@@ -87,12 +135,32 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
       // Las capas del territorio se cargan en paralelo y se dibujan debajo de las estaciones.
       for (const capa of CAPAS) {
         api.capa(capa.tipo).then((datos) => {
-          m.addSource(`capa-${capa.tipo}`, { type: "geojson", data: datos });
+          const visibilidad = capasVisiblesRef.current[capa.tipo] ? "visible" : "none";
+          m.addSource(`capa-${capa.tipo}`, { type: "geojson", data: datos, generateId: true });
+          // Relleno casi transparente que se aclara al pasar el puntero, para
+          // ubicar la comuna sin cargar el mapa de color.
+          m.addLayer({
+            id: `capa-${capa.tipo}-relleno`, type: "fill", source: `capa-${capa.tipo}`,
+            layout: { visibility: visibilidad },
+            paint: { "fill-color": capa.color,
+                     "fill-opacity": ["case", ["boolean", ["feature-state", "encima"], false], 0.07, 0] },
+          }, "estaciones-halo");
           m.addLayer({
             id: `capa-${capa.tipo}`, type: "line", source: `capa-${capa.tipo}`,
-            layout: { visibility: capasVisiblesRef.current[capa.tipo] ? "visible" : "none" },
-            paint: { "line-color": capa.color, "line-width": capa.tipo === "barrio" ? 0.6 : 1.1, "line-opacity": 0.55 },
-          }, "estaciones");
+            layout: { visibility: visibilidad, "line-join": "round" },
+            paint: { "line-color": capa.color, "line-width": capa.tipo === "barrio" ? 0.5 : 0.9,
+                     "line-opacity": capa.tipo === "barrio" ? 0.35 : 0.4 },
+          }, "estaciones-halo");
+          let encima = null;
+          m.on("mousemove", `capa-${capa.tipo}-relleno`, (e) => {
+            if (encima !== null) m.setFeatureState({ source: `capa-${capa.tipo}`, id: encima }, { encima: false });
+            encima = e.features[0].id;
+            m.setFeatureState({ source: `capa-${capa.tipo}`, id: encima }, { encima: true });
+          });
+          m.on("mouseleave", `capa-${capa.tipo}-relleno`, () => {
+            if (encima !== null) m.setFeatureState({ source: `capa-${capa.tipo}`, id: encima }, { encima: false });
+            encima = null;
+          });
         }).catch(() => {
           // Si una capa no carga, el mapa sigue funcionando con las estaciones.
         });
@@ -109,20 +177,38 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
     if (listo) mapa.current.getSource("estaciones").setData(aGeoJSON(grupos, parametro, meta));
   }, [listo, grupos, parametro, meta]);
 
+  // Al llegar las estaciones, el mapa las encuadra todas una sola vez, dejando
+  // libre el espacio de las tarjetas que flotan encima en pantallas anchas.
+  const encuadrado = useRef(false);
+  useEffect(() => {
+    if (!listo || encuadrado.current || !grupos.length) return;
+    encuadrado.current = true;
+    const limites = new maplibregl.LngLatBounds();
+    grupos.forEach((g) => limites.extend(g.coordenadas));
+    const ancho = window.matchMedia("(min-width: 901px)").matches;
+    mapa.current.fitBounds(limites, {
+      padding: ancho ? { top: 110, bottom: 60, left: 290, right: 420 } : { top: 200, bottom: 30, left: 30, right: 30 },
+      maxZoom: 13, duration: 0,
+    });
+  }, [listo, grupos]);
+
   useEffect(() => {
     if (!listo) return;
     const m = mapa.current;
     grupos.forEach((g) => m.setFeatureState({ source: "estaciones", id: g.id }, { seleccionada: g.id === seleccion }));
     const g = grupos.find((x) => x.id === seleccion);
     const sinMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (g) m.easeTo({ center: g.coordenadas, duration: sinMovimiento ? 0 : 600 });
+    // En pantallas anchas se centra en el espacio libre entre las tarjetas.
+    const ancho = window.matchMedia("(min-width: 901px)").matches;
+    if (g) m.easeTo({ center: g.coordenadas, duration: sinMovimiento ? 0 : 600,
+                      padding: ancho ? { top: 60, bottom: 0, left: 270, right: 400 } : 0 });
   }, [listo, grupos, seleccion]);
 
   function alternarCapa(tipo) {
     const visible = !capasVisibles[tipo];
     setCapasVisibles({ ...capasVisibles, [tipo]: visible });
-    if (mapa.current?.getLayer(`capa-${tipo}`)) {
-      mapa.current.setLayoutProperty(`capa-${tipo}`, "visibility", visible ? "visible" : "none");
+    for (const id of [`capa-${tipo}`, `capa-${tipo}-relleno`]) {
+      if (mapa.current?.getLayer(id)) mapa.current.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
     }
   }
 
