@@ -111,3 +111,48 @@ export function restarDias(isoDia, dias) {
   d.setUTCDate(d.getUTCDate() - dias);
   return d.toISOString().slice(0, 10);
 }
+
+// --- Zonas con estación ------------------------------------------------------
+// Método del rayo: un punto está dentro de un anillo si una semirrecta desde él
+// cruza el borde un número impar de veces.
+function dentroDeAnillo([x, y], anillo) {
+  let dentro = false;
+  for (let i = 0, j = anillo.length - 1; i < anillo.length; j = i++) {
+    const [xi, yi] = anillo[i];
+    const [xj, yj] = anillo[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) dentro = !dentro;
+  }
+  return dentro;
+}
+
+function dentroDePoligono(punto, [exterior, ...huecos]) {
+  return dentroDeAnillo(punto, exterior) && !huecos.some((h) => dentroDeAnillo(punto, h));
+}
+
+export function puntoEnGeometria(punto, geometria) {
+  if (geometria?.type === "Polygon") return dentroDePoligono(punto, geometria.coordinates);
+  if (geometria?.type === "MultiPolygon") return geometria.coordinates.some((p) => dentroDePoligono(punto, p));
+  return false;
+}
+
+// Devuelve las comunas (o, para las estaciones rurales, los corregimientos) que
+// contienen una estación, coloreadas con su categoría del ICA. Si una zona tiene
+// varias estaciones, se usa la peor categoría. Las variables sin ICA no colorean.
+export function zonasConEstacion(capas, grupos, parametro) {
+  const zonas = new Map();
+  for (const g of grupos) {
+    const estado = estadoMasReciente(g, parametro)?.estado;
+    if (!estado?.categoria || estado.ica == null) continue;
+    const zona = [capas.comuna, capas.corregimiento]
+      .flatMap((c) => c?.features || [])
+      .find((f) => puntoEnGeometria(g.coordenadas, f.geometry));
+    if (!zona) continue;
+    const clave = `${zona.properties.tipo}-${zona.properties.codigo}`;
+    const previa = zonas.get(clave);
+    if (!previa || estado.ica > previa.properties.ica) {
+      zonas.set(clave, { type: "Feature", geometry: zona.geometry,
+                         properties: { nombre: zona.properties.nombre, tipo: zona.properties.tipo, color: estado.color, ica: estado.ica } });
+    }
+  }
+  return { type: "FeatureCollection", features: [...zonas.values()] };
+}

@@ -4,7 +4,7 @@ import * as maplibregl from "maplibre-gl";
 // un archivo aparte. Vite lo empaqueta y aquí se le indica a MapLibre dónde está.
 import urlProcesoMapa from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { api } from "../api.js";
-import { estadoMasReciente, formatearNumero } from "../util.js";
+import { estadoMasReciente, formatearNumero, zonasConEstacion } from "../util.js";
 
 maplibregl.setWorkerUrl(urlProcesoMapa);
 
@@ -80,6 +80,9 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
   const [capasVisibles, setCapasVisibles] = useState(
     Object.fromEntries(CAPAS.map((c) => [c.tipo, c.visible])));
   const capasVisiblesRef = useRef(capasVisibles);
+  // Geometrías de comunas y corregimientos, para colorear la zona de cada estación.
+  const geometrias = useRef({});
+  const [capasCargadas, setCapasCargadas] = useState(0);
   useEffect(() => { capasVisiblesRef.current = capasVisibles; }, [capasVisibles]);
 
   useEffect(() => {
@@ -95,6 +98,15 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
     m.on("load", () => {
       suavizarMapaBase(m);
       const seleccionada = ["boolean", ["feature-state", "seleccionada"], false];
+      // Comuna o corregimiento de cada estación, coloreado con su categoría del ICA.
+      m.addSource("zonas", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      m.addLayer({ id: "zonas-relleno", type: "fill", source: "zonas",
+                   paint: { "fill-color": ["get", "color"],
+                            // Los corregimientos son muy extensos: se colorean más suave que las comunas.
+                            "fill-opacity": ["case", ["==", ["get", "tipo"], "corregimiento"], 0.1, 0.22] } });
+      m.addLayer({ id: "zonas-borde", type: "line", source: "zonas",
+                   paint: { "line-color": ["get", "color"], "line-width": 1.6,
+                            "line-opacity": ["case", ["==", ["get", "tipo"], "corregimiento"], 0.45, 0.8] } });
       // Primero las estaciones, para que aparezcan sin esperar las capas.
       m.addSource("estaciones", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       // Halo del color de la categoría: hace visible el estado sin agrandar el punto.
@@ -135,6 +147,10 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
       // Las capas del territorio se cargan en paralelo y se dibujan debajo de las estaciones.
       for (const capa of CAPAS) {
         api.capa(capa.tipo).then((datos) => {
+          if (capa.tipo !== "barrio") {
+            geometrias.current[capa.tipo] = datos;
+            setCapasCargadas((n) => n + 1);
+          }
           const visibilidad = capasVisiblesRef.current[capa.tipo] ? "visible" : "none";
           m.addSource(`capa-${capa.tipo}`, { type: "geojson", data: datos, generateId: true });
           // Relleno casi transparente que se aclara al pasar el puntero, para
@@ -176,6 +192,10 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
   useEffect(() => {
     if (listo) mapa.current.getSource("estaciones").setData(aGeoJSON(grupos, parametro, meta));
   }, [listo, grupos, parametro, meta]);
+
+  useEffect(() => {
+    if (listo) mapa.current.getSource("zonas").setData(zonasConEstacion(geometrias.current, grupos, parametro));
+  }, [listo, grupos, parametro, capasCargadas]);
 
   // Al llegar las estaciones, el mapa las encuadra todas una sola vez, dejando
   // libre el espacio de las tarjetas que flotan encima en pantallas anchas.

@@ -103,6 +103,7 @@ select, input[type="date"] {
 .leyenda ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .leyenda li { display: grid; grid-template-columns: 10px 1fr auto; gap: 8px; align-items: center; font-size: 0.8rem; }
 .leyenda small { color: var(--tinta-tenue); font-size: 0.75rem; }
+.leyenda .nota-zonas { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--linea); font-size: 0.74rem; }
 .punto { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15); display: inline-block; }
 
 /* Controles de MapLibre con el mismo estilo de las tarjetas. */

@@ -506,3 +506,11 @@ D (enlace del repositorio, bitácora e integración continua).
 **Mapa.** Se atenuó el mapa base de OpenFreeMap (agua y parques en tonos apagados, sin escudos de vías, rutas férreas ni el rótulo de la ciudad, que tapaba estaciones). Cada estación tiene un halo del color de su categoría del ICA y su nombre en negrita. Las comunas son líneas finas que se resaltan al pasar el puntero. Al abrir, el mapa encuadra todas las estaciones dejando libre el espacio de las tarjetas, y al elegir una estación la centra en ese espacio.
 
 **Verificación.** Capturas con Playwright y Chrome a 1440 × 900 y a 390 × 844. El panel del navegador del editor no dibuja WebGL cuando se simula un tamaño mayor que el suyo, así que las capturas de escritorio se tomaron fuera de él. ESLint, las 8 pruebas del visor y la construcción pasan.
+
+## 2026-10-13 — Zona de cada estación coloreada en el mapa
+
+**Qué se hizo.** La comuna donde está cada estación se colorea con la categoría del ICA de esa estación. Pance y Cascajal están fuera de las comunas, así que para ellas se colorea su corregimiento, con un tono más suave porque los corregimientos son muy extensos. Si una zona tiene varias estaciones se usa la peor categoría, y las variables meteorológicas no colorean nada porque no tienen escala de calidad del aire.
+
+**Cómo.** `zonasConEstacion` en `web/src/util.js` busca, con el método del rayo, el polígono de la IDESC que contiene cada estación. Tiene dos pruebas nuevas (polígonos con hueco y la regla de la peor categoría).
+
+**Cuidado de interpretación.** La leyenda aclara que el color de la zona viene del dato de su estación y no es una medición de toda la comuna.

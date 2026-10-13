@@ -33,6 +33,10 @@ export default function Leyenda({ umbrales, parametro, meta }) {
           <small />
         </li>
       </ol>
+      <p className="nota-zonas">
+        La comuna o el corregimiento de cada estación toma su color. El dato es de la estación, no una medición de
+        toda la zona.
+      </p>
     </section>
   );
 }

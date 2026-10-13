@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { agruparEstaciones, antiguedad, claveEstacion, estadoMasReciente, formatearFecha, formatearNumero, restarDias, textoSobre } from "./util.js";
+import {
+  agruparEstaciones, antiguedad, claveEstacion, estadoMasReciente, formatearFecha, formatearNumero, puntoEnGeometria,
+  restarDias, textoSobre, zonasConEstacion,
+} from "./util.js";
 
 const punto = (id, nombre, fuente, lon, lat, parametros = {}) => ({
   type: "Feature",
@@ -57,5 +60,32 @@ describe("formatos", () => {
   });
   it("resta días a una fecha", () => {
     expect(restarDias("2025-01-01", 30)).toBe("2024-12-02");
+  });
+});
+
+describe("zonas con estación", () => {
+  const cuadrado = (x0, y0, lado) => ({ type: "Polygon", coordinates: [[[x0, y0], [x0 + lado, y0], [x0 + lado, y0 + lado], [x0, y0 + lado], [x0, y0]]] });
+  const zona = (tipo, codigo, geometry) => ({ type: "Feature", geometry, properties: { tipo, codigo, nombre: `${tipo} ${codigo}` } });
+  const estacion = (id, coordenadas, ica, color) => ({
+    id, coordenadas, registros: [{ parametros: { PM25: { categoria: "x", ica, color, instante_ica: "2022-01-01T00:00:00+00:00", instante: "2022-01-01T00:00:00+00:00" } } }],
+  });
+
+  it("detecta si un punto está dentro de un polígono con hueco", () => {
+    const conHueco = { type: "Polygon", coordinates: [cuadrado(0, 0, 10).coordinates[0], cuadrado(4, 4, 2).coordinates[0]] };
+    expect(puntoEnGeometria([1, 1], conHueco)).toBe(true);
+    expect(puntoEnGeometria([5, 5], conHueco)).toBe(false);
+    expect(puntoEnGeometria([11, 1], conHueco)).toBe(false);
+  });
+
+  it("colorea la comuna con la peor categoría y usa el corregimiento para las estaciones rurales", () => {
+    const capas = {
+      comuna: { features: [zona("comuna", "01", cuadrado(0, 0, 10))] },
+      corregimiento: { features: [zona("corregimiento", "51", cuadrado(20, 0, 10))] },
+    };
+    const grupos = [estacion(1, [2, 2], 30, "#00E400"), estacion(2, [5, 5], 60, "#FFFF00"), estacion(3, [25, 5], 10, "#00E400"),
+                    estacion(4, [50, 50], 90, "#FF7E00")];
+    const resultado = zonasConEstacion(capas, grupos, "PM25").features;
+    expect(resultado.map((f) => [f.properties.nombre, f.properties.color])).toEqual([
+      ["comuna 01", "#FFFF00"], ["corregimiento 51", "#00E400"]]);
   });
 });
