@@ -31,6 +31,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [seleccion, setSeleccion] = useState(null);
   const [destinoHistorico, setDestinoHistorico] = useState(null);
+  const [zonas, setZonas] = useState(null);
   const [mostrarAviso, setMostrarAviso] = useState(() => !avisoCerrado());
   const panel = useRef(null);
 
@@ -86,7 +87,8 @@ export default function App() {
       {pestana === "mapa" && (
         <main className="vista-mapa">
           <div className="mapa-contenedor">
-            <Mapa grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion} onSeleccionar={setSeleccion}>
+            <Mapa grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion} onSeleccionar={setSeleccion}
+                  onZonas={setZonas}>
               <label className="campo">
                 Variable
                 <SelectorParametro parametros={parametros} valor={parametro} onCambiar={setParametro} />
@@ -108,7 +110,8 @@ export default function App() {
             {umbrales && <Leyenda umbrales={umbrales} parametro={parametro} meta={meta[parametro]} />}
           </div>
           <aside className="panel-lateral" ref={panel}>
-            <Ficha grupo={grupoSeleccionado} parametro={parametro} meta={meta[parametro]} onVerHistorico={verHistorico} />
+            <Ficha grupo={grupoSeleccionado} parametro={parametro} meta={meta[parametro]} zonas={zonas}
+                   onVerHistorico={verHistorico} />
             <ListaEstaciones grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion} onSeleccionar={setSeleccion} />
             <p className="fuentes">
               Datos del IDEAM, del portal de Datos Abiertos de Cali (DAGMA) y de la IDESC.{" "}

@@ -1,4 +1,4 @@
-import { antiguedad, formatearFecha, formatearNumero, nombreCorto } from "../util.js";
+import { antiguedad, formatearFecha, formatearNumero, nombreCorto, zonaDe } from "../util.js";
 
 const RANGOS_INDICE = [[0, 50], [51, 100], [101, 150], [151, 200], [201, 300], [301, 500]];
 const COLORES_ICA = ["#00E400", "#FFFF00", "#FF7E00", "#FF0000", "#8F3F97", "#7E0023"];
@@ -96,7 +96,7 @@ function DatoFuente({ registro, parametro, meta, onVerHistorico }) {
   );
 }
 
-export default function Ficha({ grupo, parametro, meta, onVerHistorico }) {
+export default function Ficha({ grupo, parametro, meta, zonas, onVerHistorico }) {
   if (!grupo) {
     return (
       <section className="ficha vacia">
@@ -109,6 +109,7 @@ export default function Ficha({ grupo, parametro, meta, onVerHistorico }) {
   return (
     <section className="ficha" aria-live="polite">
       <h2>{grupo.nombre}</h2>
+      {zonas && zonaDe(zonas, grupo.coordenadas) && <p className="zona">{zonaDe(zonas, grupo.coordenadas)}</p>}
       {grupo.registros.length > 1 && (
         <p className="nota">Dos fuentes publican datos de esta estación. Se muestran por separado.</p>
       )}

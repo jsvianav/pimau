@@ -135,6 +135,19 @@ export function puntoEnGeometria(punto, geometria) {
   return false;
 }
 
+// Nombre legible de la comuna o del corregimiento que contiene un punto.
+export function zonaDe(capas, punto) {
+  for (const tipo of ["comuna", "corregimiento"]) {
+    const zona = (capas[tipo]?.features || []).find((f) => puntoEnGeometria(punto, f.geometry));
+    if (zona) {
+      return tipo === "comuna"
+        ? `Comuna ${Number(zona.properties.codigo)}`
+        : `Corregimiento ${zona.properties.nombre}`;
+    }
+  }
+  return null;
+}
+
 // Devuelve las comunas (o, para las estaciones rurales, los corregimientos) que
 // contienen una estación, coloreadas con su categoría del ICA. Si una zona tiene
 // varias estaciones, se usa la peor categoría. Las variables sin ICA no colorean.

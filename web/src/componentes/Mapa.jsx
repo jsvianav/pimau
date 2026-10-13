@@ -73,7 +73,7 @@ function aGeoJSON(grupos, parametro, meta) {
   };
 }
 
-export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar, children }) {
+export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar, onZonas, children }) {
   const contenedor = useRef(null);
   const mapa = useRef(null);
   const [listo, setListo] = useState(false);
@@ -150,6 +150,7 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
           if (capa.tipo !== "barrio") {
             geometrias.current[capa.tipo] = datos;
             setCapasCargadas((n) => n + 1);
+            onZonas?.({ ...geometrias.current });
           }
           const visibilidad = capasVisiblesRef.current[capa.tipo] ? "visible" : "none";
           m.addSource(`capa-${capa.tipo}`, { type: "geojson", data: datos, generateId: true });
@@ -167,6 +168,17 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
             paint: { "line-color": capa.color, "line-width": capa.tipo === "barrio" ? 0.5 : 0.9,
                      "line-opacity": capa.tipo === "barrio" ? 0.35 : 0.4 },
           }, "estaciones-halo");
+          if (capa.tipo === "comuna") {
+            // Número de cada comuna en el centro de su área, en gris suave.
+            m.addLayer({
+              id: "capa-comuna-numero", type: "symbol", source: "capa-comuna", minzoom: 10.5,
+              layout: { visibility: visibilidad, "text-field": ["to-string", ["to-number", ["get", "codigo"]]],
+                        "text-font": ["Noto Sans Bold"], "text-size": ["interpolate", ["linear"], ["zoom"], 11, 11, 14, 15],
+                        "text-allow-overlap": false, "text-padding": 4 },
+              paint: { "text-color": "#2f4a45", "text-opacity": 0.45,
+                       "text-halo-color": "rgba(255,255,255,0.85)", "text-halo-width": 1.4 },
+            }, "estaciones-halo");
+          }
           let encima = null;
           m.on("mousemove", `capa-${capa.tipo}-relleno`, (e) => {
             if (encima !== null) m.setFeatureState({ source: `capa-${capa.tipo}`, id: encima }, { encima: false });
@@ -227,7 +239,7 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
   function alternarCapa(tipo) {
     const visible = !capasVisibles[tipo];
     setCapasVisibles({ ...capasVisibles, [tipo]: visible });
-    for (const id of [`capa-${tipo}`, `capa-${tipo}-relleno`]) {
+    for (const id of [`capa-${tipo}`, `capa-${tipo}-relleno`, `capa-${tipo}-numero`]) {
       if (mapa.current?.getLayer(id)) mapa.current.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
     }
   }

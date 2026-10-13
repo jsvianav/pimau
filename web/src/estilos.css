@@ -119,6 +119,7 @@ select, input[type="date"] {
 .panel-lateral > section + section { border-top: 1px solid var(--linea); }
 .fuentes { margin: 0; padding: 14px 22px 18px; font-size: 0.76rem; color: var(--tinta-tenue); border-top: 1px solid var(--linea); }
 .ficha h2 { font-size: 1.5rem; letter-spacing: -0.025em; }
+.ficha .zona { margin: 2px 0 0; color: var(--tinta-tenue); font-size: 0.9rem; }
 .ficha .nota, .ficha.vacia p, .nota { color: var(--tinta-suave); font-size: 0.9rem; margin: 4px 0 0; }
 
 .fuente-dato { padding: 14px 0 4px; }

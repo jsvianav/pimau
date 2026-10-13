@@ -514,3 +514,15 @@ D (enlace del repositorio, bitácora e integración continua).
 **Cómo.** `zonasConEstacion` en `web/src/util.js` busca, con el método del rayo, el polígono de la IDESC que contiene cada estación. Tiene dos pruebas nuevas (polígonos con hueco y la regla de la peor categoría).
 
 **Cuidado de interpretación.** La leyenda aclara que el color de la zona viene del dato de su estación y no es una medición de toda la comuna.
+
+## 2026-10-13 — Número de comuna en el mapa y verificación de la zona de cada estación
+
+**Qué se hizo.** El mapa muestra el número de cada comuna en el centro de su área, en gris suave y desde el zoom 10,5, y se oculta junto con la capa de comunas. La ficha de cada estación muestra su comuna o, en las rurales, su corregimiento (`zonaDe` en `web/src/util.js`, con una prueba nueva).
+
+**Verificación contra la fuente oficial.** La capa `dagma:obs_aire_estaciones_monitoreo` de la IDESC trae la comuna y el barrio de cada estación del DAGMA. La zona que calcula el visor coincide en las nueve: Base Aérea (7), ERA - Obrero (9), Cañaveralejo (19), Universidad del Valle (17), Transitoria EDB Navarro (13), Compartir (21), La Flora (2), La Ermita (3) y Pance (53, el corregimiento de Pance, barrio La Viga). Cascajal, de la CVC, no está en esa capa y cae en el corregimiento El Hormiguero (52), al que pertenece la vereda Cascajal. El polígono del corregimiento de Pance es muy extenso hacia los Farallones y la estación está en su extremo oriental, por eso queda en una esquina del área coloreada.
+
+**Problemas de calidad encontrados en las fuentes.**
+- En esa misma capa de la IDESC, la estación La Ermita aparece con latitud y longitud 0,0. PIMAU usa para La Ermita las coordenadas verificadas del conector del portal de Cali, así que el visor no se afecta.
+- Se confirmó de nuevo que el IDEAM publica Era Obrero con las coordenadas de Base Aérea (su punto cae en la comuna 7 y no en la 9). El visor agrupa las fuentes por nombre y usa las coordenadas de la IDESC, por eso la estación se muestra en la comuna correcta.
+
+Ambos casos son ejemplos del problema que plantea el Capítulo 1: las fuentes oficiales tienen errores que solo aparecen al integrarlas y contrastarlas.

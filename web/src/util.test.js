@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   agruparEstaciones, antiguedad, claveEstacion, estadoMasReciente, formatearFecha, formatearNumero, puntoEnGeometria,
-  restarDias, textoSobre, zonasConEstacion,
+  restarDias, textoSobre, zonaDe, zonasConEstacion,
 } from "./util.js";
 
 const punto = (id, nombre, fuente, lon, lat, parametros = {}) => ({
@@ -87,5 +87,18 @@ describe("zonas con estación", () => {
     const resultado = zonasConEstacion(capas, grupos, "PM25").features;
     expect(resultado.map((f) => [f.properties.nombre, f.properties.color])).toEqual([
       ["comuna 01", "#FFFF00"], ["corregimiento 51", "#00E400"]]);
+  });
+});
+
+describe("zona de una estación", () => {
+  const cuadrado = (x0, lado) => ({ type: "Polygon", coordinates: [[[x0, 0], [x0 + lado, 0], [x0 + lado, lado], [x0, lado], [x0, 0]]] });
+  const capas = {
+    comuna: { features: [{ geometry: cuadrado(0, 10), properties: { tipo: "comuna", codigo: "07", nombre: "Comuna 07" } }] },
+    corregimiento: { features: [{ geometry: cuadrado(20, 10), properties: { tipo: "corregimiento", codigo: "53", nombre: "Pance" } }] },
+  };
+  it("nombra la comuna sin ceros y el corregimiento por su nombre", () => {
+    expect(zonaDe(capas, [5, 5])).toBe("Comuna 7");
+    expect(zonaDe(capas, [25, 5])).toBe("Corregimiento Pance");
+    expect(zonaDe(capas, [50, 5])).toBeNull();
   });
 });
