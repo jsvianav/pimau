@@ -168,3 +168,9 @@ def test_satic_promedia_la_direccion_del_viento_como_angulo_y_descarta_estacione
 
 def test_satic_sin_archivos_no_falla(tmp_path):
     assert list(satic.ConectorSatic(bandeja=tmp_path / "no_existe").extraer(None)) == []
+
+
+def test_descarga_satic_usa_un_nombre_fijo_por_estacion_y_variable():
+    from pimau.ingesta.descarga_satic import nombre_archivo
+    assert nombre_archivo("PM25_AVG - NEW CAMBRIDGE (PM25_AVG)") == "PM25_AVG_-_NEW_CAMBRIDGE.xlsx"
+    assert nombre_archivo(" TEMP_AVG - USB (TEMP_AVG)") == "TEMP_AVG_-_USB.xlsx"

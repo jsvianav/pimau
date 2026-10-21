@@ -1,0 +1,9 @@
+# Contenedor del descargador de SATIC: necesita un navegador (Chromium), así
+# que parte de la imagen oficial de Playwright y solo instala lo que usa.
+FROM mcr.microsoft.com/playwright/python:v1.48.0-jammy
+WORKDIR /app
+RUN pip install --no-cache-dir playwright==1.48.0 pydantic-settings==2.7.0
+COPY pimau/__init__.py pimau/config.py pimau/
+COPY pimau/ingesta/__init__.py pimau/ingesta/descarga_satic.py pimau/ingesta/
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app

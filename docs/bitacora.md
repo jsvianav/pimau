@@ -583,3 +583,26 @@ pueden descargar desde su geoportal.
 - [ ] Descargar las demás estaciones y variables de SATIC (16 × 5).
 - [ ] Agregar los códigos de las cinco estaciones sin datos cuando publiquen.
 - [ ] Cargar el ruido cuando exista el parámetro (RF-15).
+
+## 2026-10-21 — Descarga automática de SATIC cada hora
+
+- **Carga inicial:** se descargaron los últimos 30 días de las 16 estaciones de
+  la red OAC22. Catorce tienen datos (69 archivos, 79 MB) y se cargaron 41 273
+  mediciones horarias en 12 segundos. Aparecieron tres estaciones que no tenían
+  datos el primer día: San Martín, Bagatelle y Fundación Valle del Lili (código
+  FVL). Corazón de Pance y Las Garzas no tienen datos en el último mes.
+- **Descargador automático (`descarga_satic.py`):** un contenedor nuevo
+  (`descarga-satic`) abre el geoportal con un navegador automatizado
+  (Playwright), acepta los términos, recorre las estaciones y descarga cada
+  variable de las últimas 24 horas. Corre cada hora. Cada archivo tiene un
+  nombre fijo por estación y variable, se escribe con otro nombre y se renombra
+  al final, así que la bandeja no crece y la ingesta nunca lee un archivo a
+  medio escribir. Una corrida tarda unos 6 minutos y medio.
+- **Por qué un navegador:** SATIC no tiene API pública y el Excel se genera en
+  el navegador con los datos de la gráfica, sin una URL fija.
+- **Riesgo:** si SATIC cambia su página, la descarga falla. El error queda en
+  el registro del contenedor y la ingesta sigue con los archivos que ya tiene.
+- **Retraso:** el conector no guarda la última hora de cada archivo, que puede
+  estar incompleta, así que el visor queda una o dos horas detrás de SATIC.
+- **Hallazgo:** la Universidad Javeriana reportó PM2.5 = 0,0 en la última hora,
+  un valor sospechoso para la detección de anomalías (RF-13).

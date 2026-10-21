@@ -30,6 +30,18 @@ services:
         condition: service_healthy
     command: ["sh", "-c", "alembic upgrade head && python -m pimau.ingesta programador"]
 
+  # Descarga automática de SATIC (red OAC22) cada hora. SATIC no tiene API
+  # pública, así que un navegador automatizado baja los Excel de su geoportal a
+  # la bandeja que lee la ingesta (docs/bitacora.md, 2026-10-21).
+  descarga-satic:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.satic
+    volumes:
+      - ./data/satic:/datos/satic
+    command: ["python", "-m", "pimau.ingesta.descarga_satic", "--cada", "60"]
+    restart: unless-stopped
+
   api:
     build: ./backend
     environment:
