@@ -55,12 +55,14 @@ class EstacionSatic:
 
 
 # Código corto que usa el archivo ("PM25_AVG - USB") y la estación del
-# geoportal. Nombres y coordenadas tomados del mapa de SATIC el 2026-10-21. Las
-# estaciones Fundación Universitaria San Martín, Condominio Bagatelle,
-# Fundación Valle del Lili, Ecoparque Corazón de Pance y Ecoparque Las Garzas
-# no tenían datos ese día, así que no se conoce su código: si aparecen en un
-# archivo, sus filas se descartan con una advertencia hasta agregarlas aquí.
+# geoportal. Nombres y coordenadas tomados del mapa de SATIC el 2026-10-21.
+# Ecoparque Corazón de Pance y Ecoparque Las Garzas no tenían datos en los 30
+# días anteriores, así que no se conoce su código: si aparecen en un archivo,
+# sus filas se descartan con una advertencia hasta agregarlas aquí.
 ESTACIONES = {
+    "SAN MARTIN": EstacionSatic("Fundación Universitaria San Martín", 3.34312, -76.52165),
+    "BAGATELLE": EstacionSatic("Condominio Bagatelle", 3.36303, -76.54121),
+    "FVL": EstacionSatic("Fundación Valle del Lili", 3.3728, -76.52588),
     "USB": EstacionSatic("Universidad San Buenaventura", 3.34475, -76.54399),
     "ICESI": EstacionSatic("Universidad ICESI", 3.34225, -76.52983),
     "UAO": EstacionSatic("Universidad Autónoma de Occidente", 3.35386, -76.52274),

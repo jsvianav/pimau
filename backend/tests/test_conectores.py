@@ -155,7 +155,7 @@ def test_satic_promedia_la_direccion_del_viento_como_angulo_y_descarta_estacione
         for hora in (9, 10, 11):
             hoja.append(["WDIR_AVG - USB", "WDIR_AVG", grados, f"21/10/2026 {hora:02d}:{minuto:02d}:00"])
     hoja.append(["NOISE_AVG - USB", "NOISE_AVG", 65, "21/10/2026 10:10:00"])  # sin parametro aun
-    hoja.append(["PM25_AVG - BAGATELLE", "PM25_AVG", 12, "21/10/2026 10:10:00"])  # codigo desconocido
+    hoja.append(["PM25_AVG - LAS GARZAS", "PM25_AVG", 12, "21/10/2026 10:10:00"])  # codigo desconocido
     libro.save(tmp_path / "exportado.xlsx")
 
     conector = satic.ConectorSatic(bandeja=tmp_path)
