@@ -114,7 +114,7 @@ export default function App() {
                    onVerHistorico={verHistorico} />
             <ListaEstaciones grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion} onSeleccionar={setSeleccion} />
             <p className="fuentes">
-              Datos del IDEAM, del portal de Datos Abiertos de Cali (DAGMA) y de la IDESC.{" "}
+              Datos del IDEAM, del portal de Datos Abiertos de Cali (DAGMA), de SATIC (red OAC22) y de la IDESC.{" "}
               <a href="/api/docs">Documentación de la API</a>.
             </p>
           </aside>
@@ -129,7 +129,7 @@ export default function App() {
 
       {pestana !== "mapa" && (
         <footer className="pie">
-          Datos del IDEAM (datos.gov.co), del Portal de Datos Abiertos de Cali (DAGMA) y de la IDESC. Mapa base de
+          Datos del IDEAM (datos.gov.co), del Portal de Datos Abiertos de Cali (DAGMA), de SATIC (red OAC22) y de la IDESC. Mapa base de
           OpenFreeMap con datos de OpenStreetMap. Los datos se pueden consultar en la{" "}
           <a href="/api/docs">documentación de la API</a>.
         </footer>

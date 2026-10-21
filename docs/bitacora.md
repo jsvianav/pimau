@@ -526,3 +526,60 @@ D (enlace del repositorio, bitácora e integración continua).
 - Se confirmó de nuevo que el IDEAM publica Era Obrero con las coordenadas de Base Aérea (su punto cae en la comuna 7 y no en la 9). El visor agrupa las fuentes por nombre y usa las coordenadas de la IDESC, por eso la estación se muestra en la comuna correcta.
 
 Ambos casos son ejemplos del problema que plantea el Capítulo 1: las fuentes oficiales tienen errores que solo aparecen al integrarlas y contrastarlas.
+
+## 2026-10-21 — SATIC como fuente de datos recientes
+
+**Contexto:** las fuentes con histórico largo (portal de Cali e IDEAM) terminan
+en diciembre de 2024. El director indicó usar las mediciones de SATIC, que se
+pueden descargar desde su geoportal.
+
+### Lo que se encontró en SATIC
+
+- **Geoportal:** https://satic.cali.gov.co (Alcaldía de Cali). Antes de entrar
+  pide aceptar unos términos: los datos son de las entidades públicas que los
+  proporcionan y el portal no garantiza su exactitud. No prohíben reutilizarlos.
+- **Calidad del aire:** 16 estaciones de la red **OAC22** (Observatorio
+  Ambiental de la Comuna 22, Alcaldía y EMCALI), en universidades, colegios y
+  parques del sur de Cali, incluida la Universidad de San Buenaventura. Miden
+  PM2.5, PM10, temperatura, humedad, dirección del viento y ruido, con datos
+  del mismo día. También hay 30 estaciones de lluvia y 10 de nivel de ríos.
+- **Descarga:** cada gráfica tiene un botón que genera, en el navegador, un
+  Excel con los últimos 24 horas a 30 días de una variable de una estación.
+  No hay una URL fija de descarga ni API pública.
+- **Problemas de la fuente:**
+  - La columna de unidad está errada en todas las variables (dice "CC, Cédula
+    de Ciudadanía"; en las gráficas aparecen "M", "F", "CC" o "I").
+  - Los umbrales de color del archivo (15, 30, 40 y 60 para PM2.5) no son los
+    del ICA de la Resolución 2254 (12, 37, 55).
+  - Las mediciones llegan cada 15 a 30 minutos, con huecos.
+  - Cinco estaciones (San Martín, Bagatelle, Valle del Lili, Corazón de Pance y
+    Las Garzas) no tenían datos ese día.
+
+### Qué se construyó
+
+- **Conector `satic.py`:** lee los Excel que el administrador deja en la
+  bandeja `data/satic` (montada en el contenedor de ingesta). Asigna la unidad
+  por variable, agrega las lecturas a promedios horarios fechados al final de
+  la hora (la dirección del viento como promedio vectorial) y no guarda la
+  primera ni la última hora de cada archivo, que pueden estar incompletas. Las
+  estaciones con código desconocido se descartan con advertencia. El ruido
+  (NOISE_AVG) todavía no se carga: llega con RF-15.
+- **Migración 0005:** activa la fuente SATIC con tipo "Archivos exportados
+  (Excel)".
+- **Visor:** el texto de fuentes incluye SATIC.
+- Es una prueba real del escenario 3: la fuente nueva fue un conector, una
+  migración de datos y una línea en el registro de conectores, sin tocar la
+  API ni el modelo de datos.
+
+### Verificación
+
+- 3 pruebas nuevas del conector (archivo real de Holguines y archivo
+  sintético). Backend: 75 pasan y 16 se omiten sin base de pruebas local.
+- Carga real: 27 horas de PM2.5 de Holguines Trade Center más 11 faltantes.
+  La API y el visor muestran ICA 33 (Buena) con datos del 21 de octubre de 2026.
+
+### Pendientes
+
+- [ ] Descargar las demás estaciones y variables de SATIC (16 × 5).
+- [ ] Agregar los códigos de las cinco estaciones sin datos cuando publiquen.
+- [ ] Cargar el ruido cuando exista el parámetro (RF-15).

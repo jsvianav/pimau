@@ -22,6 +22,9 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       OPENAQ_API_KEY: ${OPENAQ_API_KEY:-}
+    volumes:
+      # Bandeja de los archivos exportados de SATIC (ver docs/bitacora.md).
+      - ./data/satic:/datos/satic:ro
     depends_on:
       db:
         condition: service_healthy

@@ -16,6 +16,7 @@ from pimau.ingesta.conectores.base import ConectorCapas, ConectorMediciones
 from pimau.ingesta.conectores.cali_ckan import ConectorCaliCkan
 from pimau.ingesta.conectores.ideam import ConectorIdeam
 from pimau.ingesta.conectores.idesc import ConectorIdesc
+from pimau.ingesta.conectores.satic import ConectorSatic
 
 log = logging.getLogger("pimau.ingesta")
 
@@ -24,6 +25,7 @@ CONECTORES = {
     "IDEAM - datos.gov.co": ConectorIdeam,
     "Datos Abiertos de Cali (DAGMA)": ConectorCaliCkan,
     "IDESC (capas territoriales)": ConectorIdesc,
+    "SATIC (red OAC22)": ConectorSatic,
 }
 
 TAMANO_LOTE = 5000

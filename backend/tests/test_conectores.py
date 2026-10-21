@@ -1,7 +1,10 @@
+from pathlib import Path
+
 import httpx
 import respx
+from openpyxl import Workbook
 
-from pimau.ingesta.conectores import cali_ckan, ideam, idesc
+from pimau.ingesta.conectores import cali_ckan, ideam, idesc, satic
 
 
 @respx.mock
@@ -125,3 +128,43 @@ def test_cali_ckan_guarda_la_fecha_de_publicacion_del_recurso(monkeypatch):
         "total": 1, "records": [{"_id": 1, "Fecha & Hora": "2013-03-01T01:00:00", "PM2,5 (ug/m3)": "4,5"}]}}))
     registro = next(cali_ckan.ConectorCaliCkan().extraer(None))
     assert registro.fecha_publicacion == datetime(2020, 9, 18, 20, 25, 12, 459029, tzinfo=UTC)
+
+
+DATOS = Path(__file__).parent / "datos"
+
+
+def test_satic_agrega_el_archivo_exportado_a_promedios_horarios():
+    # Archivo descargado del geoportal de SATIC el 2026-10-21 (PM2.5 de Holguines).
+    conector = satic.ConectorSatic(bandeja=DATOS)
+    registros = list(conector.extraer(None))
+    # 45 lecturas en 29 horas; la primera y la ultima hora no se guardan.
+    assert len(registros) == 27
+    assert {r.parametro for r in registros} == {"PM25"}
+    r = registros[0]
+    assert (r.estacion.codigo, r.estacion.nombre) == ("OAC22-HOLGUINES", "Holguines Trade Center")
+    # Lectura de las 04:30:37 en Colombia: hora que termina a las 05:00 (10:00 UTC).
+    assert (r.instante.isoformat(), r.valor, r.bandera) == ("2026-10-20T10:00:00+00:00", 5.0, "valido")
+    assert conector.filas_descartadas == 0
+
+
+def test_satic_promedia_la_direccion_del_viento_como_angulo_y_descarta_estaciones_desconocidas(tmp_path):
+    libro = Workbook()
+    hoja = libro.active
+    hoja.append(["nom_sensor", "nom_corto", "dato_sensor", "fecha_registro_dato_sensor"])
+    for minuto, grados in [(5, 340), (20, 350), (40, 10), (55, 20)]:
+        for hora in (9, 10, 11):
+            hoja.append(["WDIR_AVG - USB", "WDIR_AVG", grados, f"21/10/2026 {hora:02d}:{minuto:02d}:00"])
+    hoja.append(["NOISE_AVG - USB", "NOISE_AVG", 65, "21/10/2026 10:10:00"])  # sin parametro aun
+    hoja.append(["PM25_AVG - BAGATELLE", "PM25_AVG", 12, "21/10/2026 10:10:00"])  # codigo desconocido
+    libro.save(tmp_path / "exportado.xlsx")
+
+    conector = satic.ConectorSatic(bandeja=tmp_path)
+    registros = list(conector.extraer(None))
+    # De tres horas solo queda la del medio; su promedio vectorial es 0 grados, no 180.
+    assert [(r.parametro, r.instante.isoformat(), r.valor) for r in registros] == [
+        ("DV", "2026-10-21T16:00:00+00:00", 0.0)]
+    assert conector.filas_descartadas == 1
+
+
+def test_satic_sin_archivos_no_falla(tmp_path):
+    assert list(satic.ConectorSatic(bandeja=tmp_path / "no_existe").extraer(None)) == []
