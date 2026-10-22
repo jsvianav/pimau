@@ -714,3 +714,37 @@ pueden descargar desde su geoportal.
   Es el riesgo «una fuente deja de publicar» de la Tabla de riesgos: la
   plataforma siguió funcionando con los datos ya cargados, el descargador
   reintenta cada hora y el panel muestra la advertencia.
+
+## 2026-10-23 — Exploración del agrupamiento (k-means, codo y silueta)
+
+- **H₂S solo en el histórico:** el sulfuro de hidrógeno tiene datos en ERA-Obrero,
+  La Flora y Transitoria Navarro (unas 67 000 horas, 2010-2020), pero no tiene
+  ICA ni datos recientes. Se quitó del selector del mapa y sigue en el Histórico;
+  la regla es general: en el mapa solo van los contaminantes con ICA.
+- **Script:** `analitica/exploracion/agrupamiento.py` (consultas en
+  `consultas.sql`, resultados en `resultados/`). Sigue la sección 2.1.9: k-means
+  con variables estandarizadas, k elegido con el codo y la silueta, y Davies-Bouldin.
+- **Estaciones por la forma del ciclo diario de PM2.5:** la mejor silueta fue
+  con k = 2 (0,37), pero los grupos casi coinciden con la red: uno reúne las
+  series del DAGMA y el IDEAM (2010-2024, pico amplio de 8 a 15 h y mínimo a las
+  18 h) y otro las de SATIC (un mes de 2026, pico marcado a las 7-8 h y mínimo a
+  las 15-16 h). El agrupamiento separa sobre todo periodos y redes. Comparando
+  solo SATIC (mismo periodo), las 12 estaciones del sur tienen la misma forma y
+  la única distinta es San Martín (pico a las 11 h), la de los picos de 398 µg/m³:
+  el agrupamiento la aísla como caso anómalo.
+- **Tipos de día (PM2.5, temperatura, humedad, viento y lluvia):** 2 154 días con
+  las cinco variables completas. La inercia baja sin un codo claro y la silueta
+  queda entre 0,26 y 0,30 (estructura débil); con k = 6:
+  - un grupo de días lluviosos (24 mm) que sube en abril-mayo y octubre-noviembre,
+    las temporadas de lluvia de Cali, lo que respalda que los grupos tienen sentido;
+  - un grupo de días contaminados (30,5 µg/m³) con poco viento (1,1 m/s), sobre
+    todo en enero-marzo y en la Universidad del Valle (46 % de sus días);
+  - **un grupo con humedad promedio de 12 %, imposible en Cali:** es la falla del
+    sensor de humedad de Pance (IDEAM) entre abril y junio de 2020 (13 % en
+    mayo), durante el aislamiento por COVID-19. El agrupamiento sirvió como
+    control de calidad.
+  - los demás grupos separan estaciones más que tipos de día (el viento medido
+    depende mucho de dónde está el anemómetro).
+- **Lecciones para el incremento 4:** comparar estaciones en el mismo periodo,
+  estandarizar cada variable por estación antes de juntar días de varias
+  estaciones, y usar el agrupamiento también para encontrar sensores que fallan.

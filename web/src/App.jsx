@@ -53,6 +53,11 @@ export default function App() {
 
   const grupos = useMemo(() => (datos ? agruparEstaciones(datos) : []), [datos]);
   const meta = useMemo(() => Object.fromEntries(parametros.map((p) => [p.codigo, p])), [parametros]);
+  // En el mapa solo van los contaminantes con ICA y la meteorología. Un
+  // contaminante sin escala del ICA (hoy, el sulfuro de hidrógeno, que además
+  // solo tiene datos hasta 2020) no se puede colorear y queda en el Histórico.
+  const parametrosMapa = useMemo(
+    () => parametros.filter((p) => p.variable !== "calidad_aire" || p.ventana_ica_horas), [parametros]);
   // Fecha del dato más reciente entre todas las fuentes, para dar contexto.
   const ultimoDato = useMemo(() => grupos.map(ultimoDatoDelGrupo).filter(Boolean).sort().at(-1) || null, [grupos]);
   const recientes = useMemo(
@@ -92,7 +97,7 @@ export default function App() {
                   onZonas={setZonas} opciones={opcionesEstado}>
               <label className="campo">
                 Variable
-                <SelectorParametro parametros={parametros} valor={parametro} onCambiar={setParametro} />
+                <SelectorParametro parametros={parametrosMapa} valor={parametro} onCambiar={setParametro} />
               </label>
               <fieldset className="selector-vigencia">
                 <legend>Mostrar</legend>
