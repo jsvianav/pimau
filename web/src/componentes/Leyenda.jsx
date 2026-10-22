@@ -1,6 +1,6 @@
 import { nombreCorto, textoVentana } from "../util.js";
 
-export default function Leyenda({ umbrales, parametro, meta }) {
+export default function Leyenda({ umbrales, parametro, meta, soloRecientes }) {
   const cortes = umbrales[parametro]?.ica || [];
   if (!cortes.length) {
     return (
@@ -29,7 +29,12 @@ export default function Leyenda({ umbrales, parametro, meta }) {
         ))}
         <li>
           <span className="punto" style={{ background: "var(--sin-ica)" }} aria-hidden="true" />
-          <span>Sin datos suficientes</span>
+          <span>Sin datos suficientes para el ICA</span>
+          <small />
+        </li>
+        <li>
+          <span className="punto hueco" aria-hidden="true" />
+          <span>{soloRecientes ? "Sin datos de las últimas 48 horas" : "Sin datos"}</span>
           <small />
         </li>
       </ol>

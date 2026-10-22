@@ -606,3 +606,54 @@ pueden descargar desde su geoportal.
   estar incompleta, así que el visor queda una o dos horas detrás de SATIC.
 - **Hallazgo:** la Universidad Javeriana reportó PM2.5 = 0,0 en la última hora,
   un valor sospechoso para la detección de anomalías (RF-13).
+
+## 2026-10-22 — Prueba de los datos recientes y visor por vigencia
+
+- **Prueba de los 30 días de SATIC (PM2.5 y PM10, 14 estaciones):**
+  - **Sensor detenido:** la Universidad Javeriana marcó 0,0 en las 745 horas
+    de PM2.5 y de PM10. El visor la mostraba como «Buena». Se agregó la bandera
+    `sospechoso` (migración 0006): seis o más horas seguidas con el mismo
+    promedio horario. Con esa regla, en los 30 días solo cae la Javeriana; la
+    racha más larga de otra serie fue de 4 horas (dirección del viento en Valle
+    del Lili). La lluvia y la radiación se excluyen porque pasan horas en cero.
+    Las mediciones sospechosas no se usan para el ICA, y la API las informa en
+    `ultima_marcada` para que el visor explique por qué no hay dato.
+  - **PM10 de bajo costo:** en las 12 estaciones con PM2.5 y PM10, el PM10 fue
+    casi igual al PM2.5 (razón media de 1,00 a 1,12; en 10 de ellas, más de la
+    mitad de las horas exactamente igual). El PM10 incluye al PM2.5 y suele ser
+    bastante mayor, así que el PM10 de SATIC y su ICA probablemente están
+    subestimados. No se descarta el dato: la ficha lo advierte.
+  - **Picos aislados:** San Martín llegó a 398 µg/m³ de PM2.5 y 568 de PM10 en
+    una hora, y la Universidad Libre a 140 y 241. Están dentro del rango físico,
+    así que quedan como válidos; son candidatos para la detección de anomalías
+    del Semestre 8 (RF-13).
+  - **Promedio bajo:** la Universidad Santiago de Cali promedió 1,4 µg/m³ de
+    PM2.5, cuando las demás están entre 4 y 12. Puede ser su ubicación o el
+    sensor; queda para revisar con la analítica.
+- **Las horas de SATIC no son de Colombia:** al probar los datos recientes el
+  visor mostraba mediciones de la madrugada del día siguiente. En los 69
+  archivos descargados, la última lectura iba dos horas por delante de la hora
+  UTC de la descarga: SATIC publica en UTC+2, siete horas por delante de
+  Colombia. Todas las mediciones de SATIC estaban guardadas siete horas en el
+  futuro. Se corrigió el conector (`satic_zona_horaria`, desfase fijo porque no
+  se sabe si la plataforma cambia de horario en invierno) y la migración 0007
+  movió las mediciones ya cargadas. Como protección, el conector descarta las
+  lecturas que quedarían en el futuro y lo advierte en el registro. Solo con
+  este ajuste el visor queda, como se esperaba, una a dos horas detrás de la
+  hora real.
+- **Minuto 24 confundido con la hora 24:** la lectura «21/10/2026 12:24:00» se
+  leía como la medianoche del día siguiente, porque el patrón de la hora 24:00
+  aceptaba cualquier «24:00» al final. Ahora exige un espacio o una T antes. En
+  las fuentes horarias no ocurría (siempre terminan en :00); en SATIC afectó a
+  las pocas lecturas tomadas exactamente a las hh:24:00.
+- **Visor por vigencia:** el mapa pintaba igual un dato de hoy y uno de 2022, y
+  coloreaba comunas con datos de hace años. Ahora muestra por defecto solo los
+  datos de las últimas 48 horas, con la opción «Todo el histórico». Las
+  estaciones sin datos se dibujan como un aro gris hueco, la lista separa las
+  que tienen datos recientes de las que no, la etiqueta sobre el mapa dice
+  cuántas estaciones tienen datos recientes y de cuándo es el último, y la
+  antigüedad se cuenta en horas. El visor vuelve a pedir las estaciones cada
+  10 minutos.
+- **Ficha:** las fuentes con datos recientes muestran una gráfica de las
+  últimas 48 horas con la guía de la OMS, y la ficha advierte las mediciones
+  sospechosas y el PM10 de los sensores de bajo costo.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  agruparEstaciones, antiguedad, claveEstacion, estadoMasReciente, formatearFecha, formatearNumero, puntoEnGeometria,
+  agruparEstaciones, antiguedad, antiguedadCorta, claveEstacion, fechaCorta, esReciente, estadoMasReciente, formatearFecha, formatearNumero, puntoEnGeometria,
   restarDias, textoSobre, zonaDe, zonasConEstacion,
 } from "./util.js";
 
@@ -49,6 +49,9 @@ describe("formatos", () => {
   it("expresa la antigüedad del dato", () => {
     expect(antiguedad("2020-01-01T00:00:00Z", new Date("2026-10-09T00:00:00Z"))).toBe("hace 6 años");
     expect(antiguedad("2026-09-30T00:00:00Z", new Date("2026-10-09T00:00:00Z"))).toBe("hace 9 días");
+    // Los datos de SATIC llegan con una o dos horas de retraso: se cuentan en horas.
+    expect(antiguedad("2026-10-22T06:00:00Z", new Date("2026-10-22T08:10:00Z"))).toBe("hace 2 horas");
+    expect(antiguedad("2026-10-22T08:00:00Z", new Date("2026-10-22T08:10:00Z"))).toBe("hace menos de una hora");
   });
   it("elige texto oscuro sobre amarillo y claro sobre marrón", () => {
     expect(textoSobre("#FFFF00")).toBe("#1a1a1a");
@@ -100,5 +103,30 @@ describe("zona de una estación", () => {
     expect(zonaDe(capas, [5, 5])).toBe("Comuna 7");
     expect(zonaDe(capas, [25, 5])).toBe("Corregimiento Pance");
     expect(zonaDe(capas, [50, 5])).toBeNull();
+  });
+});
+
+describe("datos recientes", () => {
+  const ahora = new Date("2026-10-22T08:00:00Z");
+  it("considera recientes los datos de las últimas 48 horas", () => {
+    expect(esReciente("2026-10-21T06:00:00Z", ahora)).toBe(true);
+    expect(esReciente("2026-10-19T06:00:00Z", ahora)).toBe(false);
+    expect(esReciente(null, ahora)).toBe(false);
+  });
+  it("resume la fecha y la antigüedad de los datos recientes", () => {
+    expect(antiguedadCorta("2026-10-22T05:00:00Z", ahora)).toBe("hace 3 h");
+    expect(antiguedadCorta("2026-10-18T05:00:00Z", ahora)).toBe("hace 4 d");
+    // 08:00 UTC son las 03:00 en Colombia.
+    expect(fechaCorta("2026-10-22T08:00:00Z", ahora)).toBe("hoy, 03:00");
+    expect(fechaCorta("2026-10-21T08:00:00Z", ahora)).toBe("ayer, 03:00");
+  });
+  it("con soloRecientes ignora las fuentes viejas y las variables sin valor válido", () => {
+    const [grupo] = agruparEstaciones({ features: [
+      punto(1, "A", "IDEAM", -76.5, 3.4, { PM25: { instante: "2024-04-01T05:00:00Z", instante_ica: "2024-04-01T05:00:00Z", categoria: "Buena" } }),
+      punto(2, "A", "SATIC", -76.5, 3.4, { PM25: { instante: null, instante_ica: null, categoria: null,
+                                                   ultima_marcada: { instante: "2026-10-22T07:00:00Z", bandera: "sospechoso" } } }),
+    ] });
+    expect(estadoMasReciente(grupo, "PM25", { ahora }).registro.fuente).toBe("IDEAM");
+    expect(estadoMasReciente(grupo, "PM25", { soloRecientes: true, ahora })).toBeNull();
   });
 });

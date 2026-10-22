@@ -1,33 +1,63 @@
-import { estadoMasReciente, formatearNumero } from "../util.js";
+import { antiguedadCorta, estadoMasReciente, formatearNumero, ultimoDatoDelGrupo } from "../util.js";
 
 // Alternativa accesible al mapa: todas las estaciones se pueden elegir con el teclado.
-function textoEstado(actual, meta) {
+function textoEstado(actual, meta, opciones) {
   if (!actual) return "Sin datos";
+  // Para los datos recientes interesa cuántas horas tiene el dato; para el histórico, el año.
+  const cuando = opciones.soloRecientes ? antiguedadCorta(actual.estado.instante, opciones.ahora) : actual.estado.instante.slice(0, 4);
   if (!meta?.ventana_ica_horas) {
-    return `${formatearNumero(actual.estado.valor_horario)} ${meta?.unidad || ""}, ${actual.estado.instante.slice(0, 4)}`;
+    return `${formatearNumero(actual.estado.valor_horario)} ${meta?.unidad || ""}, ${cuando}`;
   }
-  return actual.estado.categoria ? `${actual.estado.categoria}, ${actual.estado.instante_ica.slice(0, 4)}` : "Sin ICA";
+  return actual.estado.categoria ? `${actual.estado.categoria}, ${cuando}` : "Sin ICA";
 }
 
-export default function ListaEstaciones({ grupos, parametro, meta, seleccion, onSeleccionar }) {
+function Elemento({ grupo, parametro, meta, seleccion, onSeleccionar, opciones }) {
+  const actual = estadoMasReciente(grupo, parametro, opciones);
+  const ultimo = ultimoDatoDelGrupo(grupo);
+  const marcada = grupo.registros.some((r) => r.parametros[parametro]?.ultima_marcada);
+  const color = !actual ? "transparent" : meta?.ventana_ica_horas ? actual.estado.color || "var(--sin-ica)" : "var(--serie)";
+  return (
+    <li>
+      <button aria-pressed={grupo.id === seleccion} onClick={() => onSeleccionar(grupo.id)}>
+        <span className={`punto${actual ? "" : " hueco"}`} aria-hidden="true" style={{ background: color }} />
+        <span>{grupo.nombre}</span>
+        <span className="estado">
+          {actual || !opciones.soloRecientes ? textoEstado(actual, meta, opciones)
+            : marcada ? "Datos no confiables" : ultimo ? `Último dato: ${ultimo.slice(0, 4)}` : "Sin datos"}
+        </span>
+      </button>
+    </li>
+  );
+}
+
+export default function ListaEstaciones({ grupos, parametro, meta, seleccion, onSeleccionar, opciones }) {
+  const props = { parametro, meta, seleccion, onSeleccionar, opciones };
+  if (!opciones.soloRecientes) {
+    return (
+      <section className="lista">
+        <h2>Estaciones</h2>
+        <ul>{grupos.map((g) => <Elemento key={g.id} grupo={g} {...props} />)}</ul>
+      </section>
+    );
+  }
+  const conRecientes = grupos.filter((g) => estadoMasReciente(g, parametro, opciones));
+  const sinRecientes = grupos.filter((g) => !conRecientes.includes(g));
   return (
     <section className="lista">
-      <h2>Estaciones</h2>
-      <ul>
-        {grupos.map((g) => {
-          const actual = estadoMasReciente(g, parametro);
-          return (
-            <li key={g.id}>
-              <button aria-pressed={g.id === seleccion} onClick={() => onSeleccionar(g.id)}>
-                <span className="punto" aria-hidden="true"
-                      style={{ background: meta?.ventana_ica_horas ? actual?.estado.color || "var(--sin-ica)" : actual ? "var(--serie)" : "var(--sin-ica)" }} />
-                <span>{g.nombre}</span>
-                <span className="estado">{textoEstado(actual, meta)}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      {conRecientes.length > 0 && (
+        <>
+          <h2>Con datos de las últimas 48 horas ({conRecientes.length})</h2>
+          <ul>{conRecientes.map((g) => <Elemento key={g.id} grupo={g} {...props} />)}</ul>
+        </>
+      )}
+      {sinRecientes.length > 0 && (
+        <>
+          <h2 className={conRecientes.length ? "separado" : undefined}>
+            Sin datos recientes de esta variable ({sinRecientes.length})
+          </h2>
+          <ul>{sinRecientes.map((g) => <Elemento key={g.id} grupo={g} {...props} />)}</ul>
+        </>
+      )}
     </section>
   );
 }

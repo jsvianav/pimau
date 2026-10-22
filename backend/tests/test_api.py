@@ -154,3 +154,20 @@ def test_las_respuestas_estan_documentadas_con_esquemas(cliente):
     esquemas = cliente.get("/api/openapi.json").json()["components"]["schemas"]
     for nombre in ["ColeccionEstaciones", "EstadoParametro", "Serie", "Parametro", "Rango", "Capa"]:
         assert nombre in esquemas
+
+
+def test_estaciones_avisan_si_las_ultimas_mediciones_son_sospechosas(cliente):
+    # Despues del ultimo valor valido llegan seis horas con el sensor detenido.
+    with create_engine(URL).begin() as c:
+        for h in range(1, 7):
+            c.execute(text("""INSERT INTO medicion (estacion_id, parametro_id, ejecucion_id, instante, valor, bandera)
+                              VALUES (1, 1, 1, :i, 0, 'sospechoso')"""), {"i": FIN + timedelta(hours=h)})
+        # El PM10 solo tiene mediciones sospechosas: aparece sin valor, pero con la marca.
+        c.execute(text("""INSERT INTO medicion (estacion_id, parametro_id, ejecucion_id, instante, valor, bandera)
+                          VALUES (1, 2, 1, :i, 0, 'sospechoso')"""), {"i": FIN})
+    parametros = cliente.get("/api/estaciones").json()["features"][0]["properties"]["parametros"]
+    assert parametros["PM25"]["instante"].startswith("2024-12-31T23:00")
+    assert parametros["PM25"]["ultima_marcada"]["bandera"] == "sospechoso"
+    assert parametros["PM25"]["ultima_marcada"]["instante"].startswith("2025-01-01T05:00")
+    assert (parametros["PM10"]["instante"], parametros["PM10"]["valor_horario"]) == (None, None)
+    assert parametros["PM10"]["ultima_marcada"]["bandera"] == "sospechoso"

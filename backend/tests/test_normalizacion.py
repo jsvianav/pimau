@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -78,3 +78,22 @@ def test_bandera_pm25(valor, esperada):
 ])
 def test_nombre_propio(texto, esperado):
     assert norma.nombre_propio(texto) == esperado
+
+
+def test_horas_constantes_marca_solo_rachas_largas_y_consecutivas():
+    inicio = datetime(2026, 10, 21, tzinfo=UTC)
+    hora = timedelta(hours=1)
+    serie = {inicio + i * hora: v for i, v in enumerate([5, 5, 5, 5, 5, 5, 7, 7, 7, 7, 7, 8])}
+    # Seis horas con 5 forman una racha; cinco horas con 7, no.
+    assert norma.horas_constantes("PM25", serie) == {inicio + i * hora for i in range(6)}
+    # Un hueco corta la racha.
+    con_hueco = {k: v for k, v in serie.items() if k != inicio + 3 * hora}
+    assert norma.horas_constantes("PM25", con_hueco) == set()
+    # La lluvia pasa muchas horas en cero de forma natural.
+    assert norma.horas_constantes("LLUVIA", {inicio + i * hora: 0 for i in range(24)}) == set()
+
+
+def test_leer_fecha_no_confunde_el_minuto_24_con_la_hora_24():
+    # Lectura real de SATIC: las 12 y 24 minutos, no la medianoche del dia siguiente.
+    assert norma.leer_fecha("21/10/2026 12:24:00", orden="dmy") == datetime(2026, 10, 21, 17, 24, tzinfo=UTC)
+    assert norma.leer_fecha("21/10/2026 24:00", orden="dmy") == datetime(2026, 10, 22, 5, 0, tzinfo=UTC)

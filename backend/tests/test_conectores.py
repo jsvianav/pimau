@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -107,7 +108,6 @@ def test_idesc_rechaza_capas_en_otro_sistema_de_coordenadas():
 @respx.mock
 def test_ideam_guarda_la_fecha_de_publicacion_del_conjunto():
     """La fecha de la última actualización del conjunto queda en cada medición (RF-04)."""
-    from datetime import UTC, datetime
     fila = {"estacion_id": "31820", "nombre_est": "CASCAJAL", "msfl_code": "PM2.5",
             "med_concentracion_estandar": "18", "med_fecha_final": "2024-12-31T23:00:00.000",
             "latitud": "3.39", "longitud": "-76.49", "sigla_unidad": "ug/m3", "duraci_n": "60"}
@@ -120,7 +120,6 @@ def test_ideam_guarda_la_fecha_de_publicacion_del_conjunto():
 
 @respx.mock
 def test_cali_ckan_guarda_la_fecha_de_publicacion_del_recurso(monkeypatch):
-    from datetime import UTC, datetime
     monkeypatch.setattr(cali_ckan, "ESTACIONES", [cali_ckan.RecursoEstacion("UV", "Universidad del Valle", 3.37, -76.53, "r1")])
     respx.get(cali_ckan.URL_RECURSO).mock(return_value=httpx.Response(200, json={"result": {
         "last_modified": "2020-09-18T20:25:12.459029"}}))
@@ -142,8 +141,9 @@ def test_satic_agrega_el_archivo_exportado_a_promedios_horarios():
     assert {r.parametro for r in registros} == {"PM25"}
     r = registros[0]
     assert (r.estacion.codigo, r.estacion.nombre) == ("OAC22-HOLGUINES", "Holguines Trade Center")
-    # Lectura de las 04:30:37 en Colombia: hora que termina a las 05:00 (10:00 UTC).
-    assert (r.instante.isoformat(), r.valor, r.bandera) == ("2026-10-20T10:00:00+00:00", 5.0, "valido")
+    # La primera hora que se guarda es la de las 04:xx del archivo, que esta en
+    # UTC+2: son las 02:xx UTC, en la hora que termina a las 03:00 UTC.
+    assert (r.instante.isoformat(), r.valor, r.bandera) == ("2026-10-20T03:00:00+00:00", 5.0, "valido")
     assert conector.filas_descartadas == 0
 
 
@@ -160,9 +160,10 @@ def test_satic_promedia_la_direccion_del_viento_como_angulo_y_descarta_estacione
 
     conector = satic.ConectorSatic(bandeja=tmp_path)
     registros = list(conector.extraer(None))
-    # De tres horas solo queda la del medio; su promedio vectorial es 0 grados, no 180.
+    # De tres horas solo queda la del medio (10:xx en UTC+2, 08:xx UTC); su
+    # promedio vectorial es 0 grados, no 180.
     assert [(r.parametro, r.instante.isoformat(), r.valor) for r in registros] == [
-        ("DV", "2026-10-21T16:00:00+00:00", 0.0)]
+        ("DV", "2026-10-21T09:00:00+00:00", 0.0)]
     assert conector.filas_descartadas == 1
 
 
@@ -174,3 +175,36 @@ def test_descarga_satic_usa_un_nombre_fijo_por_estacion_y_variable():
     from pimau.ingesta.descarga_satic import nombre_archivo
     assert nombre_archivo("PM25_AVG - NEW CAMBRIDGE (PM25_AVG)") == "PM25_AVG_-_NEW_CAMBRIDGE.xlsx"
     assert nombre_archivo(" TEMP_AVG - USB (TEMP_AVG)") == "TEMP_AVG_-_USB.xlsx"
+
+
+def test_satic_marca_como_sospechoso_un_sensor_que_repite_el_mismo_valor(tmp_path):
+    # Como el PM2.5 de la Javeriana en octubre de 2026: 0 en todas las lecturas.
+    libro = Workbook()
+    hoja = libro.active
+    hoja.append(["nom_sensor", "nom_corto", "dato_sensor", "fecha_registro_dato_sensor"])
+    for hora in range(9):
+        hoja.append(["PM25_AVG - JAVERIANA", "PM25_AVG", 0, f"21/10/2026 {hora:02d}:30:00"])
+        hoja.append(["PM25_AVG - USB", "PM25_AVG", 10 + hora, f"21/10/2026 {hora:02d}:30:00"])
+    libro.save(tmp_path / "exportado.xlsx")
+
+    registros = list(satic.ConectorSatic(bandeja=tmp_path).extraer(None))
+    banderas = {(r.estacion.codigo, r.bandera) for r in registros}
+    # Nueve horas iguales en la Javeriana; se guardan siete (sin la primera ni la ultima).
+    assert banderas == {("OAC22-JAVERIANA", "sospechoso"), ("OAC22-USB", "valido")}
+    assert sum(r.estacion.codigo == "OAC22-JAVERIANA" for r in registros) == 7
+
+
+def test_satic_descarta_las_lecturas_que_quedarian_en_el_futuro(tmp_path):
+    # Si SATIC cambiara de zona horaria, sus lecturas quedarian adelantadas.
+    libro = Workbook()
+    hoja = libro.active
+    hoja.append(["nom_sensor", "nom_corto", "dato_sensor", "fecha_registro_dato_sensor"])
+    for hora in range(6):
+        hoja.append(["PM25_AVG - USB", "PM25_AVG", 10 + hora, f"22/10/2026 {hora:02d}:30:00"])
+    libro.save(tmp_path / "exportado.xlsx")
+    # A las 01:00 UTC (03:00 en UTC+2), las lecturas de las 03:30, 04:30 y 05:30
+    # todavia no pueden existir.
+    conector = satic.ConectorSatic(bandeja=tmp_path, ahora=datetime(2026, 10, 22, 1, 0, tzinfo=UTC))
+    registros = list(conector.extraer(None))
+    assert conector.filas_descartadas == 3
+    assert max(r.instante for r in registros) <= datetime(2026, 10, 22, 1, 0, tzinfo=UTC)

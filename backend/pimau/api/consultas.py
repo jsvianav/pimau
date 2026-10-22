@@ -104,16 +104,29 @@ def estaciones(sesion: Session) -> dict:
                    estacion_id, parametro_id, instante, promedio, horas_validas
             FROM elegidas WHERE horas_validas >= minimo
             ORDER BY estacion_id, parametro_id, instante DESC
+        ), marcada AS (
+            -- Ultima medicion con valor que la ingesta marco como dudosa.
+            SELECT DISTINCT ON (m.estacion_id, m.parametro_id)
+                   m.estacion_id, m.parametro_id, m.instante, m.bandera
+            FROM medicion m
+            WHERE m.bandera IN ('sospechoso', 'fuera_de_rango')
+            ORDER BY m.estacion_id, m.parametro_id, m.instante DESC
+        ), claves AS (
+            SELECT estacion_id, parametro_id FROM ultima
+            UNION SELECT estacion_id, parametro_id FROM marcada
         )
         SELECT e.id, e.nombre, e.codigo_origen, f.nombre AS fuente,
                ST_X(e.ubicacion) AS lon, ST_Y(e.ubicacion) AS lat,
                p.codigo AS parametro, u.instante, u.valor,
-               r.instante AS instante_ica, r.promedio, r.horas_validas
+               r.instante AS instante_ica, r.promedio, r.horas_validas,
+               d.instante AS instante_marcada, d.bandera AS bandera_marcada
         FROM estacion e
         JOIN fuente f ON f.id = e.fuente_id
-        LEFT JOIN ultima u ON u.estacion_id = e.id
-        LEFT JOIN parametro p ON p.id = u.parametro_id
-        LEFT JOIN representativa r ON r.estacion_id = u.estacion_id AND r.parametro_id = u.parametro_id
+        LEFT JOIN claves k ON k.estacion_id = e.id
+        LEFT JOIN parametro p ON p.id = k.parametro_id
+        LEFT JOIN ultima u ON u.estacion_id = k.estacion_id AND u.parametro_id = k.parametro_id
+        LEFT JOIN representativa r ON r.estacion_id = k.estacion_id AND r.parametro_id = k.parametro_id
+        LEFT JOIN marcada d ON d.estacion_id = k.estacion_id AND d.parametro_id = k.parametro_id
         ORDER BY e.nombre, f.nombre, p.codigo
     """))
     elementos: dict[int, dict] = {}
@@ -130,9 +143,12 @@ def estaciones(sesion: Session) -> dict:
         promedio = float(f.promedio) if f.promedio is not None else None
         resultado = ica.calcular(promedio, _cortes(limites.get(f.parametro, {})),
                                  f.parametro in ica.SIN_CATEGORIA_SUPERIOR) if horas else None
+        # Solo interesa la marca si es posterior al ultimo valor valido: indica
+        # que las mediciones mas recientes no se pueden usar.
+        marcada_reciente = f.instante_marcada and (f.instante is None or f.instante_marcada > f.instante)
         elemento["properties"]["parametros"][f.parametro] = {
-            "instante": f.instante.isoformat(),
-            "valor_horario": float(f.valor),
+            "instante": f.instante.isoformat() if f.instante else None,
+            "valor_horario": float(f.valor) if f.valor is not None else None,
             "ventana_ica_horas": horas,
             "instante_ica": f.instante_ica.isoformat() if f.instante_ica else None,
             "promedio_ica": round(promedio, 1) if promedio is not None else None,
@@ -141,6 +157,8 @@ def estaciones(sesion: Session) -> dict:
             "categoria": resultado.categoria if resultado else None,
             "color": resultado.color if resultado else None,
             "guia_oms": _guia_oms(limites.get(f.parametro, {}).get("oms", {}), horas),
+            "ultima_marcada": ({"instante": f.instante_marcada.isoformat(), "bandera": f.bandera_marcada}
+                               if marcada_reciente else None),
         }
     return {"type": "FeatureCollection", "features": list(elementos.values())}
 

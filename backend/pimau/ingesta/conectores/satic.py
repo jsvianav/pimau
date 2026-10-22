@@ -11,6 +11,13 @@ Lo que se encontró al revisar los archivos (docs/bitacora.md, 2026-10-21):
   la unidad no se lee del archivo: se asigna por variable, con el parámetro.
 - Los umbrales de color del archivo no son los del ICA de la Resolución 2254.
   PIMAU calcula el ICA con la norma, igual que para las demás fuentes.
+- El sensor de PM de la Universidad Javeriana marco 0 durante todo el mes. Las
+  rachas de un mismo valor se marcan como sospechosas (normalizacion.py).
+- Los sensores son de bajo costo: su PM10 es casi igual a su PM2.5, cuando el
+  PM10 real incluye al PM2.5 y suele ser bastante mayor. El visor lo advierte.
+- Las horas del archivo no estan en hora de Colombia sino en UTC+2, siete horas
+  por delante (configuracion.satic_zona_horaria). Una lectura que quede en el
+  futuro indica que la zona cambio: se descarta y se advierte.
 - Las mediciones llegan cada 15 a 30 minutos. Se agregan a promedios horarios
   para que sean comparables con las demás fuentes. Cada promedio se fecha al
   final de su hora, como la fecha final del IDEAM. La primera y la última hora
@@ -22,8 +29,9 @@ import math
 from collections import defaultdict
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from openpyxl import load_workbook
 
@@ -34,6 +42,8 @@ from pimau.ingesta.conectores.base import ConectorMediciones, EstacionOrigen, Re
 log = logging.getLogger("pimau.ingesta")
 
 HORA = timedelta(hours=1)
+# Margen para el reloj de los sensores antes de considerar que una lectura esta en el futuro.
+TOLERANCIA_FUTURO = timedelta(minutes=20)
 
 # Variable de SATIC y su código en el modelo común. NOISE_AVG (ruido) todavía
 # no se carga: el parámetro de ruido llega con RF-15 y la unidad del archivo no
@@ -94,9 +104,11 @@ def promedio(codigo: str, valores: list[float]) -> float:
 
 class ConectorSatic(ConectorMediciones):
 
-    def __init__(self, cliente=None, bandeja: str | Path | None = None):
+    def __init__(self, cliente=None, bandeja: str | Path | None = None, ahora: datetime | None = None):
         super().__init__(cliente)
         self.bandeja = Path(bandeja or configuracion.satic_bandeja)
+        self.zona = ZoneInfo(configuracion.satic_zona_horaria)
+        self.ahora = ahora
 
     def extraer(self, desde: datetime | None) -> Iterator[RegistroMedicion]:
         # Se leen todos los archivos en cada ejecución: guardar una hora que ya
@@ -117,6 +129,8 @@ class ConectorSatic(ConectorMediciones):
 
         # Lecturas válidas por estación, parámetro y hora.
         lecturas: dict[tuple[str, str], dict[datetime, list[float]]] = defaultdict(lambda: defaultdict(list))
+        limite = (self.ahora or datetime.now(UTC)) + TOLERANCIA_FUTURO
+        en_el_futuro = 0
         for fila in filas:
             sensor = str(fila[posicion[COLUMNA_SENSOR]] or "")
             codigo_estacion = sensor.split(" - ", 1)[1].strip() if " - " in sensor else ""
@@ -127,8 +141,12 @@ class ConectorSatic(ConectorMediciones):
                 self.filas_descartadas += 1
                 continue
             try:
-                instante = norma.leer_fecha(str(fila[posicion[COLUMNA_FECHA]]), orden="dmy")
+                instante = norma.leer_fecha(str(fila[posicion[COLUMNA_FECHA]]), orden="dmy", zona=self.zona)
             except ValueError:
+                self.filas_descartadas += 1
+                continue
+            if instante > limite:
+                en_el_futuro += 1
                 self.filas_descartadas += 1
                 continue
             valor = norma.leer_numero(fila[posicion[COLUMNA_VALOR]])
@@ -140,6 +158,9 @@ class ConectorSatic(ConectorMediciones):
                 fin_hora += HORA
             lecturas[(codigo_estacion, codigo)][fin_hora].append(valor)
         libro.close()
+        if en_el_futuro:
+            log.warning("SATIC: %s lecturas de %s quedan en el futuro; revise satic_zona_horaria",
+                        en_el_futuro, archivo.name)
 
         for (codigo_estacion, codigo), horas in lecturas.items():
             datos = ESTACIONES[codigo_estacion]
@@ -148,9 +169,14 @@ class ConectorSatic(ConectorMediciones):
             # no se guardan, porque una hora guardada ya no se reemplaza.
             primera = min(horas)
             ultima = max(horas)
-            for fin_hora, valores in sorted(horas.items()):
+            promedios = {fin_hora: promedio(codigo, valores) for fin_hora, valores in horas.items()}
+            # Un sensor detenido repite el mismo valor: esas horas quedan como sospechosas.
+            constantes = norma.horas_constantes(codigo, promedios)
+            for fin_hora, valor in sorted(promedios.items()):
                 if fin_hora in (primera, ultima):
                     continue
-                valor = promedio(codigo, valores)
+                bandera = norma.bandera(codigo, valor)
+                if bandera == "valido" and fin_hora in constantes:
+                    bandera = "sospechoso"
                 yield RegistroMedicion(estacion=estacion, parametro=codigo, instante=fin_hora,
-                                       valor=valor, bandera=norma.bandera(codigo, valor))
+                                       valor=valor, bandera=bandera)

@@ -60,11 +60,28 @@ function nombreDelGrupo(registros) {
   return registros.map((r) => r.nombre).sort((a, b) => b.length - a.length)[0];
 }
 
+// Un dato es reciente si se midió en las últimas 48 horas. Solo SATIC publica
+// datos así de recientes; el resto de las fuentes termina en 2024 o antes.
+export const HORAS_RECIENTE = 48;
+
+export function esReciente(iso, ahora = new Date()) {
+  return Boolean(iso) && ahora - new Date(iso) <= HORAS_RECIENTE * 3600000;
+}
+
+// Fecha del último dato válido de un grupo, entre todas sus fuentes y variables.
+export function ultimoDatoDelGrupo(grupo) {
+  const fechas = grupo.registros.flatMap((r) => Object.values(r.parametros).map((p) => p.instante)).filter(Boolean);
+  return fechas.length ? fechas.sort().at(-1) : null;
+}
+
 // Estado que representa al grupo en el mapa para un parámetro: el ICA más
 // reciente entre sus fuentes. Si ninguna fuente tiene ICA, el dato más reciente.
-export function estadoMasReciente(grupo, parametro) {
+// Con soloRecientes, se ignoran los datos de más de 48 horas.
+export function estadoMasReciente(grupo, parametro, { soloRecientes = false, ahora = new Date() } = {}) {
   const estados = grupo.registros
-    .filter((r) => r.parametros[parametro])
+    // Una variable puede venir sin valor válido, solo con mediciones marcadas.
+    .filter((r) => r.parametros[parametro]?.instante)
+    .filter((r) => !soloRecientes || esReciente(r.parametros[parametro].instante, ahora))
     .map((r) => ({ registro: r, estado: r.parametros[parametro] }));
   if (!estados.length) return null;
   const conIca = estados.filter((e) => e.estado.categoria);
@@ -79,12 +96,32 @@ export function formatearFecha(iso, conHora = true) {
 }
 
 export function antiguedad(iso, ahora = new Date()) {
-  const dias = Math.floor((ahora - new Date(iso)) / 86400000);
-  if (dias < 1) return "hoy";
+  const horas = Math.floor((ahora - new Date(iso)) / 3600000);
+  if (horas < 1) return "hace menos de una hora";
+  if (horas < 24) return horas === 1 ? "hace 1 hora" : `hace ${horas} horas`;
+  const dias = Math.floor(horas / 24);
+  if (dias < 2) return "hace 1 día";
   if (dias < 60) return `hace ${dias} días`;
   const meses = Math.floor(dias / 30.44);
   if (meses < 24) return `hace ${meses} meses`;
   return `hace ${Math.floor(meses / 12)} años`;
+}
+
+// Versión corta para la lista de estaciones: "hace 2 h", "hace 3 d".
+export function antiguedadCorta(iso, ahora = new Date()) {
+  const horas = Math.floor((ahora - new Date(iso)) / 3600000);
+  if (horas < 1) return "hace < 1 h";
+  if (horas < 48) return `hace ${horas} h`;
+  return `hace ${Math.floor(horas / 24)} d`;
+}
+
+// Fecha y hora de un dato en pocas palabras: "hoy, 04:00" si es del mismo día.
+export function fechaCorta(iso, ahora = new Date()) {
+  const hora = new Intl.DateTimeFormat("es-CO", { timeZone: ZONA, hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .format(new Date(iso));
+  if (fechaISO(new Date(iso)) === fechaISO(ahora)) return `hoy, ${hora}`;
+  if (fechaISO(new Date(iso)) === restarDias(fechaISO(ahora), 1)) return `ayer, ${hora}`;
+  return formatearFecha(iso);
 }
 
 // Color de texto legible (contraste mínimo 4,5:1) sobre el color de la categoría.
@@ -151,10 +188,10 @@ export function zonaDe(capas, punto) {
 // Devuelve las comunas (o, para las estaciones rurales, los corregimientos) que
 // contienen una estación, coloreadas con su categoría del ICA. Si una zona tiene
 // varias estaciones, se usa la peor categoría. Las variables sin ICA no colorean.
-export function zonasConEstacion(capas, grupos, parametro) {
+export function zonasConEstacion(capas, grupos, parametro, opciones) {
   const zonas = new Map();
   for (const g of grupos) {
-    const estado = estadoMasReciente(g, parametro)?.estado;
+    const estado = estadoMasReciente(g, parametro, opciones)?.estado;
     if (!estado?.categoria || estado.ica == null) continue;
     const zona = [capas.comuna, capas.corregimiento]
       .flatMap((c) => c?.features || [])

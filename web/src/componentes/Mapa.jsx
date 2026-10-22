@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Children, useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 // MapLibre 6 dibuja el mapa con un proceso en segundo plano (worker) que va en
 // un archivo aparte. Vite lo empaqueta y aquí se le indica a MapLibre dónde está.
@@ -50,12 +50,12 @@ function suavizarMapaBase(m) {
   }
 }
 
-function aGeoJSON(grupos, parametro, meta) {
+function aGeoJSON(grupos, parametro, meta, opciones) {
   const conIca = Boolean(meta?.ventana_ica_horas);
   return {
     type: "FeatureCollection",
     features: grupos.map((g) => {
-      const actual = estadoMasReciente(g, parametro);
+      const actual = estadoMasReciente(g, parametro, opciones);
       return {
         type: "Feature",
         id: g.id,
@@ -73,7 +73,7 @@ function aGeoJSON(grupos, parametro, meta) {
   };
 }
 
-export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar, onZonas, children }) {
+export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar, onZonas, opciones, children }) {
   const contenedor = useRef(null);
   const mapa = useRef(null);
   const [listo, setListo] = useState(false);
@@ -115,19 +115,20 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
         paint: {
           "circle-radius": ["case", seleccionada, 26, 17],
           "circle-color": ["get", "color"],
-          "circle-opacity": ["case", ["get", "conDatos"], ["case", seleccionada, 0.32, 0.22], 0.12],
+          // Sin datos (o sin datos recientes) la estación no lleva halo.
+          "circle-opacity": ["case", ["get", "conDatos"], ["case", seleccionada, 0.32, 0.22], 0],
           "circle-blur": 0.35,
         },
       });
       m.addLayer({
         id: "estaciones", type: "circle", source: "estaciones",
+        // Las estaciones sin datos se dibujan como un aro gris hueco, para que
+        // ningún color sugiera un estado del aire que no se conoce.
         paint: {
-          "circle-radius": ["case", seleccionada, 10, 7.5],
-          "circle-color": ["get", "color"],
-          "circle-stroke-color": ["case", seleccionada, "#1b2b28", "#ffffff"],
-          "circle-stroke-width": ["case", seleccionada, 3, 2.5],
-          "circle-opacity": ["case", ["get", "conDatos"], 1, 0.5],
-          "circle-stroke-opacity": ["case", ["get", "conDatos"], 1, 0.6],
+          "circle-radius": ["case", seleccionada, 10, ["get", "conDatos"], 7.5, 5],
+          "circle-color": ["case", ["get", "conDatos"], ["get", "color"], "#ffffff"],
+          "circle-stroke-color": ["case", seleccionada, "#1b2b28", ["get", "conDatos"], "#ffffff", COLOR_SIN_ICA],
+          "circle-stroke-width": ["case", seleccionada, 3, ["get", "conDatos"], 2.5, 2],
         },
       });
       m.addLayer({
@@ -137,7 +138,8 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
                                  { "text-font": ["literal", ["Noto Sans Regular"]], "font-scale": 1.05 }],
                   "text-font": ["Noto Sans Regular"], "text-size": 11.5, "text-letter-spacing": 0.01,
                   "text-offset": [0, 1.5], "text-anchor": "top" },
-        paint: { "text-color": "#1b2b28", "text-halo-color": "rgba(255,255,255,0.92)", "text-halo-width": 1.8 },
+        paint: { "text-color": ["case", ["get", "conDatos"], "#1b2b28", "#7a8783"],
+                 "text-halo-color": "rgba(255,255,255,0.92)", "text-halo-width": 1.8 },
       });
       m.on("click", "estaciones", (e) => onSeleccionar(e.features[0].properties.id));
       m.on("mouseenter", "estaciones", () => { m.getCanvas().style.cursor = "pointer"; });
@@ -202,12 +204,12 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (listo) mapa.current.getSource("estaciones").setData(aGeoJSON(grupos, parametro, meta));
-  }, [listo, grupos, parametro, meta]);
+    if (listo) mapa.current.getSource("estaciones").setData(aGeoJSON(grupos, parametro, meta, opciones));
+  }, [listo, grupos, parametro, meta, opciones]);
 
   useEffect(() => {
-    if (listo) mapa.current.getSource("zonas").setData(zonasConEstacion(geometrias.current, grupos, parametro));
-  }, [listo, grupos, parametro, capasCargadas]);
+    if (listo) mapa.current.getSource("zonas").setData(zonasConEstacion(geometrias.current, grupos, parametro, opciones));
+  }, [listo, grupos, parametro, capasCargadas, opciones]);
 
   // Al llegar las estaciones, el mapa las encuadra todas una sola vez, dejando
   // libre el espacio de las tarjetas que flotan encima en pantallas anchas.
@@ -244,21 +246,30 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
     }
   }
 
+  // El primer control (la variable) siempre se ve. Los demás se pliegan en
+  // pantallas pequeñas para que la tarjeta no tape el mapa.
+  const [principal, ...demas] = Children.toArray(children);
+  const [esMovil] = useState(() => window.matchMedia("(max-width: 900px)").matches);
+
   return (
     <>
       <div ref={contenedor} className="mapa" role="region"
            aria-label="Mapa de estaciones. Las estaciones también se pueden elegir en la lista." />
       <div className="flotante controles-mapa">
-        {children}
-        <fieldset className="selector-capas">
-          <legend>Límites del territorio</legend>
-          {CAPAS.map((c) => (
-            <label key={c.tipo}>
-              <input type="checkbox" checked={capasVisibles[c.tipo]} onChange={() => alternarCapa(c.tipo)} />
-              <span className="muestra-linea" style={{ borderColor: c.color }} aria-hidden="true" /> {c.nombre}
-            </label>
-          ))}
-        </fieldset>
+        {principal}
+        <details className="mas-opciones" open={!esMovil}>
+          <summary>Vigencia y límites del territorio</summary>
+          {demas}
+          <fieldset className="selector-capas">
+            <legend>Límites del territorio</legend>
+            {CAPAS.map((c) => (
+              <label key={c.tipo}>
+                <input type="checkbox" checked={capasVisibles[c.tipo]} onChange={() => alternarCapa(c.tipo)} />
+                <span className="muestra-linea" style={{ borderColor: c.color }} aria-hidden="true" /> {c.nombre}
+              </label>
+            ))}
+          </fieldset>
+        </details>
       </div>
     </>
   );

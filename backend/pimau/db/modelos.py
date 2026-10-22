@@ -20,7 +20,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-BANDERAS = ("valido", "faltante", "fuera_de_rango")
+BANDERAS = ("valido", "faltante", "fuera_de_rango", "sospechoso")
 ESTADOS_EJECUCION = ("en_curso", "correcta", "con_error")
 
 

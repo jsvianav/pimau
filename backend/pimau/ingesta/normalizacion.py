@@ -1,7 +1,7 @@
 """Reglas de normalizacion (RF-02) y de calidad (RF-03).
 
 La ingesta no elimina ni rellena datos. Cada valor se guarda con una bandera:
-valido, faltante o fuera_de_rango.
+valido, faltante, fuera_de_rango o sospechoso.
 """
 import re
 from datetime import UTC, datetime, timedelta
@@ -66,7 +66,8 @@ _FORMATOS_BARRA = {
     "mdy": ("%m/%d/%Y %H:%M", "%m/%d/%Y %H:%M:%S"),
     "dmy": ("%d/%m/%Y %H:%M", "%d/%m/%Y %H:%M:%S"),
 }
-_PATRON_HORA_24 = re.compile(r"^(.*\D)24:00(:00)?$")
+# La hora 24 va despues del espacio o de la T: "12:24:00" son las 12 y 24 minutos.
+_PATRON_HORA_24 = re.compile(r"^(.*[ T])24:00(:00)?$")
 
 
 def codigo_parametro(nombre_origen: str) -> str | None:
@@ -105,8 +106,12 @@ _ORIGEN_EXCEL = datetime(1899, 12, 30)
 _PATRON_SERIE_EXCEL = re.compile(r"^\d{5}([.,]\d+)?$")
 
 
-def leer_fecha(texto: str, orden: str = "mdy", excel_invertido: bool = False) -> datetime:
+def leer_fecha(texto: str, orden: str = "mdy", excel_invertido: bool = False,
+               zona: ZoneInfo = ZONA_FUENTES) -> datetime:
     """Interpreta una fecha local de la fuente y la devuelve en UTC (ISO 8601).
+
+    La zona por defecto es la de Colombia. Una fuente que publique en otra zona
+    la indica (SATIC, por ejemplo).
 
     Acepta:
     - fechas ISO;
@@ -124,7 +129,7 @@ def leer_fecha(texto: str, orden: str = "mdy", excel_invertido: bool = False) ->
         local = local.replace(second=0, microsecond=0) + timedelta(minutes=round(local.second / 60))
         if excel_invertido:
             local = local.replace(month=local.day, day=local.month)
-        return local.replace(tzinfo=ZONA_FUENTES).astimezone(UTC)
+        return local.replace(tzinfo=zona).astimezone(UTC)
     dia_siguiente = False
     if coincidencia := _PATRON_HORA_24.match(limpio):
         limpio = coincidencia.group(1) + "00:00"
@@ -136,7 +141,7 @@ def leer_fecha(texto: str, orden: str = "mdy", excel_invertido: bool = False) ->
             continue
         if dia_siguiente:
             local += timedelta(days=1)
-        return local.replace(tzinfo=ZONA_FUENTES).astimezone(UTC)
+        return local.replace(tzinfo=zona).astimezone(UTC)
     raise ValueError(f"Formato de fecha no reconocido: {texto!r}")
 
 
@@ -178,3 +183,32 @@ def bandera(codigo: str, valor: float | None) -> str:
     if valor < minimo or valor > maximo:
         return "fuera_de_rango"
     return "valido"
+
+
+# Un sensor detenido repite el mismo valor hora tras hora. Seis promedios
+# horarios seguidos exactamente iguales no aparecen en una medicion real de
+# estas variables: en los 30 dias de SATIC solo ocurrio en un sensor que marco
+# 0 durante todo el mes (docs/bitacora.md, 2026-10-22). Es la anomalia
+# colectiva del Capitulo 2. La lluvia y la radiacion se excluyen porque pasan
+# muchas horas en cero de forma natural.
+HORAS_VALOR_CONSTANTE = 6
+SIN_CONTROL_CONSTANTE = {"LLUVIA", "RAD"}
+
+
+def horas_constantes(codigo: str, serie: dict[datetime, float]) -> set[datetime]:
+    """Instantes de una serie horaria que forman una racha de al menos
+    HORAS_VALOR_CONSTANTE horas consecutivas con el mismo valor."""
+    if codigo in SIN_CONTROL_CONSTANTE:
+        return set()
+    marcadas: set[datetime] = set()
+    racha: list[datetime] = []
+    for instante in sorted(serie):
+        if racha and instante - racha[-1] == timedelta(hours=1) and serie[instante] == serie[racha[-1]]:
+            racha.append(instante)
+            continue
+        if len(racha) >= HORAS_VALOR_CONSTANTE:
+            marcadas.update(racha)
+        racha = [instante]
+    if len(racha) >= HORAS_VALOR_CONSTANTE:
+        marcadas.update(racha)
+    return marcadas

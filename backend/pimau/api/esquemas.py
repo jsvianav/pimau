@@ -45,8 +45,13 @@ class GuiaOms(BaseModel):
     comparable: bool = Field(description="Si el periodo de la guía coincide con el del ICA")
 
 
+class MedicionMarcada(BaseModel):
+    instante: str
+    bandera: Literal["sospechoso", "fuera_de_rango"]
+
+
 class EstadoParametro(BaseModel):
-    instante: str | None = Field(description="Último valor válido, ISO 8601 en UTC")
+    instante: str | None = Field(description="Último valor válido, ISO 8601 en UTC. Nulo si no hay ninguno")
     valor_horario: float | None
     ventana_ica_horas: int | None
     instante_ica: str | None
@@ -56,6 +61,9 @@ class EstadoParametro(BaseModel):
     categoria: str | None
     color: str | None
     guia_oms: GuiaOms | None
+    ultima_marcada: MedicionMarcada | None = Field(
+        default=None, description="Última medición marcada como sospechosa o fuera de rango, "
+                                  "si es posterior al último valor válido")
 
 
 class PropiedadesEstacion(BaseModel):
@@ -96,7 +104,7 @@ class EstacionResumen(BaseModel):
 class PuntoHorario(BaseModel):
     instante: str = Field(description="ISO 8601 en UTC")
     valor: float | None
-    bandera: str = Field(description="valido, faltante o fuera_de_rango")
+    bandera: str = Field(description="valido, faltante, fuera_de_rango o sospechoso")
 
 
 class PuntoDiario(BaseModel):

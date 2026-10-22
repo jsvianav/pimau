@@ -76,25 +76,33 @@ a { color: var(--acento); }
 .selector-capas label { display: flex; align-items: center; gap: 8px; color: var(--tinta-suave); }
 .selector-capas input { accent-color: var(--acento); margin: 0; }
 .muestra-linea { display: inline-block; width: 14px; height: 0; border-top: 2px solid; opacity: 0.6; }
+.mas-opciones > * + * { margin-top: 12px; }
+.mas-opciones > summary { display: none; }
+.selector-vigencia { margin: 0; padding: 10px 0 0; border: 0; border-top: 1px solid var(--linea); display: grid; gap: 4px; }
+.selector-vigencia legend { color: var(--tinta-tenue); font-size: 0.8rem; margin-bottom: 5px; padding-top: 10px; float: left; width: 100%; }
+.selector-vigencia label { display: flex; align-items: center; gap: 8px; color: var(--tinta-suave); }
+.selector-vigencia input { accent-color: var(--acento); margin: 0; }
 select, input[type="date"] {
   font: inherit; font-size: 0.9rem; color: var(--tinta); padding: 7px 10px; border: 1px solid var(--linea);
   border-radius: 9px; background: var(--papel); width: 100%;
 }
 .filtros select, .filtros input[type="date"] { width: auto; }
 
-/* Aviso de la fecha de los datos: una etiqueta pequeña sobre el mapa. */
+/* Estado de los datos: una etiqueta pequeña sobre el mapa, entre las tarjetas. */
 .contexto {
-  position: absolute; z-index: 2; top: 16px; left: 50%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 6px; max-width: min(560px, calc(100% - 700px));
-  padding: 6px 6px 6px 14px; border-radius: 999px; background: var(--aviso-fondo); color: var(--aviso);
+  position: absolute; z-index: 2; top: 16px; left: calc(50% - 64px); transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; max-width: min(520px, calc(100% - 680px));
+  padding: 7px 14px; border-radius: 14px; background: var(--papel); color: var(--tinta-suave);
   box-shadow: var(--sombra); font-size: 0.82rem;
 }
 .contexto p { margin: 0; }
-.cerrar {
-  flex: none; display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
-  border: 0; border-radius: 50%; background: transparent; color: var(--aviso); cursor: pointer;
-}
-.cerrar:hover { background: #f6e6c8; }
+.contexto.sin-recientes { background: var(--aviso-fondo); color: var(--aviso); }
+/* Punto que indica si el último dato es de las últimas 48 horas. */
+.pulso { display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #1f9d55;
+         box-shadow: 0 0 0 3px rgba(31, 157, 85, 0.18); vertical-align: 1px; }
+.pulso.apagado { background: var(--sin-ica); box-shadow: none; }
+.enlace { flex: none; font: inherit; font-weight: 700; padding: 0; border: 0; background: none; color: var(--acento);
+          text-decoration: underline; cursor: pointer; }
 
 /* Leyenda: compacta, abajo a la izquierda. */
 .leyenda { bottom: 16px; left: 16px; width: 252px; }
@@ -105,6 +113,8 @@ select, input[type="date"] {
 .leyenda small { color: var(--tinta-tenue); font-size: 0.75rem; }
 .leyenda .nota-zonas { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--linea); font-size: 0.74rem; }
 .punto { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15); display: inline-block; }
+/* Estación sin datos: aro gris hueco, igual que en el mapa. */
+.punto.hueco { background: var(--papel) !important; box-shadow: inset 0 0 0 2px var(--sin-ica); }
 
 /* Controles de MapLibre con el mismo estilo de las tarjetas. */
 .maplibregl-ctrl-group { border-radius: 10px !important; box-shadow: var(--sombra) !important; }
@@ -130,6 +140,13 @@ select, input[type="date"] {
 .cifra span { color: var(--tinta-suave); }
 .fecha-dato { margin: 4px 0 12px; font-size: 0.9rem; color: var(--tinta-suave); }
 .fecha-dato .antiguedad { color: var(--aviso); font-weight: 700; }
+.fecha-dato .antiguedad.reciente { color: #17713f; }
+.aviso-calidad, .nota-fuente { font-size: 0.86rem; margin: 6px 0 12px; padding: 9px 11px; border-radius: 8px; }
+.aviso-calidad { background: #fdecec; color: #7d1d1d; }
+.nota-fuente { background: var(--aviso-fondo); color: var(--aviso); }
+.ultimas-horas { margin: 4px 0 14px; }
+.ultimas-horas figcaption { font-size: 0.82rem; color: var(--tinta-suave); margin-bottom: 2px; }
+.clave-guia { display: flex; align-items: center; gap: 6px; margin: 2px 0 0; font-size: 0.76rem; color: var(--tinta-tenue); }
 
 /* Escala del ICA: el elemento memorable de la ficha. */
 .escala { margin: 6px 0 10px; }
@@ -168,7 +185,8 @@ select, input[type="date"] {
 }
 .lista button:hover { background: var(--neblina); }
 .lista button[aria-pressed="true"] { background: var(--acento-suave); font-weight: 650; }
-.lista .estado { color: var(--tinta-tenue); font-size: 0.8rem; text-align: right; }
+.lista .estado { color: var(--tinta-tenue); font-size: 0.8rem; text-align: right; white-space: nowrap; }
+.lista h2.separado { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--linea); }
 
 /* Histórico */
 .vista-historico { flex: 1; padding: 24px; width: 100%; max-width: 1180px; margin: 0 auto; }
@@ -216,7 +234,8 @@ select, input[type="date"] {
   .panel-lateral { position: static; width: auto; border-radius: 0; box-shadow: none; }
   .maplibregl-ctrl-bottom-right { right: 0; }
   .leyenda { display: none; }
-  .controles-mapa { top: 12px; left: 12px; width: 210px; }
+  .controles-mapa { top: 12px; left: 12px; width: 210px; gap: 8px; }
+  .mas-opciones > summary { display: list-item; cursor: pointer; color: var(--tinta-suave); font-size: 0.8rem; }
   .marca { flex-direction: column; gap: 0; }
   .vista-historico { padding: 16px; }
 }

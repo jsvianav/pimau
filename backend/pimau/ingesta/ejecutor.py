@@ -62,7 +62,7 @@ def ejecutar_fuente(sesion: Session, fuente: Fuente, completa: bool = False) -> 
                     notas.append(f"incluye {faltantes} faltantes implícitos")
             if conector.filas_descartadas:
                 notas.append(f"Advertencia: {conector.filas_descartadas} filas descartadas "
-                             "por fecha ilegible")
+                             "(fecha ilegible, estación desconocida o lectura en el futuro)")
             ejecucion.mensaje_error = ". ".join(notas) or None
         elif isinstance(conector, ConectorCapas):
             registros = _cargar_capas(sesion, conector.extraer())
