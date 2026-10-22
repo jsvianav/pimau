@@ -32,6 +32,8 @@ RANGOS_FISICOS = {
     "LLUVIA": (0.0, 200.0),    # mm en una hora
     "RAD": (0.0, 1500.0),      # W/m²
     "PRES": (600.0, 1100.0),   # hPa
+    # Ruido
+    "RUIDO": (20.0, 140.0),    # dB(A)
 }
 
 # Textos con los que las fuentes indican un dato ausente.

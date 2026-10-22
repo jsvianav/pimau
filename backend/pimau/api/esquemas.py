@@ -37,6 +37,9 @@ class CategoriaIca(BaseModel):
 class UmbralesParametro(BaseModel):
     ica: list[CategoriaIca] = Field(description="Puntos de corte de la Resolución 2254 de 2017")
     oms: dict[str, float] = Field(description="Valores guía de la OMS 2021 por periodo")
+    ruido: dict[str, float] = Field(default_factory=dict,
+                                    description="Límites de ruido ambiental de la Res. 627 de 2006 "
+                                                "(sector B), de día y de noche, en dB(A)")
 
 
 class GuiaOms(BaseModel):
@@ -61,6 +64,8 @@ class EstadoParametro(BaseModel):
     categoria: str | None
     color: str | None
     guia_oms: GuiaOms | None
+    anomalias_48h: int = Field(default=0, description="Mediciones anómalas en las últimas 48 horas (RF-13)")
+    ultima_anomala: bool = Field(default=False, description="Si la última medición válida es anómala")
     ultima_marcada: MedicionMarcada | None = Field(
         default=None, description="Última medición marcada como sospechosa o fuera de rango, "
                                   "si es posterior al último valor válido")
@@ -105,6 +110,8 @@ class PuntoHorario(BaseModel):
     instante: str = Field(description="ISO 8601 en UTC")
     valor: float | None
     bandera: str = Field(description="valido, faltante, fuera_de_rango o sospechoso")
+    anomalia: bool = Field(default=False, description="Si la analítica la señaló como anómala (RF-13)")
+    puntaje_anomalia: float | None = None
 
 
 class PuntoDiario(BaseModel):
@@ -191,3 +198,31 @@ class EventoAuditoria(BaseModel):
     accion: str
     resultado: str
     ip: str
+
+
+# --- Alertas (RF-14) -----------------------------------------------------------------
+class Alerta(BaseModel):
+    estacion_id: int
+    estacion: str
+    fuente: str
+    parametro: str
+    nombre_parametro: str
+    unidad: str
+    valor: float = Field(description="Última medición horaria")
+    umbral: float
+    instante: str
+
+
+class UmbralAlerta(BaseModel):
+    codigo: str
+    nombre: str
+    unidad: str
+    valor: float | None = Field(description="Umbral; vacío si no se ha configurado")
+    activo: bool
+    actualizado: str | None
+
+
+class CambioUmbral(BaseModel):
+    valor: float = Field(gt=0)
+    activo: bool = True
+

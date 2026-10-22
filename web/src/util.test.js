@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  agruparEstaciones, antiguedad, antiguedadCorta, claveEstacion, fechaCorta, esReciente, estadoMasReciente, formatearFecha, formatearNumero, puntoEnGeometria,
+  agruparEstaciones, antiguedad, antiguedadCorta, claveEstacion, fechaCorta, periodoRuido, esReciente, estadoMasReciente, formatearFecha, formatearNumero, puntoEnGeometria,
   restarDias, textoSobre, zonaDe, zonasConEstacion,
 } from "./util.js";
 
@@ -128,5 +128,15 @@ describe("datos recientes", () => {
     ] });
     expect(estadoMasReciente(grupo, "PM25", { ahora }).registro.fuente).toBe("IDEAM");
     expect(estadoMasReciente(grupo, "PM25", { soloRecientes: true, ahora })).toBeNull();
+  });
+});
+
+describe("ruido", () => {
+  it("separa el día y la noche como la Resolución 627 de 2006", () => {
+    // Hora que termina a las 8:00 en Colombia (13:00 UTC): de día. La que termina a las 7:00: de noche.
+    expect(periodoRuido("2026-10-22T13:00:00Z")).toBe("Día");
+    expect(periodoRuido("2026-10-22T12:00:00Z")).toBe("Noche");
+    expect(periodoRuido("2026-10-23T02:00:00Z")).toBe("Día"); // 21:00
+    expect(periodoRuido("2026-10-23T03:00:00Z")).toBe("Noche"); // 22:00
   });
 });

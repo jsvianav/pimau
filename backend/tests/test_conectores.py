@@ -141,9 +141,9 @@ def test_satic_agrega_el_archivo_exportado_a_promedios_horarios():
     assert {r.parametro for r in registros} == {"PM25"}
     r = registros[0]
     assert (r.estacion.codigo, r.estacion.nombre) == ("OAC22-HOLGUINES", "Holguines Trade Center")
-    # La primera hora que se guarda es la de las 04:xx del archivo, que esta en
-    # UTC+2: son las 02:xx UTC, en la hora que termina a las 03:00 UTC.
-    assert (r.instante.isoformat(), r.valor, r.bandera) == ("2026-10-20T03:00:00+00:00", 5.0, "valido")
+    # El archivo se bajo con un navegador en hora de Colombia, asi que su hora es
+    # la UTC real: la primera hora que se guarda (04:xx) es la que termina a las 05:00 UTC.
+    assert (r.instante.isoformat(), r.valor, r.bandera) == ("2026-10-20T05:00:00+00:00", 5.0, "valido")
     assert conector.filas_descartadas == 0
 
 
@@ -154,16 +154,16 @@ def test_satic_promedia_la_direccion_del_viento_como_angulo_y_descarta_estacione
     for minuto, grados in [(5, 340), (20, 350), (40, 10), (55, 20)]:
         for hora in (9, 10, 11):
             hoja.append(["WDIR_AVG - USB", "WDIR_AVG", grados, f"21/10/2026 {hora:02d}:{minuto:02d}:00"])
-    hoja.append(["NOISE_AVG - USB", "NOISE_AVG", 65, "21/10/2026 10:10:00"])  # sin parametro aun
+    hoja.append(["CO2_AVG - USB", "CO2_AVG", 410, "21/10/2026 10:10:00"])  # variable que PIMAU no carga
     hoja.append(["PM25_AVG - LAS GARZAS", "PM25_AVG", 12, "21/10/2026 10:10:00"])  # codigo desconocido
     libro.save(tmp_path / "exportado.xlsx")
 
     conector = satic.ConectorSatic(bandeja=tmp_path)
     registros = list(conector.extraer(None))
-    # De tres horas solo queda la del medio (10:xx en UTC+2, 08:xx UTC); su
-    # promedio vectorial es 0 grados, no 180.
+    # De tres horas solo queda la del medio (10:xx UTC); su promedio vectorial es
+    # 0 grados, no 180.
     assert [(r.parametro, r.instante.isoformat(), r.valor) for r in registros] == [
-        ("DV", "2026-10-21T09:00:00+00:00", 0.0)]
+        ("DV", "2026-10-21T11:00:00+00:00", 0.0)]
     assert conector.filas_descartadas == 1
 
 
@@ -202,12 +202,11 @@ def test_satic_descarta_las_lecturas_que_quedarian_en_el_futuro(tmp_path):
     for hora in range(6):
         hoja.append(["PM25_AVG - USB", "PM25_AVG", 10 + hora, f"22/10/2026 {hora:02d}:30:00"])
     libro.save(tmp_path / "exportado.xlsx")
-    # A las 01:00 UTC (03:00 en UTC+2), las lecturas de las 03:30, 04:30 y 05:30
-    # todavia no pueden existir.
-    conector = satic.ConectorSatic(bandeja=tmp_path, ahora=datetime(2026, 10, 22, 1, 0, tzinfo=UTC))
+    # A las 03:00 UTC, las lecturas de las 03:30, 04:30 y 05:30 todavia no pueden existir.
+    conector = satic.ConectorSatic(bandeja=tmp_path, ahora=datetime(2026, 10, 22, 3, 0, tzinfo=UTC))
     registros = list(conector.extraer(None))
     assert conector.filas_descartadas == 3
-    assert max(r.instante for r in registros) <= datetime(2026, 10, 22, 1, 0, tzinfo=UTC)
+    assert max(r.instante for r in registros) <= datetime(2026, 10, 22, 3, 0, tzinfo=UTC)
 
 
 def test_satic_advierte_cuando_la_descarga_automatica_lleva_horas_fallando(tmp_path):
@@ -228,3 +227,9 @@ def test_satic_advierte_cuando_la_descarga_automatica_lleva_horas_fallando(tmp_p
     conector = satic.ConectorSatic(bandeja=tmp_path, ahora=ahora)
     list(conector.extraer(None))
     assert conector.advertencias == []
+
+
+def test_satic_promedia_el_ruido_por_energia():
+    # 50 y 70 dB no promedian 60: el nivel equivalente (67 dB) queda cerca del más alto.
+    assert satic.promedio("RUIDO", [50, 70]) == 67.0329
+    assert satic.promedio("RUIDO", [60, 60, 60]) == 60.0

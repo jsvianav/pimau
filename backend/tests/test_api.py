@@ -246,3 +246,54 @@ def test_panel_muestra_el_estado_y_audita_los_cambios(cliente, admin):
     auditoria = cliente.get("/api/admin/auditoria", headers=admin).json()
     assert auditoria[0]["administrador"] == CORREO
 
+
+
+# --- Alertas (RF-14) y anomalías (RF-13) ---------------------------------------------
+def _medicion_reciente(c, estacion_id, parametro_id, horas_atras, valor):
+    instante = datetime.now(UTC).replace(minute=0, second=0, microsecond=0) - timedelta(hours=horas_atras)
+    return c.execute(text("""INSERT INTO medicion (estacion_id, parametro_id, ejecucion_id, instante, valor, bandera)
+                             VALUES (:e, :p, 1, :i, :v, 'valido') RETURNING id"""),
+                     {"e": estacion_id, "p": parametro_id, "i": instante, "v": valor}).scalar()
+
+
+def test_alertas_por_umbral_incluyen_el_valor_igual_al_limite(cliente, admin):
+    with create_engine(URL).begin() as c:
+        c.execute(text("""INSERT INTO estacion (id, fuente_id, codigo_origen, nombre, ubicacion, activa) VALUES
+            (2, 1, 'Y', 'Estación reciente', ST_SetSRID(ST_MakePoint(-76.52, 3.37), 4326), true),
+            (3, 1, 'Z', 'Estación vieja', ST_SetSRID(ST_MakePoint(-76.51, 3.36), 4326), true)"""))
+        _medicion_reciente(c, 2, 1, 1, 37.0)   # igual al umbral, de hace 1 hora: alerta
+        _medicion_reciente(c, 3, 1, 5, 80.0)   # supera, pero es de hace 5 horas: no está activa
+    assert cliente.get("/api/alertas").json() == []  # sin umbral configurado no hay alertas
+
+    respuesta = cliente.put("/api/admin/umbrales/PM25", headers=admin, json={"valor": 37, "activo": True})
+    assert respuesta.status_code == 200 and respuesta.json()["valor"] == 37
+    modulo_app._cache.clear()
+    alertas = cliente.get("/api/alertas").json()
+    assert [(a["estacion"], a["valor"], a["umbral"]) for a in alertas] == [("Estación reciente", 37.0, 37.0)]
+
+    cliente.put("/api/admin/umbrales/PM25", headers=admin, json={"valor": 37, "activo": False})
+    assert cliente.get("/api/alertas").json() == []
+    assert cliente.put("/api/admin/umbrales/PM25", json={"valor": 37}).status_code == 401
+    assert cliente.put("/api/admin/umbrales/PM25", headers=admin, json={"valor": -1}).status_code == 422
+    acciones = [a.accion for a in _auditoria() if a.administrador_id is not None]
+    assert "Umbral de alerta de PM25: sin umbral → 37 activo µg/m³" in acciones
+    umbrales = {u["codigo"]: u for u in cliente.get("/api/admin/umbrales", headers=admin).json()}
+    assert umbrales["PM25"]["activo"] is False and umbrales["PM10"]["valor"] is None
+
+
+def test_series_y_estaciones_senalan_las_anomalias(cliente):
+    with create_engine(URL).begin() as c:
+        c.execute(text("""INSERT INTO estacion (id, fuente_id, codigo_origen, nombre, ubicacion, activa) VALUES
+            (2, 1, 'Y', 'Estación reciente', ST_SetSRID(ST_MakePoint(-76.52, 3.37), 4326), true)"""))
+        normal = _medicion_reciente(c, 2, 1, 2, 10.0)
+        pico = _medicion_reciente(c, 2, 1, 1, 90.0)
+        c.execute(text("INSERT INTO anomalia (medicion_id, metodo, puntaje, detectada_en) "
+                       "VALUES (:m, 'Isolation Forest', 0.71, now())"), {"m": pico})
+    estado = next(f for f in cliente.get("/api/estaciones").json()["features"]
+                  if f["properties"]["id"] == 2)["properties"]["parametros"]["PM25"]
+    assert (estado["anomalias_48h"], estado["ultima_anomala"]) == (1, True)
+    hoy = datetime.now(UTC).date()
+    datos = cliente.get(f"/api/estaciones/2/series?parametro=PM25&desde={hoy - timedelta(days=1)}"
+                        f"&hasta={hoy + timedelta(days=1)}").json()["datos"]
+    assert [(d["valor"], d["anomalia"]) for d in datos] == [(10.0, False), (90.0, True)]
+    assert normal is not None

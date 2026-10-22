@@ -15,3 +15,6 @@ dist/
 
 # Respaldos de la base de datos
 respaldos/
+
+# Modelos entrenados por la analítica (se regeneran)
+/modelos/

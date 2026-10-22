@@ -1,15 +1,18 @@
-## Estaciones (k = 2)
+## Estaciones (k = 5)
 
 |   k |   inercia |   silueta |   davies_bouldin |
 |----:|----------:|----------:|-----------------:|
-|   2 |   162.144 |     0.37  |            1.023 |
-|   3 |   130.937 |     0.274 |            1.149 |
-|   4 |   101.021 |     0.299 |            0.904 |
-|   5 |    77.01  |     0.314 |            0.891 |
-|   6 |    62.409 |     0.284 |            0.913 |
+|   2 |   151.999 |     0.224 |            1.55  |
+|   3 |   120.237 |     0.249 |            1.448 |
+|   4 |    93.384 |     0.268 |            1.042 |
+|   5 |    69.075 |     0.306 |            0.852 |
+|   6 |    55.739 |     0.287 |            0.91  |
 
-**Grupo 1** (13): Base Aérea (Datos) [pico 8 h, 20.4 µg/m³]; Base Aérea (IDEAM) [pico 9 h, 19.2 µg/m³]; Cascajal (IDEAM) [pico 15 h, 13.4 µg/m³]; Cañaveralejo (IDEAM) [pico 9 h, 11.1 µg/m³]; Compartir (IDEAM) [pico 8 h, 15.6 µg/m³]; Era Obrero (IDEAM) [pico 9 h, 9.6 µg/m³]; Fundación Universitaria San Martín (SATIC) [pico 11 h, 12.0 µg/m³]; La Ermita (IDEAM) [pico 9 h, 13.7 µg/m³]; La Flora (IDEAM) [pico 9 h, 16.7 µg/m³]; Pance (IDEAM) [pico 15 h, 10.7 µg/m³]; Transitoria-Navarro (IDEAM) [pico 12 h, 15.3 µg/m³]; Universidad del Valle (Datos) [pico 9 h, 19.2 µg/m³]; Universidad del Valle (IDEAM) [pico 14 h, 17.2 µg/m³]
-**Grupo 2** (12): Club Campestre Cali (SATIC) [pico 8 h, 8.2 µg/m³]; Colegio Nuestra Señora del Rosario (SATIC) [pico 7 h, 10.2 µg/m³]; Colegio Nuevo Cambridge (SATIC) [pico 8 h, 7.2 µg/m³]; Compartir (Datos) [pico 8 h, 14.6 µg/m³]; Condominio Bagatelle (SATIC) [pico 8 h, 7.7 µg/m³]; Fundación Valle del Lili (SATIC) [pico 7 h, 4.3 µg/m³]; Universidad Autónoma de Occidente (SATIC) [pico 7 h, 8.3 µg/m³]; Universidad Católica Meléndez (SATIC) [pico 20 h, 9.0 µg/m³]; Universidad ICESI (SATIC) [pico 8 h, 9.6 µg/m³]; Universidad Libre (SATIC) [pico 7 h, 10.2 µg/m³]; Universidad San Buenaventura (SATIC) [pico 8 h, 8.5 µg/m³]; Universidad Santiago de Cali (SATIC) [pico 7 h, 1.4 µg/m³]
+**Grupo 1** (10): Club Campestre Cali (SATIC) [pico 10 h, 8.1 µg/m³]; Colegio Nuestra Señora del Rosario (SATIC) [pico 9 h, 10.1 µg/m³]; Colegio Nuevo Cambridge (SATIC) [pico 10 h, 7.1 µg/m³]; Condominio Bagatelle (SATIC) [pico 10 h, 7.6 µg/m³]; Fundación Valle del Lili (SATIC) [pico 9 h, 4.3 µg/m³]; Universidad Autónoma de Occidente (SATIC) [pico 9 h, 8.2 µg/m³]; Universidad Católica Meléndez (SATIC) [pico 22 h, 8.9 µg/m³]; Universidad ICESI (SATIC) [pico 10 h, 9.5 µg/m³]; Universidad San Buenaventura (SATIC) [pico 10 h, 8.4 µg/m³]; Universidad Santiago de Cali (SATIC) [pico 9 h, 1.4 µg/m³]
+**Grupo 2** (6): Base Aérea (IDEAM) [pico 9 h, 19.2 µg/m³]; Cañaveralejo (IDEAM) [pico 9 h, 11.1 µg/m³]; Era Obrero (IDEAM) [pico 9 h, 9.6 µg/m³]; La Ermita (IDEAM) [pico 9 h, 13.7 µg/m³]; La Flora (IDEAM) [pico 9 h, 16.7 µg/m³]; Transitoria-Navarro (IDEAM) [pico 12 h, 15.3 µg/m³]
+**Grupo 3** (5): Cascajal (IDEAM) [pico 15 h, 13.4 µg/m³]; Pance (IDEAM) [pico 15 h, 10.7 µg/m³]; Universidad Libre (SATIC) [pico 9 h, 10.1 µg/m³]; Universidad del Valle (Datos) [pico 9 h, 19.2 µg/m³]; Universidad del Valle (IDEAM) [pico 14 h, 17.2 µg/m³]
+**Grupo 4** (3): Base Aérea (Datos) [pico 8 h, 20.4 µg/m³]; Compartir (Datos) [pico 8 h, 14.6 µg/m³]; Compartir (IDEAM) [pico 8 h, 15.6 µg/m³]
+**Grupo 5** (1): Fundación Universitaria San Martín (SATIC) [pico 13 h, 11.9 µg/m³]
 
 ## Días (k = 6)
 

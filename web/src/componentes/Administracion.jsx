@@ -129,10 +129,50 @@ function FilaFuente({ fuente, onGuardar }) {
   );
 }
 
+// RF-14: umbral de alerta por parámetro. Se alerta cuando una medición de las
+// últimas horas lo iguala o lo supera.
+function FilaUmbral({ umbral, onGuardar }) {
+  const [valor, setValor] = useState(umbral.valor ?? "");
+  const [activo, setActivo] = useState(umbral.valor == null ? true : umbral.activo);
+  const [guardando, setGuardando] = useState(false);
+  const numero = Number(String(valor).replace(",", "."));
+  const valido = valor !== "" && numero > 0;
+  const cambiado = valido && (numero !== umbral.valor || activo !== umbral.activo);
+
+  function guardar() {
+    setGuardando(true);
+    onGuardar(umbral.codigo, { valor: numero, activo }).finally(() => setGuardando(false));
+  }
+
+  return (
+    <tr>
+      <th scope="row">{umbral.nombre}</th>
+      <td>
+        <input className="campo-umbral" inputMode="decimal" aria-label={`Umbral de ${umbral.nombre} en ${umbral.unidad}`}
+               value={valor} placeholder="Sin umbral" onChange={(e) => setValor(e.target.value)} /> {umbral.unidad}
+      </td>
+      <td>
+        <label className="interruptor">
+          <input type="checkbox" checked={activo} onChange={(e) => setActivo(e.target.checked)}
+                 aria-label={`Alerta de ${umbral.nombre} activa`} />
+          {activo ? "Activa" : "Inactiva"}
+        </label>
+      </td>
+      <td>{umbral.actualizado ? formatearFecha(umbral.actualizado) : "—"}</td>
+      <td>
+        <button className="boton" type="button" disabled={!cambiado || guardando} onClick={guardar}>
+          {guardando ? "Guardando…" : "Guardar umbral"}
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 function Panel({ sesion, onSalir, onVencida }) {
   const [fuentes, setFuentes] = useState(null);
   const [errores, setErrores] = useState([]);
   const [auditoria, setAuditoria] = useState([]);
+  const [umbrales, setUmbrales] = useState([]);
   const [mensaje, setMensaje] = useState(null);
   const [error, setError] = useState(null);
 
@@ -146,12 +186,20 @@ function Panel({ sesion, onSalir, onVencida }) {
       apiAdmin.fuentes(sesion.token),
       apiAdmin.ejecuciones(sesion.token, { solo_errores: true, limite: 10 }),
       apiAdmin.auditoria(sesion.token),
+      apiAdmin.umbrales(sesion.token),
     ])
-      .then(([f, e, a]) => { setFuentes(f); setErrores(e); setAuditoria(a); setError(null); })
+      .then(([f, e, a, u]) => { setFuentes(f); setErrores(e); setAuditoria(a); setUmbrales(u); setError(null); })
       .catch(manejarError);
   }, [sesion.token, manejarError]);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  function guardarUmbral(codigo, cambio) {
+    setMensaje(null);
+    return apiAdmin.configurarUmbral(sesion.token, codigo, cambio)
+      .then((u) => { setMensaje(`Umbral de ${u.nombre} guardado. El visor lo usa desde su próxima actualización.`); cargar(); })
+      .catch(manejarError);
+  }
 
   function guardar(id, cambios) {
     setMensaje(null);
@@ -194,6 +242,25 @@ function Panel({ sesion, onSalir, onVencida }) {
             </table>
           </div>
         )}
+      </div>
+
+      <div className="tarjeta">
+        <h3>Umbrales de alerta</h3>
+        <p className="nota">Cuando una medición de las últimas 3 horas iguala o supera el umbral de su variable, el visor
+          muestra una alerta. Una variable sin umbral no genera alertas.</p>
+        <div className="tabla-desplazable">
+          <table className="tabla-fuentes">
+            <thead>
+              <tr><th scope="col">Variable</th><th scope="col">Umbral</th><th scope="col">Alerta</th>
+                <th scope="col">Actualizado</th><th scope="col"><span className="solo-lector">Acción</span></th></tr>
+            </thead>
+            <tbody>
+              {umbrales.map((u) => (
+                <FilaUmbral key={`${u.codigo}-${u.valor}-${u.activo}`} umbral={u} onGuardar={guardarUmbral} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="tarjeta">

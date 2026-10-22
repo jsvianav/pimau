@@ -11,6 +11,7 @@ from pimau.api import ica
 ZONA_COLOMBIA = ZoneInfo("America/Bogota")
 REFERENCIA_ICA = "ICA Res. 2254 de 2017"
 REFERENCIA_OMS = "Guía OMS 2021"
+REFERENCIA_RUIDO = "Res. 627 de 2006, sector B"
 
 
 def parametros(sesion: Session) -> list[dict]:
@@ -28,7 +29,7 @@ def codigos_parametros(sesion: Session) -> set[str]:
 
 
 def umbrales(sesion: Session) -> dict:
-    """Puntos de corte del ICA y valores guia de la OMS, por parametro."""
+    """Puntos de corte del ICA, valores guia de la OMS y limites de ruido, por parametro."""
     filas = sesion.execute(text("""
         SELECT p.codigo, u.referencia, u.categoria, u.limite_inferior, u.limite_superior, u.color
         FROM umbral_referencia u JOIN parametro p ON p.id = u.parametro_id
@@ -36,12 +37,14 @@ def umbrales(sesion: Session) -> dict:
     """))
     resultado: dict = {}
     for f in filas:
-        destino = resultado.setdefault(f.codigo, {"ica": [], "oms": {}})
+        destino = resultado.setdefault(f.codigo, {"ica": [], "oms": {}, "ruido": {}})
         if f.referencia == REFERENCIA_ICA:
             destino["ica"].append({"categoria": f.categoria, "inferior": float(f.limite_inferior),
                                    "superior": float(f.limite_superior), "color": f.color})
         elif f.referencia == REFERENCIA_OMS:
             destino["oms"][f.categoria] = float(f.limite_superior)
+        elif f.referencia == REFERENCIA_RUIDO:
+            destino["ruido"][f.categoria] = float(f.limite_superior)
     return resultado
 
 
@@ -77,7 +80,7 @@ def estaciones(sesion: Session) -> dict:
         WITH config(codigo, horas, minimo) AS (VALUES {ventanas}),
         ultima AS (
             SELECT DISTINCT ON (m.estacion_id, m.parametro_id)
-                   m.estacion_id, m.parametro_id, m.instante, m.valor
+                   m.id, m.estacion_id, m.parametro_id, m.instante, m.valor
             FROM medicion m
             WHERE m.bandera = 'valido'
             ORDER BY m.estacion_id, m.parametro_id, m.instante DESC
@@ -111,6 +114,12 @@ def estaciones(sesion: Session) -> dict:
             FROM medicion m
             WHERE m.bandera IN ('sospechoso', 'fuera_de_rango')
             ORDER BY m.estacion_id, m.parametro_id, m.instante DESC
+        ), anomalias_recientes AS (
+            -- Anomalias de las ultimas 48 horas (RF-13).
+            SELECT m.estacion_id, m.parametro_id, count(*) AS cantidad
+            FROM anomalia a JOIN medicion m ON m.id = a.medicion_id
+            WHERE m.instante > now() - interval '48 hours'
+            GROUP BY 1, 2
         ), claves AS (
             SELECT estacion_id, parametro_id FROM ultima
             UNION SELECT estacion_id, parametro_id FROM marcada
@@ -119,7 +128,9 @@ def estaciones(sesion: Session) -> dict:
                ST_X(e.ubicacion) AS lon, ST_Y(e.ubicacion) AS lat,
                p.codigo AS parametro, u.instante, u.valor,
                r.instante AS instante_ica, r.promedio, r.horas_validas,
-               d.instante AS instante_marcada, d.bandera AS bandera_marcada
+               d.instante AS instante_marcada, d.bandera AS bandera_marcada,
+               coalesce(ar.cantidad, 0) AS anomalias_48h,
+               EXISTS (SELECT 1 FROM anomalia a WHERE a.medicion_id = u.id) AS ultima_anomala
         FROM estacion e
         JOIN fuente f ON f.id = e.fuente_id
         LEFT JOIN claves k ON k.estacion_id = e.id
@@ -127,6 +138,8 @@ def estaciones(sesion: Session) -> dict:
         LEFT JOIN ultima u ON u.estacion_id = k.estacion_id AND u.parametro_id = k.parametro_id
         LEFT JOIN representativa r ON r.estacion_id = k.estacion_id AND r.parametro_id = k.parametro_id
         LEFT JOIN marcada d ON d.estacion_id = k.estacion_id AND d.parametro_id = k.parametro_id
+        LEFT JOIN anomalias_recientes ar
+               ON ar.estacion_id = k.estacion_id AND ar.parametro_id = k.parametro_id
         ORDER BY e.nombre, f.nombre, p.codigo
     """))
     elementos: dict[int, dict] = {}
@@ -159,6 +172,8 @@ def estaciones(sesion: Session) -> dict:
             "guia_oms": _guia_oms(limites.get(f.parametro, {}).get("oms", {}), horas),
             "ultima_marcada": ({"instante": f.instante_marcada.isoformat(), "bandera": f.bandera_marcada}
                                if marcada_reciente else None),
+            "anomalias_48h": f.anomalias_48h,
+            "ultima_anomala": f.ultima_anomala,
         }
     return {"type": "FeatureCollection", "features": list(elementos.values())}
 
@@ -181,20 +196,26 @@ def _limites_utc(desde: date, hasta: date) -> tuple[datetime, datetime]:
 def serie_horaria(sesion: Session, estacion_id: int, parametro: str, desde: date, hasta: date) -> list[dict]:
     inicio, fin = _limites_utc(desde, hasta)
     filas = sesion.execute(text("""
-        SELECT m.instante, m.valor, m.bandera
+        SELECT m.instante, m.valor, m.bandera, a.puntaje
         FROM medicion m JOIN parametro p ON p.id = m.parametro_id
+        LEFT JOIN anomalia a ON a.medicion_id = m.id
         WHERE m.estacion_id = :e AND p.codigo = :p AND m.instante >= :i AND m.instante < :f
         ORDER BY m.instante
     """), {"e": estacion_id, "p": parametro, "i": inicio, "f": fin})
     return [{"instante": f.instante.isoformat(),
              "valor": float(f.valor) if f.valor is not None else None,
-             "bandera": f.bandera} for f in filas]
+             "bandera": f.bandera,
+             "anomalia": f.puntaje is not None,
+             "puntaje_anomalia": float(f.puntaje) if f.puntaje is not None else None} for f in filas]
 
 
-# Como se resume un dia de cada parametro: la lluvia se suma y la direccion
-# del viento se promedia como angulo (el promedio de 350° y 10° es 0°, no 180°).
+# Como se resume un dia de cada parametro: la lluvia se suma, la direccion del
+# viento se promedia como angulo (el promedio de 350° y 10° es 0°, no 180°) y el
+# ruido por energia.
 _AGREGACION_DIARIA = {
     "LLUVIA": "sum(m.valor) FILTER (WHERE m.bandera = 'valido')",
+    # El ruido en decibeles se promedia por energia (nivel equivalente).
+    "RUIDO": "10 * log(avg(power(10, m.valor / 10)) FILTER (WHERE m.bandera = 'valido'))",
     "DV": ("mod((degrees(atan2(avg(sin(radians(m.valor))) FILTER (WHERE m.bandera = 'valido'), "
            "avg(cos(radians(m.valor))) FILTER (WHERE m.bandera = 'valido'))))::numeric + 360, 360)"),
 }
@@ -247,3 +268,48 @@ def capa(sesion: Session, tipo: str) -> dict:
     return {"type": "FeatureCollection", "features": [
         {"type": "Feature", "geometry": json.loads(f.g),
          "properties": {"codigo": f.codigo, "nombre": f.nombre, "tipo": tipo}} for f in filas]}
+
+
+# --- Alertas (RF-14) ----------------------------------------------------------------
+HORAS_ALERTA = 3  # una alerta esta activa si su medicion es de las ultimas 3 horas
+
+
+def umbrales_alerta(sesion: Session) -> list[dict]:
+    """Parametros con su umbral de alerta, si el administrador lo configuro."""
+    filas = sesion.execute(text("""
+        SELECT p.codigo, p.nombre, p.unidad, p.variable, u.valor, u.activo, u.actualizado
+        FROM parametro p LEFT JOIN umbral_alerta u ON u.parametro_id = p.id
+        WHERE p.variable IN ('calidad_aire', 'ruido') OR u.id IS NOT NULL
+        ORDER BY p.variable, p.id
+    """))
+    return [{"codigo": f.codigo, "nombre": f.nombre, "unidad": f.unidad,
+             "valor": float(f.valor) if f.valor is not None else None, "activo": bool(f.activo),
+             "actualizado": f.actualizado.isoformat() if f.actualizado else None} for f in filas]
+
+
+def alertas(estaciones_geojson: dict, umbrales: list[dict], ahora: datetime) -> list[dict]:
+    """Estaciones cuya ultima medicion reciente iguala o supera el umbral de su parametro.
+
+    Se calcula sobre el ultimo estado de las estaciones (el mismo del mapa), asi
+    que no recorre la tabla de mediciones en cada consulta.
+    """
+    activos = {u["codigo"]: u for u in umbrales if u["activo"] and u["valor"] is not None}
+    limite = ahora - timedelta(hours=HORAS_ALERTA)
+    resultado = []
+    for elemento in estaciones_geojson["features"]:
+        propiedades = elemento["properties"]
+        for codigo, estado in propiedades["parametros"].items():
+            umbral = activos.get(codigo)
+            if umbral is None or estado["instante"] is None or estado["valor_horario"] is None:
+                continue
+            if datetime.fromisoformat(estado["instante"]) < limite:
+                continue
+            # "Incluso si el valor es igual al limite" (criterio de RF-14, Anexo A).
+            if estado["valor_horario"] >= umbral["valor"]:
+                resultado.append({"estacion_id": propiedades["id"], "estacion": propiedades["nombre"],
+                                  "fuente": propiedades["fuente"], "parametro": codigo,
+                                  "nombre_parametro": umbral["nombre"], "unidad": umbral["unidad"],
+                                  "valor": estado["valor_horario"], "umbral": umbral["valor"],
+                                  "instante": estado["instante"]})
+    return sorted(resultado, key=lambda a: (a["parametro"], -a["valor"]))
+

@@ -11,6 +11,9 @@ maplibregl.setWorkerUrl(urlProcesoMapa);
 const ESTILO_BASE = "https://tiles.openfreemap.org/styles/positron";
 const COLOR_SIN_ICA = "#9aa3ad";
 const COLOR_SIN_ESCALA = "#0b6fb3";
+// Color de estado "crítico" de la paleta validada: reservado para las alertas.
+export const COLOR_ALERTA = "#d03b3b";
+export const COLOR_ANOMALIA = "#1b2b28";
 const CAPAS = [
   { tipo: "comuna", nombre: "Comunas", color: "#2f4a45", visible: true },
   { tipo: "corregimiento", nombre: "Corregimientos", color: "#5b7f63", visible: false },
@@ -50,7 +53,7 @@ function suavizarMapaBase(m) {
   }
 }
 
-function aGeoJSON(grupos, parametro, meta, opciones) {
+function aGeoJSON(grupos, parametro, meta, opciones, alertas) {
   const conIca = Boolean(meta?.ventana_ica_horas);
   return {
     type: "FeatureCollection",
@@ -66,6 +69,10 @@ function aGeoJSON(grupos, parametro, meta, opciones) {
           // Las variables sin escala del ICA se dibujan en un solo color y con su valor.
           color: conIca ? actual?.estado.color || COLOR_SIN_ICA : COLOR_SIN_ESCALA,
           conDatos: Boolean(actual),
+          // RF-14: la estación tiene una alerta activa de esta variable.
+          alerta: alertas.some((a) => a.parametro === parametro && g.registros.some((r) => r.id === a.estacion_id)),
+          // RF-13: su último dato fue señalado como anómalo.
+          anomala: Boolean(actual?.estado.ultima_anomala),
           valor: !conIca && actual ? `${formatearNumero(actual.estado.valor_horario)} ${meta?.unidad || ""}` : "",
         },
       };
@@ -73,7 +80,8 @@ function aGeoJSON(grupos, parametro, meta, opciones) {
   };
 }
 
-export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar, onZonas, opciones, children }) {
+export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar, onZonas, opciones, alertas = [],
+                               children }) {
   const contenedor = useRef(null);
   const mapa = useRef(null);
   const [listo, setListo] = useState(false);
@@ -119,6 +127,17 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
           "circle-opacity": ["case", ["get", "conDatos"], ["case", seleccionada, 0.32, 0.22], 0],
           "circle-blur": 0.35,
         },
+      });
+      // Anillos de estado, entre el halo y el punto: alerta (rojo) y anomalía (oscuro, más cerca).
+      m.addLayer({
+        id: "estaciones-alerta", type: "circle", source: "estaciones", filter: ["get", "alerta"],
+        paint: { "circle-radius": 15, "circle-color": "rgba(0,0,0,0)",
+                 "circle-stroke-color": COLOR_ALERTA, "circle-stroke-width": 3 },
+      });
+      m.addLayer({
+        id: "estaciones-anomalia", type: "circle", source: "estaciones", filter: ["get", "anomala"],
+        paint: { "circle-radius": 11.5, "circle-color": "rgba(0,0,0,0)",
+                 "circle-stroke-color": COLOR_ANOMALIA, "circle-stroke-width": 1.5 },
       });
       m.addLayer({
         id: "estaciones", type: "circle", source: "estaciones",
@@ -204,8 +223,8 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (listo) mapa.current.getSource("estaciones").setData(aGeoJSON(grupos, parametro, meta, opciones));
-  }, [listo, grupos, parametro, meta, opciones]);
+    if (listo) mapa.current.getSource("estaciones").setData(aGeoJSON(grupos, parametro, meta, opciones, alertas));
+  }, [listo, grupos, parametro, meta, opciones, alertas]);
 
   useEffect(() => {
     if (listo) mapa.current.getSource("zonas").setData(zonasConEstacion(geometrias.current, grupos, parametro, opciones));

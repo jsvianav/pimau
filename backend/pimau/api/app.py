@@ -12,7 +12,7 @@ import threading
 import time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
@@ -121,6 +121,14 @@ def listar_estaciones(sesion: Session = Depends(sesion_bd)):
     """GeoJSON con la última medición válida de cada estación, el promedio de
     24 horas, su categoría del ICA y el valor guía de la OMS."""
     return _en_cache("estaciones", lambda: consultas.estaciones(sesion))
+
+
+@app.get("/api/alertas", summary="Alertas activas por umbral (RF-14)", response_model=list[esquemas.Alerta])
+def listar_alertas(sesion: Session = Depends(sesion_bd)):
+    """Estaciones cuya medición de las últimas horas iguala o supera el umbral que
+    el administrador configuró para su parámetro."""
+    estaciones = _en_cache("estaciones", lambda: consultas.estaciones(sesion))
+    return consultas.alertas(estaciones, consultas.umbrales_alerta(sesion), datetime.now(UTC))
 
 
 def _validar_parametro(sesion, parametro: str):

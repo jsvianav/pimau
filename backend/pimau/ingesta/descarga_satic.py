@@ -119,7 +119,11 @@ def descargar(destino: Path, rango: str = "Últimas 24 horas") -> int:
     guardados = 0
     with sync_playwright() as pw:
         navegador = pw.chromium.launch(headless=True)
-        contexto = navegador.new_context(accept_downloads=True, viewport={"width": 1440, "height": 900})
+        # SATIC muestra las horas en la zona del navegador: se fija la de Colombia
+        # para que los archivos sean iguales a una descarga manual hecha en Cali
+        # (configuracion.satic_zona_horaria).
+        contexto = navegador.new_context(accept_downloads=True, viewport={"width": 1440, "height": 900},
+                                         timezone_id="America/Bogota")
         pagina = contexto.new_page()
 
         def abrir_portal():

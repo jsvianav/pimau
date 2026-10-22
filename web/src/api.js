@@ -29,6 +29,7 @@ export const api = {
   umbrales: () => obtener("/api/umbrales"),
   parametros: () => obtener("/api/parametros"),
   capa: (tipo) => obtener(`/api/capas/${tipo}`),
+  alertas: () => obtener("/api/alertas"),
   rango: (id, parametro) => obtener(`/api/estaciones/${id}/rango?parametro=${parametro}`),
   serie: (id, p) => obtener(`/api/estaciones/${id}/series?${new URLSearchParams(p)}`),
   urlCsv: (id, p) => `/api/estaciones/${id}/series.csv?${new URLSearchParams(p)}`,
@@ -44,4 +45,7 @@ export const apiAdmin = {
     obtener(`/api/admin/fuentes/${id}`, conToken(token, { method: "PATCH", headers: JSON_CABECERA, body: JSON.stringify(cambios) })),
   ejecuciones: (token, p) => obtener(`/api/admin/ejecuciones?${new URLSearchParams(p)}`, conToken(token)),
   auditoria: (token) => obtener("/api/admin/auditoria?limite=20", conToken(token)),
+  umbrales: (token) => obtener("/api/admin/umbrales", conToken(token)),
+  configurarUmbral: (token, codigo, cambio) =>
+    obtener(`/api/admin/umbrales/${codigo}`, conToken(token, { method: "PUT", headers: JSON_CABECERA, body: JSON.stringify(cambio) })),
 };

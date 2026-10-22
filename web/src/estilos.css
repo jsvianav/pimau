@@ -253,6 +253,25 @@ select, input[type="date"] {
 .resultado.correcto { color: #17713f; }
 .lista-eventos { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 0.88rem; }
 .lista-eventos span { display: block; color: var(--tinta-suave); }
+.campo-umbral { width: 90px; font: inherit; padding: 6px 8px; border: 1px solid var(--linea); border-radius: 8px; }
+
+/* Alertas (RF-14) y anomalías (RF-13) */
+.alertas { background: #fdf1f1; }
+.alertas h2 { display: flex; align-items: center; gap: 8px; font-size: 1rem; color: #8f1d1d; margin-bottom: 8px; }
+.alertas ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.alertas button {
+  width: calc(100% + 20px); margin: 0 -10px; padding: 8px 10px; display: grid; gap: 2px; text-align: left;
+  font: inherit; font-size: 0.9rem; border: 0; border-radius: 10px; background: none; cursor: pointer; color: var(--tinta);
+}
+.alertas button:hover { background: #f9e0e0; }
+.alerta-detalle { color: var(--tinta-suave); font-size: 0.82rem; }
+.aviso-alerta, .aviso-anomalia { font-size: 0.86rem; margin: 6px 0 12px; padding: 9px 11px; border-radius: 8px; }
+.aviso-alerta { background: #fdecec; color: #7d1d1d; border-left: 4px solid; }
+.aviso-anomalia { background: var(--neblina); color: var(--tinta-suave); }
+.anillos { list-style: none; margin: 10px 0 0; padding: 8px 0 0; border-top: 1px solid var(--linea); display: grid; gap: 4px; font-size: 0.78rem; }
+.anillos li { display: flex; align-items: center; gap: 8px; }
+.anillo { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid; flex: none; }
+
 .solo-lector { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .aviso { margin: 12px 24px; padding: 10px 12px; border-radius: 8px; }

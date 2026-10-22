@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../api.js";
-import { antiguedad, esReciente, fechaISO, formatearFecha, formatearNumero, nombreCorto, restarDias, zonaDe } from "../util.js";
+import { antiguedad, esReciente, fechaISO, formatearFecha, formatearNumero, nombreCorto, periodoRuido, restarDias,
+         zonaDe } from "../util.js";
+import { COLOR_ALERTA } from "./Mapa.jsx";
 
 const RANGOS_INDICE = [[0, 50], [51, 100], [101, 150], [151, 200], [201, 300], [301, 500]];
 const COLORES_ICA = ["#00E400", "#FFFF00", "#FF7E00", "#FF0000", "#8F3F97", "#7E0023"];
@@ -97,6 +99,53 @@ function AvisoMarcada({ marcada, hayValido }) {
   );
 }
 
+// Las mediciones anómalas (RF-13) se marcan sobre la línea con un punto hueco.
+export function PuntoAnomalo({ cx, cy, payload, index }) {
+  if (!payload?.anomalia || cx == null || cy == null) return <g key={index} />;
+  return <circle key={index} cx={cx} cy={cy} r={5} fill="#ffffff" stroke="#1b2b28" strokeWidth={2} />;
+}
+
+function AvisoAnomalias({ estado }) {
+  if (!estado.anomalias_48h) return null;
+  return (
+    <p className="aviso-anomalia" role="note">
+      {estado.ultima_anomala ? "El último dato fue señalado como anómalo" :
+        `${estado.anomalias_48h} ${estado.anomalias_48h === 1 ? "valor señalado" : "valores señalados"} como anómalos en las
+         últimas 48 horas`}{" "}
+      por la detección de anomalías (Isolation Forest). Puede ser un error del sensor o un evento real, como una quema:
+      el valor no se modifica.
+    </p>
+  );
+}
+
+function AvisoAlerta({ alerta }) {
+  if (!alerta) return null;
+  return (
+    <p className="aviso-alerta" role="alert" style={{ borderColor: COLOR_ALERTA }}>
+      <strong>Alerta:</strong> {formatearNumero(alerta.valor)} {alerta.unidad} el {formatearFecha(alerta.instante)}, igual
+      o por encima del umbral de {formatearNumero(alerta.umbral)} {alerta.unidad} configurado para{" "}
+      {nombreCorto(alerta.parametro)}.
+    </p>
+  );
+}
+
+// Ruido (RF-15): se compara con el límite de la Resolución 627 de 2006 del
+// periodo (día o noche) en que se midió.
+function NormaRuido({ estado, umbrales }) {
+  const limites = umbrales?.RUIDO?.ruido;
+  if (!limites?.["Día"]) return null;
+  const periodo = periodoRuido(estado.instante);
+  const limite = limites[periodo];
+  const supera = estado.valor_horario > limite;
+  return (
+    <p className="oms">
+      La Resolución 627 de 2006 fija {formatearNumero(limite)} dB(A) {periodo === "Día" ? "de día" : "de noche"} en zonas
+      residenciales, universidades y colegios (sector B). Este valor, medido {periodo === "Día" ? "de día" : "de noche"},{" "}
+      {supera ? "lo supera" : "está por debajo"}. El límite exacto depende del uso del suelo de la estación.
+    </p>
+  );
+}
+
 // Serie de las últimas 48 horas, solo para las fuentes que publican datos recientes.
 function UltimasHoras({ registro, parametro, meta, ahora }) {
   const [puntos, setPuntos] = useState(null);
@@ -107,7 +156,8 @@ function UltimasHoras({ registro, parametro, meta, ahora }) {
       .then((s) => {
         if (!activa) return;
         const limite = ahora - 48 * 3600000;
-        setPuntos(s.datos.filter((d) => new Date(d.instante) >= limite).map((d) => ({ t: d.instante, valor: d.valor })));
+        setPuntos(s.datos.filter((d) => new Date(d.instante) >= limite)
+          .map((d) => ({ t: d.instante, valor: d.valor, anomalia: d.anomalia })));
       })
       .catch(() => { if (activa) setPuntos([]); });
     return () => { activa = false; };
@@ -135,7 +185,7 @@ function UltimasHoras({ registro, parametro, meta, ahora }) {
             {guia?.periodo === "24 horas" && guia.valor <= maximo.valor * 2 && (
               <ReferenceLine y={guia.valor} stroke="#6b7c77" strokeDasharray="2 3" />
             )}
-            <Line type="linear" dataKey="valor" stroke="var(--serie)" strokeWidth={2} dot={false}
+            <Line type="linear" dataKey="valor" stroke="var(--serie)" strokeWidth={2} dot={PuntoAnomalo}
                   connectNulls={false} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -150,7 +200,7 @@ function UltimasHoras({ registro, parametro, meta, ahora }) {
   );
 }
 
-function DatoFuente({ registro, parametro, meta, onVerHistorico, ahora }) {
+function DatoFuente({ registro, parametro, meta, onVerHistorico, ahora, alertas, umbrales }) {
   const estado = registro.parametros[parametro];
   const nombre = nombreCorto(parametro);
   const nota = NOTAS_FUENTE[registro.fuente]?.[parametro];
@@ -182,17 +232,20 @@ function DatoFuente({ registro, parametro, meta, onVerHistorico, ahora }) {
         Medido el {formatearFecha(estado.instante)},{" "}
         <span className={`antiguedad${reciente ? " reciente" : ""}`}>{antiguedad(estado.instante, ahora)}</span>
       </p>
+      <AvisoAlerta alerta={alertas.find((a) => a.estacion_id === registro.id && a.parametro === parametro)} />
       <AvisoMarcada marcada={estado.ultima_marcada} hayValido />
+      <AvisoAnomalias estado={estado} />
       {nota && <p className="nota-fuente">{nota}</p>}
       <EscalaIca estado={estado} />
       <GuiaOms estado={estado} />
+      {parametro === "RUIDO" && <NormaRuido estado={estado} umbrales={umbrales} />}
       {reciente && <UltimasHoras registro={registro} parametro={parametro} meta={meta} ahora={ahora} />}
       <button className="boton" onClick={() => onVerHistorico(registro.id)}>Ver el histórico de esta fuente</button>
     </section>
   );
 }
 
-export default function Ficha({ grupo, parametro, meta, zonas, onVerHistorico, ahora }) {
+export default function Ficha({ grupo, parametro, meta, zonas, onVerHistorico, ahora, alertas = [], umbrales }) {
   if (!grupo) {
     return (
       <section className="ficha vacia">
@@ -210,7 +263,8 @@ export default function Ficha({ grupo, parametro, meta, zonas, onVerHistorico, a
         <p className="nota">Dos fuentes publican datos de esta estación. Se muestran por separado.</p>
       )}
       {grupo.registros.map((r) => (
-        <DatoFuente key={r.id} registro={r} parametro={parametro} meta={meta} onVerHistorico={onVerHistorico} ahora={ahora} />
+        <DatoFuente key={r.id} registro={r} parametro={parametro} meta={meta} onVerHistorico={onVerHistorico}
+                    ahora={ahora} alertas={alertas} umbrales={umbrales} />
       ))}
     </section>
   );

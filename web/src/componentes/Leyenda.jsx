@@ -1,7 +1,34 @@
-import { nombreCorto, textoVentana } from "../util.js";
+import { formatearNumero, nombreCorto, textoVentana } from "../util.js";
+import { COLOR_ALERTA, COLOR_ANOMALIA } from "./Mapa.jsx";
+
+// Anillos que pueden rodear una estación, con cualquier variable.
+function Anillos() {
+  return (
+    <ul className="anillos">
+      <li><span className="anillo" style={{ borderColor: COLOR_ALERTA, borderWidth: 3 }} aria-hidden="true" />
+        Alerta activa (supera el umbral)</li>
+      <li><span className="anillo" style={{ borderColor: COLOR_ANOMALIA }} aria-hidden="true" />
+        Último dato anómalo</li>
+    </ul>
+  );
+}
 
 export default function Leyenda({ umbrales, parametro, meta, soloRecientes }) {
   const cortes = umbrales[parametro]?.ica || [];
+  const ruido = umbrales[parametro]?.ruido || {};
+  if (ruido["Día"]) {
+    return (
+      <section className="flotante leyenda" aria-label="Leyenda del ruido">
+        <h2>{meta?.nombre || "Ruido ambiental"}</h2>
+        <p>
+          Nivel equivalente de cada hora, en dB(A). La Resolución 627 de 2006 fija para zonas residenciales,
+          universidades y colegios (sector B) {formatearNumero(ruido["Día"])} dB(A) de día y{" "}
+          {formatearNumero(ruido["Noche"])} de noche. El límite exacto depende del uso del suelo de cada sitio.
+        </p>
+        <Anillos />
+      </section>
+    );
+  }
   if (!cortes.length) {
     return (
       <section className="flotante leyenda" aria-label="Leyenda">
@@ -12,6 +39,7 @@ export default function Leyenda({ umbrales, parametro, meta, soloRecientes }) {
             : "Este contaminante no tiene puntos de corte en la Resolución 2254 de 2017."}{" "}
           El último valor aparece junto a cada estación, en {meta?.unidad}.
         </p>
+        <Anillos />
       </section>
     );
   }
@@ -38,6 +66,7 @@ export default function Leyenda({ umbrales, parametro, meta, soloRecientes }) {
           <small />
         </li>
       </ol>
+      <Anillos />
       <p className="nota-zonas">
         La comuna o el corregimiento de cada estación toma su color. El dato es de la estación, no una medición de
         toda la zona.

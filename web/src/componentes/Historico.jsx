@@ -3,6 +3,7 @@ import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Too
 import { api } from "../api.js";
 import { fechaISO, formatearFecha, formatearNumero, nombreCorto, restarDias, textoVentana } from "../util.js";
 import SelectorParametro from "./SelectorParametro.jsx";
+import { PuntoAnomalo } from "./Ficha.jsx";
 
 const MAXIMO_DIAS_HORARIO = 93;
 
@@ -71,7 +72,8 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
     pedirSerie(estacionId, consulta);
   }
 
-  const puntos = (serie?.datos || []).map((d) => ({ t: d.instante || d.dia, valor: d.valor }));
+  const puntos = (serie?.datos || []).map((d) => ({ t: d.instante || d.dia, valor: d.valor, anomalia: d.anomalia }));
+  const anomalos = puntos.filter((p) => p.anomalia).length;
   const faltantes = puntos.filter((p) => p.valor == null).length;
   const validos = puntos.filter((p) => p.valor != null);
   const promedio = validos.length ? validos.reduce((s, p) => s + p.valor, 0) / validos.length : null;
@@ -136,6 +138,7 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
               <dd>{promedio != null ? `${formatearNumero(parametro === "LLUVIA" ? promedio * validos.length : promedio)} ${unidadMedida}` : "—"}</dd></div>
             <div><dt>{agregacion === "hora" ? "Horas con dato" : "Días con dato"}</dt><dd>{validos.length}</dd></div>
             <div><dt>Sin dato</dt><dd>{puntos.length ? `${Math.round((100 * faltantes) / puntos.length)} %` : "—"}</dd></div>
+            {agregacion === "hora" && <div><dt>Valores anómalos</dt><dd>{anomalos}</dd></div>}
           </dl>
           <p className="unidad-eje">
             {nombre} en {unidadMedida},{" "}
@@ -163,7 +166,9 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
                   <ReferenceLine y={guiaOms} stroke="#6b7c77" strokeDasharray="2 3" strokeWidth={1} />
                 )}
                 <Line type="linear" dataKey="valor" stroke="var(--serie)" strokeWidth={2} connectNulls={false}
-                      dot={validos.length < 60 ? { r: 4, fill: "var(--serie)", stroke: "#fff", strokeWidth: 2 } : false}
+                      dot={(props) => (props.payload?.anomalia || validos.length >= 60 ? PuntoAnomalo(props)
+                        : <circle key={props.index} cx={props.cx} cy={props.cy} r={4} fill="var(--serie)"
+                                  stroke="#fff" strokeWidth={2} />)}
                       activeDot={{ r: 5, stroke: "#fff", strokeWidth: 2 }} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -173,6 +178,12 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
               <svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="var(--serie)" strokeWidth="2" /></svg>
               {nombre} medido
             </li>
+            {anomalos > 0 && (
+              <li>
+                <svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="#fff" stroke="#1b2b28" strokeWidth="2" /></svg>
+                Valor señalado como anómalo (Isolation Forest): error del sensor o evento real, sin modificar
+              </li>
+            )}
             {verAceptable && (
               <li>
                 <svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="#17322e" strokeDasharray="5 4" /></svg>
@@ -204,12 +215,14 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
           {verTabla && (
             <div className="tabla-datos">
               <table>
-                <thead><tr><th scope="col">{agregacion === "hora" ? "Fecha y hora" : "Día"}</th><th scope="col">Valor ({unidadMedida})</th></tr></thead>
+                <thead><tr><th scope="col">{agregacion === "hora" ? "Fecha y hora" : "Día"}</th><th scope="col">Valor ({unidadMedida})</th>
+                  {agregacion === "hora" && <th scope="col">Anómalo</th>}</tr></thead>
                 <tbody>
                   {puntos.map((p) => (
                     <tr key={p.t}>
                       <td>{formatearFecha(fechaEje(p.t), agregacion === "hora")}</td>
                       <td className="numero">{p.valor == null ? "sin dato" : formatearNumero(p.valor)}</td>
+                      {agregacion === "hora" && <td>{p.anomalia ? "Sí" : ""}</td>}
                     </tr>
                   ))}
                 </tbody>

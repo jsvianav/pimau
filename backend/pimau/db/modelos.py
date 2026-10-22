@@ -1,7 +1,8 @@
 """Modelo de datos común (ADR-02). Sigue el diagrama ER del Capítulo 3.
 
-Las entidades del Semestre 8 (pronostico y anomalia) se agregan en el
-incremento 4.
+La entidad pronostico se agrega con el pronostico del incremento 4. La tabla
+umbral_alerta (RF-14) no estaba en el modelo inicial: guarda el umbral que el
+administrador configura para cada parametro.
 """
 from datetime import datetime
 
@@ -123,3 +124,24 @@ class RegistroAuditoria(Base):
     resultado: Mapped[str] = mapped_column(Text)
     ip_origen: Mapped[str] = mapped_column(INET)
     instante: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class Anomalia(Base):
+    """Medicion senalada como anomala por la analitica (RF-13). No cambia el valor."""
+    __tablename__ = "anomalia"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    medicion_id: Mapped[int] = mapped_column(ForeignKey("medicion.id"), unique=True)
+    metodo: Mapped[str] = mapped_column(Text)
+    puntaje: Mapped[float] = mapped_column(Numeric)
+    detectada_en: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class UmbralAlerta(Base):
+    """Umbral configurable de un parametro (RF-14)."""
+    __tablename__ = "umbral_alerta"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    parametro_id: Mapped[int] = mapped_column(ForeignKey("parametro.id"), unique=True)
+    valor: Mapped[float] = mapped_column(Numeric)
+    activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    actualizado: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+

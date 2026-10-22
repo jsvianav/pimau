@@ -724,7 +724,8 @@ pueden descargar desde su geoportal.
 - **Script:** `analitica/exploracion/agrupamiento.py` (consultas en
   `consultas.sql`, resultados en `resultados/`). Sigue la sección 2.1.9: k-means
   con variables estandarizadas, k elegido con el codo y la silueta, y Davies-Bouldin.
-- **Estaciones por la forma del ciclo diario de PM2.5:** la mejor silueta fue
+- **Estaciones por la forma del ciclo diario de PM2.5** (calculado antes de corregir
+  la hora de SATIC; ver la entrada siguiente): la mejor silueta fue
   con k = 2 (0,37), pero los grupos casi coinciden con la red: uno reúne las
   series del DAGMA y el IDEAM (2010-2024, pico amplio de 8 a 15 h y mínimo a las
   18 h) y otro las de SATIC (un mes de 2026, pico marcado a las 7-8 h y mínimo a
@@ -748,3 +749,67 @@ pueden descargar desde su geoportal.
 - **Lecciones para el incremento 4:** comparar estaciones en el mismo periodo,
   estandarizar cada variable por estación antes de juntar días de varias
   estaciones, y usar el agrupamiento también para encontrar sensores que fallan.
+
+## 2026-10-23 — Ruido, anomalías y alertas (RF-13, RF-14 y RF-15)
+
+- **Ruido (RF-15):** parámetro RUIDO en dB(A) con la variable `NOISE_AVG` de
+  SATIC. El promedio horario es energético (nivel equivalente): 50 y 70 dB dan
+  67 dB, no 60; igual en el resumen diario de la API. Referencia: Resolución 627
+  de 2006, artículo 17, Tabla 2, sector B (zonas residenciales, universidades,
+  colegios y parques urbanos), 65 dB(A) de día y 50 de noche; el horario diurno
+  va de 7:01 a 21:00. El visor compara cada valor con el límite de su periodo y
+  advierte que el límite real depende del uso del suelo de cada estación. El
+  portal de Datos Abiertos de Cali también publica ruido, pero sigue fuera de
+  línea: su conector queda pendiente.
+- **Anomalías (RF-13):** servicio analítico nuevo (`pimau/analitica`, contenedor
+  `analitica`, ADR-06) que cada hora entrena un Isolation Forest por serie con el
+  último año de mediciones válidas. Características: valor, hora del día (seno y
+  coseno), cambio respecto a la hora anterior y diferencia con la mediana de las
+  24 horas anteriores. Cada modelo se guarda con skops y un JSON con el periodo,
+  la fecha, el resultado y las versiones de las librerías (`./modelos`).
+  - **Calibración del umbral del puntaje:** cinco series sintéticas de 60 días
+    con 20 picos y 20 valores moderados de madrugada cada una. Con 0,58, 0,60 y
+    0,62 el F1 fue casi igual (0,80, 0,79 y 0,81); se eligió 0,62 por su mayor
+    precisión (0,93), con exhaustividad de 0,72: encuentra todos los picos y el
+    45 % de las anomalías contextuales. En las series reales marca entre el 1 y el
+    3 % de las horas de PM2.5. La primera calibración, con scikit-learn 1.9 y una
+    sola serie, daba 0,60; con la versión de la plataforma (1.6.1) cambió, y por
+    eso la prueba promedia cinco series.
+  - **Revisión de toda la historia:** 60 segundos, 133 modelos y unas 19 000
+    anomalías (0,3 a 2 % de las horas según la variable). San Martín muestra
+    picos casi diarios a comienzos de octubre, de hasta 438 µg/m³.
+  - En el mapa se señalan solo las estaciones cuyo último dato es anómalo, para
+    no llenarlo de marcas; en la ficha y en las gráficas se ven todas.
+  - scikit-learn 1.6.1 y skops 0.13.0 (la 0.11.0 tenía vulnerabilidades publicadas).
+- **Alertas (RF-14):** tabla `umbral_alerta` (no estaba en el modelo de datos;
+  se agregó al diagrama), un umbral por parámetro configurable en el panel y
+  auditado. Una alerta está activa si la medición de las últimas 3 horas iguala o
+  supera el umbral, incluido el valor igual al límite (criterio del Anexo A). Se
+  calcula sobre el estado de las estaciones que ya está en caché, sin recorrer las
+  mediciones. Las alertas sobre los pronósticos quedan para cuando exista RF-12.
+  Mientras SATIC esté fuera de línea no hay mediciones recientes, así que no se
+  ven alertas en el visor; las pruebas automáticas cubren el caso.
+- **Corrección de la hora de SATIC (corrige la entrada del 2026-10-22):** al
+  revisar las anomalías apareció una serie con cinco horas repetidas cinco horas
+  después. La hipótesis de UTC+2 era equivocada: se había deducido de la última
+  lectura de cada archivo, sin contar que SATIC publica con unas tres horas de
+  retraso. Se comparó el ciclo diario de temperatura de SATIC con el del IDEAM en
+  Cali (máximo a las 14 h, mínimo a las 5 h): **SATIC guarda la hora de Colombia
+  como si fuera UTC y su página la muestra en la zona del navegador**. Los
+  archivos del descargador (navegador en UTC) tenían el reloj 10 horas por
+  delante de Colombia, y los de la carga inicial (navegador en hora de Colombia),
+  5 horas. Por eso las mediciones guardadas tenían dos errores distintos: la
+  carga inicial quedó 2 horas antes y la del descargador 3 horas después.
+  - El descargador ahora usa la zona de Colombia, igual que una descarga manual
+    hecha en Cali, y el conector lee la hora del archivo como UTC.
+  - La migración 0009 corrigió cada grupo con su desfase y dejó una sola fila
+    cuando las dos descargas vieron la misma hora. Antes se guardó un respaldo
+    completo (`respaldos/pimau_antes_migracion_0009.dump`). Los archivos viejos
+    quedaron aparte en `data/satic/_descargados_con_navegador_utc`.
+  - Verificación: el ciclo de temperatura de SATIC quedó sin desfase respecto al
+    IDEAM (correlación 0,99).
+- **Agrupamiento repetido con la hora corregida:** la mejor silueta pasó a k = 5
+  (0,31). SATIC forma un grupo con pico a las 9-10 h (lecturas de las 8-9 h);
+  las series del IDEAM se separan por la hora del pico: Pance, Cascajal y la
+  Universidad del Valle a las 14-15 h y las demás en la mañana. Dentro de SATIC
+  se mantiene que todas se parecen y San Martín es la anómala.

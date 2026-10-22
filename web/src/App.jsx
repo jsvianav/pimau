@@ -8,6 +8,7 @@ import ListaEstaciones from "./componentes/ListaEstaciones.jsx";
 import Leyenda from "./componentes/Leyenda.jsx";
 import Historico from "./componentes/Historico.jsx";
 import Administracion from "./componentes/Administracion.jsx";
+import Alertas from "./componentes/Alertas.jsx";
 
 // SATIC se descarga cada hora y la API renueva su caché cada nueve minutos, así
 // que el visor vuelve a pedir las estaciones cada diez minutos.
@@ -33,6 +34,7 @@ export default function App() {
   // pintar con el mismo color un dato de hoy y uno de hace años.
   const [soloRecientes, setSoloRecientes] = useState(true);
   const [ahora, setAhora] = useState(() => new Date());
+  const [alertas, setAlertas] = useState([]);
   const panel = useRef(null);
 
   // Al elegir una estación, la ficha se muestra desde el inicio.
@@ -44,9 +46,12 @@ export default function App() {
         setDatos(estaciones); setUmbrales(limites); setParametros(lista.filter((p) => p.con_datos));
       })
       .catch((e) => setError(e.message));
+    // Las alertas son un complemento: si fallan, el mapa funciona igual.
+    api.alertas().then(setAlertas).catch(() => {});
     const intervalo = setInterval(() => {
       // Si una actualización falla se conservan los datos que ya se muestran.
       api.estaciones().then((estaciones) => { setDatos(estaciones); setAhora(new Date()); }).catch(() => {});
+      api.alertas().then(setAlertas).catch(() => {});
     }, MINUTOS_ACTUALIZACION * 60000);
     return () => clearInterval(intervalo);
   }, []);
@@ -65,6 +70,11 @@ export default function App() {
     [grupos, parametro, ahora]);
   const opcionesEstado = useMemo(() => ({ soloRecientes, ahora }), [soloRecientes, ahora]);
   const grupoSeleccionado = grupos.find((g) => g.id === seleccion) || null;
+
+  function elegirAlerta(grupoId, codigo) {
+    setParametro(codigo);
+    setSeleccion(grupoId);
+  }
 
   function verHistorico(estacionId) {
     setDestinoHistorico({ estacionId, parametro });
@@ -94,7 +104,7 @@ export default function App() {
         <main className="vista-mapa">
           <div className="mapa-contenedor">
             <Mapa grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion} onSeleccionar={setSeleccion}
-                  onZonas={setZonas} opciones={opcionesEstado}>
+                  onZonas={setZonas} opciones={opcionesEstado} alertas={alertas}>
               <label className="campo">
                 Variable
                 <SelectorParametro parametros={parametrosMapa} valor={parametro} onCambiar={setParametro} />
@@ -129,11 +139,13 @@ export default function App() {
                 )}
               </div>
             )}
-            {umbrales && <Leyenda umbrales={umbrales} parametro={parametro} meta={meta[parametro]} soloRecientes={soloRecientes} />}
+            {umbrales && <Leyenda umbrales={umbrales} parametro={parametro} meta={meta[parametro]}
+                                  soloRecientes={soloRecientes} />}
           </div>
           <aside className="panel-lateral" ref={panel}>
+            <Alertas alertas={alertas} grupos={grupos} ahora={ahora} onElegir={elegirAlerta} />
             <Ficha grupo={grupoSeleccionado} parametro={parametro} meta={meta[parametro]} zonas={zonas}
-                   onVerHistorico={verHistorico} ahora={ahora} />
+                   onVerHistorico={verHistorico} ahora={ahora} alertas={alertas} umbrales={umbrales} />
             <ListaEstaciones grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion}
                              onSeleccionar={setSeleccion} opciones={opcionesEstado} />
             <p className="fuentes">

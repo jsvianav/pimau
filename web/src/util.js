@@ -5,7 +5,7 @@ export const ZONA = "America/Bogota";
 export const PARAMETROS = {
   PM25: "PM2.5", PM10: "PM10", O3: "O₃", NO2: "NO₂", SO2: "SO₂", CO: "CO", H2S: "H₂S",
   TEMP: "Temperatura", HUM: "Humedad", VV: "Viento", DV: "Dirección del viento",
-  LLUVIA: "Lluvia", RAD: "Radiación solar", PRES: "Presión",
+  LLUVIA: "Lluvia", RAD: "Radiación solar", PRES: "Presión", RUIDO: "Ruido",
 };
 
 export function nombreCorto(codigo) {
@@ -122,6 +122,15 @@ export function fechaCorta(iso, ahora = new Date()) {
   if (fechaISO(new Date(iso)) === fechaISO(ahora)) return `hoy, ${hora}`;
   if (fechaISO(new Date(iso)) === restarDias(fechaISO(ahora), 1)) return `ayer, ${hora}`;
   return formatearFecha(iso);
+}
+
+// Ruido (Resolución 627 de 2006): el horario diurno va de las 7:01 a las 21:00.
+// Las mediciones horarias se fechan al final de su hora, así que la que termina
+// entre las 8:00 y las 21:00 es de día.
+export function periodoRuido(iso) {
+  const hora = Number(new Intl.DateTimeFormat("en-GB", { timeZone: ZONA, hour: "2-digit", hourCycle: "h23" })
+    .format(new Date(iso)));
+  return hora >= 8 && hora <= 21 ? "Día" : "Noche";
 }
 
 // Color de texto legible (contraste mínimo 4,5:1) sobre el color de la categoría.

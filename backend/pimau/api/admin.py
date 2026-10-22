@@ -4,12 +4,21 @@ Todas, salvo el inicio de sesion, exigen un token de administrador: la
 dependencia se declara en el enrutador, asi que una ruta nueva queda protegida
 sin tener que acordarse de hacerlo (acceso negado por defecto, STRIDE).
 """
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from pimau.api import esquemas, seguridad
-from pimau.db.modelos import Administrador, EjecucionIngesta, Fuente, RegistroAuditoria
+from pimau.api import consultas, esquemas, seguridad
+from pimau.db.modelos import (
+    Administrador,
+    EjecucionIngesta,
+    Fuente,
+    Parametro,
+    RegistroAuditoria,
+    UmbralAlerta,
+)
 from pimau.db.sesion import sesion_bd
 
 # Fuentes con conector implementado. Se repite aqui, en lugar de importar el
@@ -115,3 +124,31 @@ def listar_auditoria(limite: int = Query(30, ge=1, le=200), sesion: Session = De
                 .order_by(RegistroAuditoria.instante.desc()).limit(limite))
     return [{"instante": r.instante.isoformat(), "administrador": correo, "accion": r.accion,
              "resultado": r.resultado, "ip": str(r.ip_origen)} for r, correo in sesion.execute(consulta)]
+
+
+@protegido.get("/umbrales", summary="Umbrales de alerta por parámetro (RF-14)",
+               response_model=list[esquemas.UmbralAlerta])
+def listar_umbrales(sesion: Session = Depends(sesion_bd)):
+    return consultas.umbrales_alerta(sesion)
+
+
+@protegido.put("/umbrales/{codigo}", summary="Configurar el umbral de alerta de un parámetro (RF-14)",
+               response_model=esquemas.UmbralAlerta)
+def configurar_umbral(codigo: str, cambio: esquemas.CambioUmbral, request: Request,
+                      administrador: Administrador = Depends(seguridad.administrador_actual),
+                      sesion: Session = Depends(sesion_bd)):
+    parametro = sesion.scalar(select(Parametro).where(Parametro.codigo == codigo))
+    if parametro is None:
+        raise HTTPException(404, "El parámetro no existe")
+    umbral = sesion.scalar(select(UmbralAlerta).where(UmbralAlerta.parametro_id == parametro.id))
+    antes = f"{float(umbral.valor):g} {'activo' if umbral.activo else 'inactivo'}" if umbral else "sin umbral"
+    if umbral is None:
+        umbral = UmbralAlerta(parametro_id=parametro.id)
+        sesion.add(umbral)
+    umbral.valor, umbral.activo, umbral.actualizado = cambio.valor, cambio.activo, datetime.now(UTC)
+    sesion.commit()
+    despues = f"{cambio.valor:g} {'activo' if cambio.activo else 'inactivo'}"
+    seguridad.auditar(sesion, f"Umbral de alerta de {codigo}: {antes} → {despues} {parametro.unidad}",
+                      "correcto", seguridad.ip_de(request), administrador.id)
+    return next(u for u in consultas.umbrales_alerta(sesion) if u["codigo"] == codigo)
+

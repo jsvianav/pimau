@@ -1,6 +1,7 @@
 const GRUPOS = [
   { variable: "calidad_aire", nombre: "Contaminantes" },
   { variable: "meteorologia", nombre: "Meteorología" },
+  { variable: "ruido", nombre: "Ruido" },
 ];
 
 export default function SelectorParametro({ parametros, valor, onCambiar }) {

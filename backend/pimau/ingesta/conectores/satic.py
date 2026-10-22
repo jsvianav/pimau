@@ -15,9 +15,10 @@ Lo que se encontró al revisar los archivos (docs/bitacora.md, 2026-10-21):
   rachas de un mismo valor se marcan como sospechosas (normalizacion.py).
 - Los sensores son de bajo costo: su PM10 es casi igual a su PM2.5, cuando el
   PM10 real incluye al PM2.5 y suele ser bastante mayor. El visor lo advierte.
-- Las horas del archivo no estan en hora de Colombia sino en UTC+2, siete horas
-  por delante (configuracion.satic_zona_horaria). Una lectura que quede en el
-  futuro indica que la zona cambio: se descarta y se advierte.
+- SATIC guarda la hora de Colombia como si fuera UTC y la muestra en la zona del
+  navegador, asi que en un archivo bajado en hora de Colombia la hora es la UTC
+  real (configuracion.satic_zona_horaria). Una lectura que quede en el futuro
+  indica que eso cambio: se descarta y se advierte.
 - Las mediciones llegan cada 15 a 30 minutos. Se agregan a promedios horarios
   para que sean comparables con las demás fuentes. Cada promedio se fecha al
   final de su hora, como la fecha final del IDEAM. La primera y la última hora
@@ -49,15 +50,15 @@ ARCHIVO_ESTADO = "_estado_descarga.json"  # lo escribe descarga_satic.py
 # Margen para el reloj de los sensores antes de considerar que una lectura esta en el futuro.
 TOLERANCIA_FUTURO = timedelta(minutes=20)
 
-# Variable de SATIC y su código en el modelo común. NOISE_AVG (ruido) todavía
-# no se carga: el parámetro de ruido llega con RF-15 y la unidad del archivo no
-# es confiable.
+# Variable de SATIC y su código en el modelo común. La unidad del archivo no es
+# confiable, así que la da el parámetro (el ruido, en dB(A)).
 VARIABLES = {
     "PM25_AVG": "PM25",
     "PM10_AVG": "PM10",
     "TEMP_AVG": "TEMP",
     "HUM_AVG": "HUM",
     "WDIR_AVG": "DV",
+    "NOISE_AVG": "RUIDO",
 }
 
 
@@ -98,12 +99,17 @@ COLUMNA_FECHA = "fecha_registro_dato_sensor"
 
 def promedio(codigo: str, valores: list[float]) -> float:
     """Promedio horario. La dirección del viento es un ángulo, así que se
-    promedia como vector (el promedio de 350° y 10° es 0°, no 180°)."""
-    if codigo != "DV":
-        return round(sum(valores) / len(valores), 4)
-    seno = sum(math.sin(math.radians(v)) for v in valores)
-    coseno = sum(math.cos(math.radians(v)) for v in valores)
-    return round(math.degrees(math.atan2(seno, coseno)) % 360, 4)
+    promedia como vector (el promedio de 350° y 10° es 0°, no 180°). El ruido
+    está en decibeles, una escala logarítmica, así que se promedia la energía
+    (nivel equivalente): 50 y 70 dB dan 67 dB, no 60."""
+    if codigo == "DV":
+        seno = sum(math.sin(math.radians(v)) for v in valores)
+        coseno = sum(math.cos(math.radians(v)) for v in valores)
+        return round(math.degrees(math.atan2(seno, coseno)) % 360, 4)
+    if codigo == "RUIDO":
+        energia = sum(10 ** (v / 10) for v in valores) / len(valores)
+        return round(10 * math.log10(energia), 4)
+    return round(sum(valores) / len(valores), 4)
 
 
 class ConectorSatic(ConectorMediciones):
