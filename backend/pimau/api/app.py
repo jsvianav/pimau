@@ -1,6 +1,8 @@
-"""API de consulta (capa de servicios, incremento 2: RF-05 a RF-09).
+"""API de consulta y administracion (capa de servicios).
 
-Solo lee la base de datos. No llama a la ingesta ni a las fuentes externas
+La consulta (incremento 2: RF-05 a RF-09) es abierta; la administracion
+(incremento 3: RF-10 y RF-11) esta en admin.py y exige iniciar sesion.
+Solo usa la base de datos. No llama a la ingesta ni a las fuentes externas
 (ADR-01 y ADR-04). La documentacion OpenAPI queda en /api/docs (RF-08).
 """
 import csv
@@ -17,8 +19,8 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
-from pimau.api import consultas, esquemas
-from pimau.db.sesion import Sesion
+from pimau.api import admin, consultas, esquemas
+from pimau.db.sesion import Sesion, sesion_bd
 
 log = logging.getLogger("pimau.api")
 DURACION_CACHE_S = 600
@@ -63,11 +65,6 @@ MAXIMO_DIAS_HORARIO = 93
 SOLICITUDES_POR_MINUTO = 120
 
 Agregacion = Literal["hora", "dia"]
-
-
-def sesion_bd():
-    with Sesion() as sesion:
-        yield sesion
 
 
 # --- Limite de solicitudes por IP (ADR-04, escenario 1) ---------------------
@@ -191,3 +188,7 @@ def serie_csv(estacion_id: int, parametro: str = "PM25",
 @app.get("/api/capas/{tipo}", summary="Capas territoriales (RF-09)", response_model=esquemas.Capa)
 def capa(tipo: Literal["comuna", "barrio", "corregimiento"], sesion: Session = Depends(sesion_bd)):
     return _en_cache(f"capa-{tipo}", lambda: consultas.capa(sesion, tipo))
+
+
+app.include_router(admin.publico)
+app.include_router(admin.protegido)

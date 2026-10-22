@@ -7,6 +7,7 @@ import Ficha from "./componentes/Ficha.jsx";
 import ListaEstaciones from "./componentes/ListaEstaciones.jsx";
 import Leyenda from "./componentes/Leyenda.jsx";
 import Historico from "./componentes/Historico.jsx";
+import Administracion from "./componentes/Administracion.jsx";
 
 // SATIC se descarga cada hora y la API renueva su caché cada nueve minutos, así
 // que el visor vuelve a pedir las estaciones cada diez minutos.
@@ -15,7 +16,7 @@ const MINUTOS_ACTUALIZACION = 10;
 const PESTANAS = [
   { id: "mapa", nombre: "Mapa" },
   { id: "historico", nombre: "Histórico" },
-  { id: "admin", nombre: "Administración", deshabilitada: true, nota: "Incremento 3" },
+  { id: "admin", nombre: "Administración" },
 ];
 
 export default function App() {
@@ -141,6 +142,12 @@ export default function App() {
       {pestana === "historico" && (
         <main className="vista-historico">
           <Historico grupos={grupos} umbrales={umbrales} parametros={parametros} meta={meta} destino={destinoHistorico} />
+        </main>
+      )}
+
+      {pestana === "admin" && (
+        <main className="vista-admin">
+          <Administracion />
         </main>
       )}
 

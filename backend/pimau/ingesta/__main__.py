@@ -6,9 +6,10 @@
 """
 import argparse
 import logging
-from datetime import UTC, datetime
+import time
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
 
-from apscheduler.schedulers.blocking import BlockingScheduler
 from sqlalchemy import func, select
 
 from pimau.db.modelos import EjecucionIngesta, Estacion, Fuente, Medicion
@@ -30,21 +31,39 @@ def comando_ejecutar(argumentos):
                   f"error={e.mensaje_error or '-'}")
 
 
-def comando_programador(_):
-    """Programa cada fuente activa segun su propia frecuencia (frecuencia_min)."""
-    programador = BlockingScheduler(timezone="UTC")
+def fuentes_pendientes(sesion, ahora: datetime) -> list[Fuente]:
+    """Fuentes activas cuya ultima ejecucion empezo hace al menos su frecuencia.
+
+    Se consulta en cada revision, asi que activar, desactivar o cambiar la
+    frecuencia de una fuente desde el panel (RF-10) se aplica en la siguiente
+    ejecucion sin reiniciar el programador.
+    """
+    ultimas = dict(sesion.execute(select(EjecucionIngesta.fuente_id, func.max(EjecucionIngesta.inicio))
+                                  .group_by(EjecucionIngesta.fuente_id)).all())
+    return [f for f in sesion.scalars(select(Fuente).where(Fuente.activa).order_by(Fuente.id))
+            if f.id not in ultimas or ahora - ultimas[f.id] >= timedelta(minutes=f.frecuencia_min)]
+
+
+def _ejecutar_por_id(fuente_id: int):
     with Sesion() as sesion:
-        fuentes = sesion.scalars(select(Fuente).where(Fuente.activa)).all()
-    for fuente in fuentes:
-        def trabajo(fuente_id=fuente.id):
-            with Sesion() as s:
-                f = s.get(Fuente, fuente_id)
-                if f is not None and f.activa:
-                    ejecutar_fuente(s, f)
-        programador.add_job(trabajo, "interval", minutes=fuente.frecuencia_min,
-                            next_run_time=datetime.now(UTC), id=f"fuente-{fuente.id}")
-        logging.info("Programada %s cada %s minutos", fuente.nombre, fuente.frecuencia_min)
-    programador.start()
+        fuente = sesion.get(Fuente, fuente_id)
+        if fuente is not None and fuente.activa:
+            ejecutar_fuente(sesion, fuente)
+
+
+def comando_programador(_):
+    """Revisa cada minuto que fuentes toca ejecutar, cada una en su propio hilo
+    para que una fuente lenta no retrase a las demas."""
+    en_curso: dict[int, object] = {}
+    with ThreadPoolExecutor(max_workers=4, thread_name_prefix="fuente") as hilos:
+        while True:
+            with Sesion() as sesion:
+                for fuente in fuentes_pendientes(sesion, datetime.now(UTC)):
+                    if fuente.id in en_curso and not en_curso[fuente.id].done():
+                        continue
+                    logging.info("Ejecutando %s (cada %s minutos)", fuente.nombre, fuente.frecuencia_min)
+                    en_curso[fuente.id] = hilos.submit(_ejecutar_por_id, fuente.id)
+            time.sleep(60)
 
 
 def comando_estado(_):

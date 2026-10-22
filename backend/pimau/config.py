@@ -14,6 +14,8 @@ class Configuracion(BaseSettings):
     # plataforma cambia de horario en invierno; si lo hace, el conector descarta
     # las lecturas que queden en el futuro y lo advierte (conectores/satic.py).
     satic_zona_horaria: str = "Etc/GMT-2"
+    # Secreto con que se firman las sesiones del administrador (ADR-05).
+    jwt_secreto: str = ""
 
 
 configuracion = Configuracion()

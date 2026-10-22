@@ -24,6 +24,7 @@ Lo que se encontró al revisar los archivos (docs/bitacora.md, 2026-10-21):
   de cada descarga pueden quedar a medias, así que no se guardan: llegan
   completas en otra descarga, porque las ventanas de 30 días se solapan.
 """
+import json
 import logging
 import math
 from collections import defaultdict
@@ -42,6 +43,9 @@ from pimau.ingesta.conectores.base import ConectorMediciones, EstacionOrigen, Re
 log = logging.getLogger("pimau.ingesta")
 
 HORA = timedelta(hours=1)
+# Si la ultima descarga correcta es mas vieja que esto, la ejecucion lo advierte.
+HORAS_SIN_DESCARGA = 3
+ARCHIVO_ESTADO = "_estado_descarga.json"  # lo escribe descarga_satic.py
 # Margen para el reloj de los sensores antes de considerar que una lectura esta en el futuro.
 TOLERANCIA_FUTURO = timedelta(minutes=20)
 
@@ -110,7 +114,23 @@ class ConectorSatic(ConectorMediciones):
         self.zona = ZoneInfo(configuracion.satic_zona_horaria)
         self.ahora = ahora
 
+    def _revisar_descarga(self):
+        """Advierte si la descarga automatica de SATIC lleva horas fallando."""
+        try:
+            estado = json.loads((self.bandeja / ARCHIVO_ESTADO).read_text())
+        except (OSError, ValueError):
+            return
+        ahora = self.ahora or datetime.now(UTC)
+        exito = estado.get("ultimo_exito")
+        if exito and ahora - datetime.fromisoformat(exito) < timedelta(hours=HORAS_SIN_DESCARGA):
+            return
+        desde = (f"desde el {datetime.fromisoformat(exito):%Y-%m-%d %H:%M} UTC" if exito
+                 else "sin ninguna descarga correcta")
+        self.advertencias.append(f"Advertencia: la descarga automática de SATIC falla {desde}"
+                                 + (f" ({estado['error']})" if estado.get("error") else ""))
+
     def extraer(self, desde: datetime | None) -> Iterator[RegistroMedicion]:
+        self._revisar_descarga()
         # Se leen todos los archivos en cada ejecución: guardar una hora que ya
         # existe no la duplica, y así una descarga atrasada también se carga.
         archivos = sorted(self.bandeja.glob("*.xlsx")) if self.bandeja.is_dir() else []

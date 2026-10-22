@@ -657,3 +657,60 @@ pueden descargar desde su geoportal.
 - **Ficha:** las fuentes con datos recientes muestran una gráfica de las
   últimas 48 horas con la guía de la OMS, y la ficha advierte las mediciones
   sospechosas y el PM10 de los sensores de bajo costo.
+
+## 2026-10-22 — Incremento 3: administración (RF-10 y RF-11)
+
+- **Comparación del código con el documento:** el MVP no estaba completo. Faltaba
+  todo el incremento 3: no había inicio de sesión, las tablas `administrador` y
+  `registro_auditoria` estaban vacías y el estado de la ingesta solo se veía por
+  consola. El documento tampoco reflejaba la bandera `sospechoso`.
+- **Bandera sospechoso en el documento:** antes de describirla como regla de
+  RF-03 se revisaron las series históricas. Tienen miles de horas seguidas con
+  el mismo valor, pero casi todas son reales: gases en 0 bajo el límite de
+  detección (SO₂ hasta 336 horas seguidas en el IDEAM), viento en calma y
+  humedad en 100 %. Por eso la regla queda solo para los sensores de bajo costo
+  de SATIC, y así lo dice el documento.
+- **API de administración (`api/admin.py`, `api/seguridad.py`):**
+  - Inicio de sesión con token JWT de 30 minutos (PyJWT) y contraseñas con
+    Argon2 (ADR-05). Las cuentas se crean por línea de comandos
+    (`python -m pimau.api.administradores crear`), no desde la web.
+  - Todas las rutas de administración exigen el token por una dependencia del
+    enrutador: una ruta nueva queda protegida sin acordarse (acceso negado por
+    defecto). Sin token, con token alterado o vencido responden 401 y el intento
+    queda en el registro de auditoría (escenario 4, probado con 16 casos).
+  - Cinco intentos fallidos bloquean el inicio de sesión 15 minutos, por IP y
+    por correo. El mensaje es el mismo para correo y contraseña equivocados, y
+    un correo inexistente tarda lo mismo en verificarse, para no revelar qué
+    correos existen.
+  - Rutas: fuentes con su última ejecución (RF-11), cambio de activación y
+    frecuencia (RF-10, auditado con el valor anterior y el nuevo), ejecuciones
+    recientes y registro de auditoría. Una fuente sin conector (OpenAQ) no se
+    puede activar.
+  - PyJWT 2.10.1 tenía vulnerabilidades publicadas (pip-audit): se usa 2.15.0.
+- **Programador dinámico:** antes leía las fuentes una vez al arrancar, así que
+  un cambio de frecuencia exigía reiniciarlo. Ahora revisa cada minuto qué
+  fuentes tocan según su última ejecución, y cada fuente corre en su propio
+  hilo. Se retiró APScheduler.
+- **IP real de los clientes:** todas las solicitudes llegan por nginx, así que la
+  API veía la misma IP para todos: el límite de 120 solicitudes por minuto por IP
+  era en realidad un límite compartido. Ahora nginx envía la IP del cliente en
+  X-Forwarded-For (reemplazando la que traiga, para que no se pueda inventar),
+  la API la usa, y el puerto 8000 solo se publica en el propio equipo.
+- **Panel del visor (flujo F3):** pestaña Administración habilitada, con la
+  tabla de fuentes del boceto F3, los errores recientes y el registro de
+  auditoría.
+- **Estado del descargador de SATIC en el panel:** el panel mostraba SATIC como
+  «Correcta» aunque la descarga llevaba 19 horas fallando, porque la ingesta
+  solo lee los archivos ya descargados. Ahora el descargador deja el resultado
+  de cada intento en `_estado_descarga.json` y, si no ha tenido éxito en 3
+  horas, la ejecución de SATIC lo advierte.
+- **Error encontrado al desplegar:** la imagen del descargador trae Python 3.10,
+  que no tiene `datetime.UTC`, y el contenedor quedó reiniciándose. Las pruebas
+  no lo detectaron porque corren con 3.12. Se corrigió y la integración continua
+  ahora comprueba que el descargador carga dentro de su propia imagen.
+- **La Alcaldía de Cali suspendió sus servicios web:** desde el 21 de octubre de
+  2026, SATIC y el portal de Datos Abiertos de Cali responden con un comunicado
+  de «suspensión temporal de servicios web por medidas de seguridad» (HTTP 403).
+  Es el riesgo «una fuente deja de publicar» de la Tabla de riesgos: la
+  plataforma siguió funcionando con los datos ya cargados, el descargador
+  reintenta cada hora y el panel muestra la advertencia.

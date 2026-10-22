@@ -29,3 +29,11 @@ def test_una_capa_no_importa_a_las_demas(capa):
         for nombre in _imports(modulo):
             assert not any(nombre == p or nombre.startswith(p + ".") for p in prohibidos), \
                 f"{modulo.relative_to(PAQUETE)} importa {nombre}, que pertenece a otra capa"
+
+
+def test_la_api_conoce_las_mismas_fuentes_con_conector_que_la_ingesta():
+    # La API no importa la ingesta (ADR-01), así que repite la lista; esta prueba
+    # evita que las dos se separen al agregar un conector.
+    from pimau.api.admin import FUENTES_CON_CONECTOR
+    from pimau.ingesta.ejecutor import CONECTORES
+    assert FUENTES_CON_CONECTOR == set(CONECTORES)

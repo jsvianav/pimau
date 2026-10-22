@@ -10,8 +10,8 @@ calidad. Es el producto del trabajo de grado de John Sebastian Viana Vargas
 | Incremento | Requisitos | Estado |
 | --- | --- | --- |
 | 1. Integración de datos | RF-01 a RF-04 | Hecho |
-| 2. Consulta y visualización | RF-05 a RF-09 | En curso: API y visor funcionando |
-| 3. Administración | RF-10 y RF-11 | Pendiente |
+| 2. Consulta y visualización | RF-05 a RF-09 | Hecho; faltan las pruebas de extremo a extremo y de accesibilidad |
+| 3. Administración | RF-10 y RF-11 | Hecho; falta el despliegue en producción |
 | 4. Analítica (Semestre 8) | RF-12 a RF-14 | Pendiente |
 | 5. Nuevas variables (Semestre 8) | RF-15 | Pendiente |
 
@@ -63,6 +63,13 @@ docker compose up -d
 
 - Visor: http://localhost:8080
 - API y su documentación: http://localhost:8080/api/docs
+
+Para usar la pestaña Administración, defina `JWT_SECRETO` en `.env` (ver
+`.env.example`) y cree el administrador; la contraseña se pide sin mostrarla:
+
+```bash
+docker compose exec api python -m pimau.api.administradores crear --correo admin@ejemplo.org
+```
 
 Para desarrollar el visor con recarga automática (requiere Node 22):
 

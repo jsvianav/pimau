@@ -2,12 +2,14 @@
 import os
 from datetime import UTC, datetime, timedelta
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from pimau.api import app as modulo_app
+from pimau.api import seguridad
 from pimau.db.modelos import Base
 
 URL = os.environ.get("DATABASE_URL_PRUEBAS")
@@ -36,6 +38,8 @@ def cliente():
             INSERT INTO estacion (id, fuente_id, codigo_origen, nombre, ubicacion, activa)
                 VALUES (1, 1, 'X', 'Estación de prueba', ST_SetSRID(ST_MakePoint(-76.53, 3.38), 4326), true);
             INSERT INTO ejecucion_ingesta (id, fuente_id, inicio, estado) VALUES (1, 1, now(), 'correcta');
+            INSERT INTO fuente (id, nombre, tipo_api, url_base, activa, frecuencia_min)
+                VALUES (2, 'SATIC (red OAC22)', 'Archivos', '-', true, 60);
             INSERT INTO capa_territorial (tipo, codigo, nombre, geometria)
                 VALUES ('comuna', '01', 'Comuna 01',
                         ST_Multi(ST_GeomFromText('POLYGON((-76.6 3.3,-76.5 3.3,-76.5 3.4,-76.6 3.4,-76.6 3.3))', 4326)));
@@ -55,6 +59,7 @@ def cliente():
     modulo_app.app.dependency_overrides[modulo_app.sesion_bd] = sesion_de_prueba
     modulo_app._cache.clear()
     modulo_app._solicitudes.clear()
+    seguridad.reiniciar_fallos()
     yield TestClient(modulo_app.app)
     modulo_app.app.dependency_overrides.clear()
 
@@ -171,3 +176,73 @@ def test_estaciones_avisan_si_las_ultimas_mediciones_son_sospechosas(cliente):
     assert parametros["PM25"]["ultima_marcada"]["instante"].startswith("2025-01-01T05:00")
     assert (parametros["PM10"]["instante"], parametros["PM10"]["valor_horario"]) == (None, None)
     assert parametros["PM10"]["ultima_marcada"]["bandera"] == "sospechoso"
+
+
+# --- Administración (incremento 3) -------------------------------------------------
+CORREO, CLAVE = "admin@prueba.local", "clave-de-prueba-larga"
+
+
+@pytest.fixture
+def admin(cliente):
+    with create_engine(URL).begin() as c:
+        c.execute(text("INSERT INTO administrador (correo, hash_clave, activo) VALUES (:c, :h, true)"),
+                  {"c": CORREO, "h": seguridad.cifrar_clave(CLAVE)})
+    token = cliente.post("/api/admin/sesion", json={"correo": CORREO, "clave": CLAVE}).json()["token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _auditoria():
+    with create_engine(URL).connect() as c:
+        return c.execute(text("SELECT accion, resultado, administrador_id FROM registro_auditoria ORDER BY id")).all()
+
+
+def test_escenario_4_rechaza_y_registra_todo_acceso_sin_credenciales_validas(cliente, admin):
+    vencido = jwt.encode({"sub": "1", "exp": datetime.now(UTC) - timedelta(minutes=1)},
+                         seguridad._secreto, algorithm="HS256")
+    alterado = admin["Authorization"][:-3] + "abc"
+    intentos = [{}, {"Authorization": f"Bearer {vencido}"}, {"Authorization": alterado},
+                {"Authorization": "Bearer no-es-un-token"}]
+    for cabeceras in intentos:
+        for metodo, ruta in [("get", "/api/admin/fuentes"), ("get", "/api/admin/ejecuciones"),
+                             ("get", "/api/admin/auditoria"), ("patch", "/api/admin/fuentes/1")]:
+            respuesta = getattr(cliente, metodo)(ruta, headers=cabeceras,
+                                                 **({"json": {"activa": False}} if metodo == "patch" else {}))
+            assert respuesta.status_code == 401, (ruta, cabeceras)
+    rechazados = [a for a in _auditoria() if a.resultado == "rechazado"]
+    assert len(rechazados) == len(intentos) * 4
+    # Ningún intento cambió la fuente.
+    assert cliente.get("/api/admin/fuentes", headers=admin).json()[0]["activa"] is True
+
+
+def test_inicio_de_sesion_no_revela_que_correos_existen_y_se_bloquea(cliente, admin):
+    malo = cliente.post("/api/admin/sesion", json={"correo": CORREO, "clave": "otra-clave-cualquiera"})
+    inexistente = cliente.post("/api/admin/sesion", json={"correo": "nadie@prueba.local", "clave": "x" * 14})
+    assert malo.status_code == inexistente.status_code == 401
+    assert malo.json() == inexistente.json()
+    for _ in range(4):
+        cliente.post("/api/admin/sesion", json={"correo": CORREO, "clave": "otra-clave-cualquiera"})
+    # Quinto fallo cumplido: ni siquiera la clave correcta entra durante el bloqueo.
+    assert cliente.post("/api/admin/sesion", json={"correo": CORREO, "clave": CLAVE}).status_code == 429
+
+
+def test_panel_muestra_el_estado_y_audita_los_cambios(cliente, admin):
+    fuentes = cliente.get("/api/admin/fuentes", headers=admin).json()
+    prueba = next(f for f in fuentes if f["id"] == 1)
+    assert prueba["ultima_ejecucion"]["estado"] == "correcta"
+    assert prueba["con_conector"] is False
+    satic = next(f for f in fuentes if f["nombre"] == "SATIC (red OAC22)")
+    assert satic["con_conector"] is True and satic["ultima_ejecucion"] is None
+
+    cambio = cliente.patch(f"/api/admin/fuentes/{satic['id']}", headers=admin, json={"frecuencia_min": 120})
+    assert cambio.status_code == 200 and cambio.json()["frecuencia_min"] == 120
+    # Fuera de rango y fuente sin conector.
+    assert cliente.patch("/api/admin/fuentes/2", headers=admin, json={"frecuencia_min": 5}).status_code == 422
+    cliente.patch("/api/admin/fuentes/1", headers=admin, json={"activa": False})
+    assert cliente.patch("/api/admin/fuentes/1", headers=admin, json={"activa": True}).status_code == 409
+
+    acciones = [a.accion for a in _auditoria() if a.administrador_id is not None]
+    assert "Inicio de sesión" in acciones
+    assert "Cambio de SATIC (red OAC22): frecuencia 60 → 120 min" in acciones
+    auditoria = cliente.get("/api/admin/auditoria", headers=admin).json()
+    assert auditoria[0]["administrador"] == CORREO
+

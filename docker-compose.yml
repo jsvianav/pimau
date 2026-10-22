@@ -46,12 +46,20 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: ${DATABASE_URL}
+      # Secreto con que se firman las sesiones del administrador (ADR-05).
+      JWT_SECRETO: ${JWT_SECRETO:-}
     depends_on:
       db:
         condition: service_healthy
-    command: ["uvicorn", "pimau.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+    # Las solicitudes llegan por nginx: la IP real del cliente viene en
+    # X-Forwarded-For y es la que usan el límite de solicitudes y el bloqueo de
+    # inicio de sesión. Por eso el puerto de la API solo se publica en este
+    # equipo (para el servidor de desarrollo del visor) y nadie de afuera puede
+    # enviar esa cabecera directamente.
+    command: ["uvicorn", "pimau.api.app:app", "--host", "0.0.0.0", "--port", "8000",
+              "--proxy-headers", "--forwarded-allow-ips", "*"]
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
 
   # Respaldo diario de la base de datos (Construcción, Capítulo 3, y ADR-01).
   # Guarda un archivo por día en ./respaldos y conserva los últimos 7.

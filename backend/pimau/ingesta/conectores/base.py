@@ -68,7 +68,8 @@ class ConectorMediciones:
 
     Las filas que no se pueden ubicar en el tiempo (fecha ilegible) no se
     pueden guardar como medicion. Se cuentan en filas_descartadas y la
-    ejecucion las reporta como advertencia.
+    ejecucion las reporta como advertencia, junto con las demas advertencias
+    que el conector deje en la lista advertencias.
     """
 
     # Frecuencia con la que la fuente deberia reportar. Si no es None, la
@@ -78,6 +79,7 @@ class ConectorMediciones:
     def __init__(self, cliente: httpx.Client | None = None):
         self.cliente = cliente or httpx.Client(timeout=300, follow_redirects=True)
         self.filas_descartadas = 0
+        self.advertencias: list[str] = []
 
     def extraer(self, desde: datetime | None) -> Iterator[RegistroMedicion]:
         raise NotImplementedError

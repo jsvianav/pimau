@@ -60,6 +60,7 @@ def ejecutar_fuente(sesion: Session, fuente: Fuente, completa: bool = False) -> 
                 registros += faltantes
                 if faltantes:
                     notas.append(f"incluye {faltantes} faltantes implícitos")
+            notas.extend(conector.advertencias)
             if conector.filas_descartadas:
                 notas.append(f"Advertencia: {conector.filas_descartadas} filas descartadas "
                              "(fecha ilegible, estación desconocida o lectura en el futuro)")

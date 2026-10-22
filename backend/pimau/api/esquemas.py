@@ -143,3 +143,51 @@ class ElementoCapa(BaseModel):
 class Capa(BaseModel):
     type: Literal["FeatureCollection"]
     features: list[ElementoCapa]
+
+
+# --- Administracion (incremento 3) ----------------------------------------------
+class Credenciales(BaseModel):
+    correo: str = Field(max_length=200)
+    clave: str = Field(max_length=200)
+
+
+class SesionAdmin(BaseModel):
+    token: str = Field(description="Token JWT; se envía en la cabecera Authorization: Bearer")
+    expira: str = Field(description="Vencimiento del token, ISO 8601 en UTC")
+    correo: str
+
+
+class EjecucionResumen(BaseModel):
+    inicio: str
+    fin: str | None
+    estado: Literal["en_curso", "correcta", "con_error"]
+    registros: int | None
+    mensaje: str | None = Field(description="Error o advertencias de la ejecución")
+
+
+class EjecucionAdmin(EjecucionResumen):
+    fuente: str
+
+
+class FuenteAdmin(BaseModel):
+    id: int
+    nombre: str
+    tipo_api: str
+    activa: bool
+    frecuencia_min: int
+    con_conector: bool = Field(description="Si la ingesta ya tiene un conector para esta fuente")
+    ultima_ejecucion: EjecucionResumen | None
+
+
+class CambiosFuente(BaseModel):
+    activa: bool | None = None
+    # Entre 15 minutos y 30 días.
+    frecuencia_min: int | None = Field(default=None, ge=15, le=43200)
+
+
+class EventoAuditoria(BaseModel):
+    instante: str
+    administrador: str | None = Field(description="Correo del administrador; vacío si no había sesión")
+    accion: str
+    resultado: str
+    ip: str

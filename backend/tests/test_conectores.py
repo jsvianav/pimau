@@ -208,3 +208,23 @@ def test_satic_descarta_las_lecturas_que_quedarian_en_el_futuro(tmp_path):
     registros = list(conector.extraer(None))
     assert conector.filas_descartadas == 3
     assert max(r.instante for r in registros) <= datetime(2026, 10, 22, 1, 0, tzinfo=UTC)
+
+
+def test_satic_advierte_cuando_la_descarga_automatica_lleva_horas_fallando(tmp_path):
+    from datetime import timedelta
+
+    from pimau.ingesta.descarga_satic import guardar_estado
+    ahora = datetime(2026, 10, 22, 21, tzinfo=UTC)
+    guardar_estado(tmp_path, 69, None, ahora=ahora - timedelta(hours=19))
+    guardar_estado(tmp_path, 0, "TimeoutError: la página no cargó", ahora=ahora - timedelta(minutes=5))
+
+    conector = satic.ConectorSatic(bandeja=tmp_path, ahora=ahora)
+    list(conector.extraer(None))
+    # La falla conserva la fecha del último éxito.
+    assert conector.advertencias == ["Advertencia: la descarga automática de SATIC falla desde el "
+                                     "2026-10-22 02:00 UTC (TimeoutError: la página no cargó)"]
+
+    guardar_estado(tmp_path, 69, None, ahora=ahora)
+    conector = satic.ConectorSatic(bandeja=tmp_path, ahora=ahora)
+    list(conector.extraer(None))
+    assert conector.advertencias == []

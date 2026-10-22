@@ -18,10 +18,12 @@ error queda en el registro del contenedor y la ingesta sigue con los archivos
 que ya tiene (escenario 6).
 """
 import argparse
+import json
 import logging
 import os
 import re
 import time
+from datetime import datetime, timezone  # timezone.utc: la imagen de Playwright trae Python 3.10
 from pathlib import Path
 
 from pimau.config import configuracion
@@ -74,6 +76,31 @@ _JS_ABRIR = """({ lat, lon }) => {
 _JS_TITULOS = """() => [...document.querySelectorAll('*')]
   .filter(x => x.children.length === 0 && /_AVG - .+\\(/.test(x.textContent))
   .map(x => x.textContent.trim())"""
+
+
+# Resultado del ultimo intento, en la misma bandeja. La ingesta lo lee para que
+# el panel del administrador muestre si la descarga esta fallando (RF-11).
+ARCHIVO_ESTADO = "_estado_descarga.json"
+
+
+def guardar_estado(destino: Path, archivos: int, error: str | None, ahora: datetime | None = None):
+    ruta = destino / ARCHIVO_ESTADO
+    try:
+        anterior = json.loads(ruta.read_text())
+    except (OSError, ValueError):
+        anterior = {}
+    ahora = (ahora or datetime.now(timezone.utc)).isoformat()  # noqa: UP017
+    exito_previo = anterior.get("ultimo_exito")
+    if exito_previo is None:
+        # Antes de existir este archivo, el ultimo exito es el Excel mas reciente.
+        fechas = [a.stat().st_mtime for a in destino.glob("*.xlsx")]
+        if fechas:
+            exito_previo = datetime.fromtimestamp(max(fechas), timezone.utc).isoformat()  # noqa: UP017
+    estado = {"ultimo_intento": ahora, "archivos": archivos, "error": error,
+              "ultimo_exito": ahora if error is None else exito_previo}
+    temporal = ruta.with_suffix(".parcial")
+    temporal.write_text(json.dumps(estado, ensure_ascii=False))
+    os.replace(temporal, ruta)
 
 
 def nombre_archivo(titulo: str) -> str:
@@ -151,8 +178,10 @@ def main():
         try:
             total = descargar(destino, opciones.rango)
             log.info("Descarga de SATIC terminada: %s archivos en %s", total, destino)
-        except Exception:
+            guardar_estado(destino, total, None if total else "No se descargó ningún archivo")
+        except Exception as error:
             log.exception("La descarga de SATIC falló; se reintenta en la próxima ejecución")
+            guardar_estado(destino, 0, f"{type(error).__name__}: {str(error).splitlines()[0][:300]}")
         if not opciones.cada:
             return
         time.sleep(max(60, opciones.cada * 60 - (time.monotonic() - inicio)))

@@ -95,3 +95,24 @@ def test_la_ingesta_incremental_solo_trae_datos_nuevos(sesion, monkeypatch):
     registros.append(_registro(2, 12.0))
     segunda = ejecutor.ejecutar_fuente(sesion, fuente)
     assert segunda.registros == 1
+
+
+def test_el_programador_toma_los_cambios_de_frecuencia_y_de_activacion(sesion):
+    from datetime import timedelta
+
+    from pimau.db.modelos import EjecucionIngesta
+    from pimau.ingesta.__main__ import fuentes_pendientes
+
+    ahora = datetime(2026, 10, 22, 12, tzinfo=UTC)
+    buena, caida = sesion.scalars(select(Fuente).order_by(Fuente.id)).all()
+    # Sin ejecuciones, las dos fuentes activas tocan.
+    assert [f.nombre for f in fuentes_pendientes(sesion, ahora)] == ["buena", "caida"]
+    # "buena" corrió hace 30 minutos y su frecuencia es 60: todavía no toca.
+    sesion.add(EjecucionIngesta(fuente_id=buena.id, inicio=ahora - timedelta(minutes=30), estado="correcta"))
+    sesion.commit()
+    assert [f.nombre for f in fuentes_pendientes(sesion, ahora)] == ["caida"]
+    # Si el administrador baja la frecuencia a 15 minutos, toca en la siguiente revisión.
+    buena.frecuencia_min = 15
+    caida.activa = False
+    sesion.commit()
+    assert [f.nombre for f in fuentes_pendientes(sesion, ahora)] == ["buena"]
