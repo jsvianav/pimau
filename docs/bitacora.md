@@ -813,3 +813,75 @@ pueden descargar desde su geoportal.
   las series del IDEAM se separan por la hora del pico: Pance, Cascajal y la
   Universidad del Valle a las 14-15 h y las demás en la mañana. Dentro de SATIC
   se mantiene que todas se parecen y San Martín es la anómala.
+
+## 2026-10-26 — Diseño, accesibilidad y celular en el visor
+
+Revisión de las tres pantallas (Mapa, Histórico y Administración) a 1440×900 y
+a 375×812 con los principios de las guías de interfaz de Apple aplicados a la
+web (accesibilidad, color, tipografía, diseño y textos), más pruebas con datos
+extremos, zoom al 200 % y solo teclado. Objetivo: WCAG 2.2 AA (RNF-07). Los
+colores del ICA (Resolución 2254 de 2017) no cambiaron y la categoría siempre
+va con su nombre. No se tocaron la API ni lo que muestran los datos.
+
+- **Contraste (WCAG 1.4.3 y 1.4.11), medido con la fórmula de WCAG:**
+
+  | Elemento | Antes | Después |
+  | --- | --- | --- |
+  | Texto secundario (`--tinta-tenue`, unos 60 rótulos de 12–13 px) | #7a8783, 3,74:1 | #5f6d69, 5,42:1 sobre blanco y 4,95:1 sobre el fondo |
+  | Anillo de foco | #e0a100, 2,27:1 | #b06f00, 4,10:1 |
+  | Borde de campos y selectores | #e3e8e6, 1,24:1 | #858f8c, 3,33:1 |
+  | Gris de «sin ICA» en el mapa | #9aa3ad, 2,33:1 | #7d8790, 3,34:1 |
+  | Rótulos del mapa base | #8a9692, 2,80:1 | #66736f, 4,52:1 sobre el fondo del mapa |
+
+- **Tamaño de los controles (WCAG 2.5.8):** las opciones del mapa pasaron de
+  20 a 24 px de alto. En pantallas táctiles (`pointer: coarse`) todos los
+  controles miden 44 px: pestañas (antes 41), selector de variable (35), filas
+  de la lista (39), zoom del mapa (29×29) y botones (37).
+- **Diseño adaptable (WCAG 1.4.10):** a 375 px el Histórico medía 459 px de
+  ancho (el selector de estación no se encogía) y Administración 785 px (los
+  textos ocultos de los encabezados escapaban del scroll de la tabla). Ahora
+  ambas miden 375 px. Con zoom al 200 % la tarjeta de opciones del mapa quedaba
+  cortada; ahora hace scroll.
+- **Foco y lector de pantalla:** al elegir una estación el foco pasa al nombre
+  en la ficha, y la ficha queda a la vista aunque haya alertas encima (con doce
+  alertas la ficha quedaba fuera del panel) o, en el celular, debajo del mapa.
+  Se quitó el `aria-live` de la ficha, que la releía completa cada diez minutos.
+  Los controles de MapLibre tienen textos en español y cada sección tiene su
+  título de página.
+- **Celular:** `100dvh` y `62svh` en vez de `100vh`; campos de 16 px en pantallas
+  táctiles (con 14 px iOS acerca la página al enfocarlos); `viewport-fit=cover`
+  con márgenes `env(safe-area-inset-*)`; color de la barra del navegador por
+  modo; `touch-action: manipulation` y sin el destello al tocar; `:hover` solo
+  con mouse. En pantallas táctiles el mapa se mueve con dos dedos
+  (`cooperativeGestures`), para que un dedo desplace la página. Por debajo de
+  1180 px el aviso del estado de los datos se ocultaba y por debajo de 900 px
+  la leyenda del ICA; ahora van arriba del panel y dentro de él.
+- **Estados:** mientras carga, la ficha dice «Cargando las estaciones…»; sin
+  estaciones, «No hay estaciones para mostrar» (antes pedía elegir una
+  estación que no existía); un error de la API ofrece «Reintentar».
+- **Oficio:** los avisos de la ficha (alerta, datos no confiables, anomalía y
+  nota de la fuente) van en orden de gravedad y cada uno con su título; las
+  alertas dicen de qué fuente son; el eje Y del histórico usa marcas redondas
+  (0, 50, 100…; antes terminaba en 223); en Administración el botón de cada fila
+  solo resalta si hay algo que guardar, confirma «Guardado» en la misma fila sin
+  perder el foco y el umbral avisa si no es un número mayor que 0.
+- **Modo oscuro:** sigue la preferencia del sistema, sin interruptor propio.
+  Todos los colores pasaron a tokens con su variante oscura (texto entre 4,87:1
+  y 13,8:1; bordes y gráficos de 3,6:1 o más). El mapa base cambia al estilo
+  oscuro de OpenFreeMap y el relleno de las comunas baja a 0,12, porque más
+  opaco el amarillo del ICA se veía verde oliva.
+- **Movimiento, solo donde explica un cambio:** fundido de 160 ms al cambiar de
+  estación; el marcador del ICA se desliza 240 ms (con `transform`) al cambiar
+  de variable; los botones se encogen a 0,97 al presionarlos (120 ms); la fila
+  guardada se resalta 1,2 s. La regla anterior de `prefers-reduced-motion`
+  anulaba todo; ahora quita los desplazamientos y conserva fundidos y cambios
+  de color. Se corrigió que el mapa volviera a la estación elegida con cada
+  actualización de diez minutos. Se descartaron animar las pestañas, la lista,
+  las gráficas, los anillos de alerta y los colores del mapa.
+- **Casos extremos en desarrollo:** `?datos=peor`, `?datos=vacio` y
+  `?datos=error` cambian las respuestas de la API por nombres largos, doce
+  alertas, valores en el tope del ICA, una lista vacía o un error. Solo existe
+  en desarrollo y no entra en el build.
+- **Pendiente:** probar en un celular real (la emulación del navegador no
+  reproduce la barra del navegador, el teclado ni el zoom de iOS) y revisar el
+  movimiento con `review-animations`.
