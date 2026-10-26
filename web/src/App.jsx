@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "./api.js";
 import { agruparEstaciones, esReciente, estadoMasReciente, fechaCorta, nombreCorto, ultimoDatoDelGrupo } from "./util.js";
 import SelectorParametro from "./componentes/SelectorParametro.jsx";
-import Mapa from "./componentes/Mapa.jsx";
+import Mapa, { TEMAS_MAPA } from "./componentes/Mapa.jsx";
 import Ficha from "./componentes/Ficha.jsx";
 import ListaEstaciones from "./componentes/ListaEstaciones.jsx";
 import Leyenda from "./componentes/Leyenda.jsx";
@@ -20,6 +20,19 @@ const PESTANAS = [
   { id: "admin", nombre: "Administración" },
 ];
 
+// Sigue la preferencia de modo claro u oscuro del sistema mientras la página está
+// abierta. React exige que el nombre de un hook empiece por "use".
+function useModoOscuro() {
+  const [oscuro, setOscuro] = useState(() => window.matchMedia("(prefers-color-scheme: dark)").matches);
+  useEffect(() => {
+    const consulta = window.matchMedia("(prefers-color-scheme: dark)");
+    const alCambiar = () => setOscuro(consulta.matches);
+    consulta.addEventListener("change", alCambiar);
+    return () => consulta.removeEventListener("change", alCambiar);
+  }, []);
+  return oscuro;
+}
+
 export default function App() {
   const [pestana, setPestana] = useState("mapa");
   const [parametro, setParametro] = useState("PM25");
@@ -35,6 +48,7 @@ export default function App() {
   const [soloRecientes, setSoloRecientes] = useState(true);
   const [ahora, setAhora] = useState(() => new Date());
   const [alertas, setAlertas] = useState([]);
+  const oscuro = useModoOscuro();
 
   // Al elegir una estación, el foco pasa al nombre en la ficha: el lector de
   // pantalla lo anuncia y la ficha queda a la vista aunque haya alertas encima
@@ -54,7 +68,7 @@ export default function App() {
       : `${PESTANAS.find((p) => p.id === pestana).nombre} · PIMAU`;
   }, [pestana]);
 
-  useEffect(() => {
+  function cargar() {
     Promise.all([api.estaciones(), api.umbrales(), api.parametros()])
       .then(([estaciones, limites, lista]) => {
         setDatos(estaciones); setUmbrales(limites); setParametros(lista.filter((p) => p.con_datos));
@@ -62,6 +76,15 @@ export default function App() {
       .catch((e) => setError(e.message));
     // Las alertas son un complemento: si fallan, el mapa funciona igual.
     api.alertas().then(setAlertas).catch(() => {});
+  }
+
+  function reintentar() {
+    setError(null);
+    cargar();
+  }
+
+  useEffect(() => {
+    cargar();
     const intervalo = setInterval(() => {
       // Si una actualización falla se conservan los datos que ya se muestran.
       api.estaciones().then((estaciones) => { setDatos(estaciones); setAhora(new Date()); }).catch(() => {});
@@ -84,6 +107,26 @@ export default function App() {
     [grupos, parametro, ahora]);
   const opcionesEstado = useMemo(() => ({ soloRecientes, ahora }), [soloRecientes, ahora]);
   const grupoSeleccionado = grupos.find((g) => g.id === seleccion) || null;
+  // Estado de la carga, para que la ficha no pida elegir una estación que no existe.
+  const carga = error && !datos ? "error" : !datos ? "cargando" : grupos.length ? "listo" : "vacio";
+
+  // Estado de los datos: va sobre el mapa en pantallas anchas y arriba del panel
+  // en las demás, donde no cabe entre las tarjetas.
+  const sinRecientes = soloRecientes && !recientes;
+  const estadoDatos = ultimoDato && (sinRecientes ? (
+    <>
+      <p>Ninguna estación tiene {nombreCorto(parametro)} de las últimas 48 horas.</p>
+      <button className="enlace" type="button" onClick={() => setSoloRecientes(false)}>Ver todo el histórico</button>
+    </>
+  ) : !soloRecientes ? (
+    <p>Todo el histórico: cada estación muestra su último dato, que puede ser de hace años.</p>
+  ) : (
+    <p>
+      <span className={`pulso${esReciente(ultimoDato, ahora) ? "" : " apagado"}`} aria-hidden="true" />
+      {recientes} {recientes === 1 ? "estación" : "estaciones"} con {nombreCorto(parametro)} de las últimas
+      48 horas · último dato {fechaCorta(ultimoDato, ahora)}
+    </p>
+  ));
 
   function elegirAlerta(grupoId, codigo) {
     setParametro(codigo);
@@ -104,7 +147,7 @@ export default function App() {
         </div>
         <nav className="pestanas" aria-label="Secciones">
           {PESTANAS.map((p) => (
-            <button key={p.id} className="pestana" aria-current={pestana === p.id ? "page" : undefined}
+            <button key={p.id} type="button" className="pestana" aria-current={pestana === p.id ? "page" : undefined}
                     disabled={p.deshabilitada} title={p.nota} onClick={() => setPestana(p.id)}>
               {p.nombre}
             </button>
@@ -112,12 +155,19 @@ export default function App() {
         </nav>
       </header>
 
-      {error && <p className="aviso error" role="alert">No fue posible cargar los datos: {error}</p>}
+      {error && (
+        <div className="aviso error con-accion" role="alert">
+          <p>No fue posible cargar los datos: {error}</p>
+          <button className="boton" type="button" onClick={reintentar}>Reintentar</button>
+        </div>
+      )}
 
       {pestana === "mapa" && (
         <main className="vista-mapa">
           <div className="mapa-contenedor">
-            <Mapa grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion} onSeleccionar={setSeleccion}
+            {/* El mapa se vuelve a crear al pasar a modo oscuro, con el mapa base y los colores de ese modo. */}
+            <Mapa key={oscuro ? "oscuro" : "claro"} tema={oscuro ? TEMAS_MAPA.oscuro : TEMAS_MAPA.claro}
+                  grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion} onSeleccionar={setSeleccion}
                   onZonas={setZonas} opciones={opcionesEstado} alertas={alertas}>
               <label className="campo">
                 Variable
@@ -135,31 +185,21 @@ export default function App() {
                 </label>
               </fieldset>
             </Mapa>
-            {ultimoDato && (
-              <div className={`contexto${soloRecientes && !recientes ? " sin-recientes" : ""}`} role="status">
-                {soloRecientes && !recientes ? (
-                  <>
-                    <p>Ninguna estación tiene {nombreCorto(parametro)} de las últimas 48 horas.</p>
-                    <button className="enlace" onClick={() => setSoloRecientes(false)}>Ver todo el histórico</button>
-                  </>
-                ) : !soloRecientes ? (
-                  <p>Todo el histórico: cada estación muestra su último dato, que puede ser de hace años.</p>
-                ) : (
-                  <p>
-                    <span className={`pulso${esReciente(ultimoDato, ahora) ? "" : " apagado"}`} aria-hidden="true" />
-                    {recientes} {recientes === 1 ? "estación" : "estaciones"} con {nombreCorto(parametro)} de las últimas
-                    48 horas · último dato {fechaCorta(ultimoDato, ahora)}
-                  </p>
-                )}
-              </div>
+            {estadoDatos && (
+              <div className={`contexto${sinRecientes ? " sin-recientes" : ""}`} role="status">{estadoDatos}</div>
             )}
             {umbrales && <Leyenda umbrales={umbrales} parametro={parametro} meta={meta[parametro]}
                                   soloRecientes={soloRecientes} />}
           </div>
           <aside className="panel-lateral">
+            {estadoDatos && (
+              <div className={`estado-panel${sinRecientes ? " sin-recientes" : ""}`} role="status">{estadoDatos}</div>
+            )}
             <Alertas alertas={alertas} grupos={grupos} ahora={ahora} onElegir={elegirAlerta} />
             <Ficha grupo={grupoSeleccionado} parametro={parametro} meta={meta[parametro]} zonas={zonas}
-                   onVerHistorico={verHistorico} ahora={ahora} alertas={alertas} umbrales={umbrales} />
+                   onVerHistorico={verHistorico} ahora={ahora} alertas={alertas} umbrales={umbrales} carga={carga} />
+            {umbrales && <Leyenda umbrales={umbrales} parametro={parametro} meta={meta[parametro]}
+                                  soloRecientes={soloRecientes} variante="panel" />}
             <ListaEstaciones grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion}
                              onSeleccionar={setSeleccion} opciones={opcionesEstado} />
             <p className="fuentes">

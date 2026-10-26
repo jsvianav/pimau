@@ -1,5 +1,5 @@
 import { formatearNumero, nombreCorto, textoVentana } from "../util.js";
-import { COLOR_ALERTA, COLOR_ANOMALIA } from "./Mapa.jsx";
+import { COLOR_ALERTA } from "./Mapa.jsx";
 
 // Anillos que pueden rodear una estación, con cualquier variable.
 function Anillos() {
@@ -7,18 +7,21 @@ function Anillos() {
     <ul className="anillos">
       <li><span className="anillo" style={{ borderColor: COLOR_ALERTA, borderWidth: 3 }} aria-hidden="true" />
         Alerta activa (supera el umbral)</li>
-      <li><span className="anillo" style={{ borderColor: COLOR_ANOMALIA }} aria-hidden="true" />
+      <li><span className="anillo anomalia" aria-hidden="true" />
         Último dato anómalo</li>
     </ul>
   );
 }
 
-export default function Leyenda({ umbrales, parametro, meta, soloRecientes }) {
+// Sobre el mapa flota en una tarjeta; en el celular, donde no cabe, va dentro
+// del panel (variante "panel").
+export default function Leyenda({ umbrales, parametro, meta, soloRecientes, variante = "flotante" }) {
+  const clase = variante === "panel" ? "leyenda leyenda-panel" : "flotante leyenda";
   const cortes = umbrales[parametro]?.ica || [];
   const ruido = umbrales[parametro]?.ruido || {};
   if (ruido["Día"]) {
     return (
-      <section className="flotante leyenda" aria-label="Leyenda del ruido">
+      <section className={clase} aria-label="Leyenda del ruido">
         <h2>{meta?.nombre || "Ruido ambiental"}</h2>
         <p>
           Nivel equivalente de cada hora, en dB(A). La Resolución 627 de 2006 fija para zonas residenciales,
@@ -31,7 +34,7 @@ export default function Leyenda({ umbrales, parametro, meta, soloRecientes }) {
   }
   if (!cortes.length) {
     return (
-      <section className="flotante leyenda" aria-label="Leyenda">
+      <section className={clase} aria-label="Leyenda">
         <h2>{meta?.nombre || nombreCorto(parametro)}</h2>
         <p>
           {meta?.variable === "meteorologia"
@@ -44,7 +47,7 @@ export default function Leyenda({ umbrales, parametro, meta, soloRecientes }) {
     );
   }
   return (
-    <section className="flotante leyenda" aria-label="Leyenda del Índice de Calidad del Aire">
+    <section className={clase} aria-label="Leyenda del Índice de Calidad del Aire">
       <h2>Índice de Calidad del Aire</h2>
       <p>{nombreCorto(parametro)}, {textoVentana(meta?.ventana_ica_horas)}. Resolución 2254 de 2017, en µg/m³.</p>
       <ol>
