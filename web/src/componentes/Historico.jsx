@@ -6,6 +6,10 @@ import SelectorParametro from "./SelectorParametro.jsx";
 import { PuntoAnomalo } from "./Ficha.jsx";
 
 const MAXIMO_DIAS_HORARIO = 93;
+// El puntaje de anomalía va de 0 a 1 y las señaladas quedan entre 0,62 y 0,8:
+// con un solo decimal no se distinguen.
+const PUNTAJE = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const formatearPuntaje = (valor) => (valor == null ? "—" : PUNTAJE.format(valor));
 
 function diasEntre(desde, hasta) {
   return Math.round((new Date(hasta) - new Date(desde)) / 86400000);
@@ -72,7 +76,8 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
     pedirSerie(estacionId, consulta);
   }
 
-  const puntos = (serie?.datos || []).map((d) => ({ t: d.instante || d.dia, valor: d.valor, anomalia: d.anomalia }));
+  const puntos = (serie?.datos || []).map((d) => ({ t: d.instante || d.dia, valor: d.valor, anomalia: d.anomalia,
+                                                    puntaje: d.puntaje_anomalia }));
   const anomalos = puntos.filter((p) => p.anomalia).length;
   const faltantes = puntos.filter((p) => p.valor == null).length;
   const validos = puntos.filter((p) => p.valor != null);
@@ -159,7 +164,8 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
                        domain={marcas ? [0, marcas.at(-1)] : ["auto", "auto"]} />
                 <Tooltip cursor={{ stroke: "var(--referencia-ica)", strokeWidth: 1 }}
                          contentStyle={{ borderRadius: 8, fontFamily: "inherit" }}
-                         formatter={(v) => [v == null ? "sin dato" : `${formatearNumero(v)} ${unidadMedida}`, nombre]}
+                         formatter={(v, _, { payload }) => [v == null ? "sin dato" : `${formatearNumero(v)} ${unidadMedida}${
+                           payload?.anomalia ? ` · anómalo (Isolation Forest, puntaje ${formatearPuntaje(payload.puntaje)})` : ""}`, nombre]}
                          labelFormatter={(t) => formatearFecha(fechaEje(t), agregacion === "hora")} />
                 {verAceptable && (
                   <ReferenceLine y={limiteAceptable} stroke="var(--referencia-ica)" strokeDasharray="5 4" strokeWidth={1} />
@@ -224,7 +230,7 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
                     <tr key={p.t}>
                       <td>{formatearFecha(fechaEje(p.t), agregacion === "hora")}</td>
                       <td className="numero">{p.valor == null ? "sin dato" : formatearNumero(p.valor)}</td>
-                      {agregacion === "hora" && <td>{p.anomalia ? "Sí" : ""}</td>}
+                      {agregacion === "hora" && <td>{p.anomalia ? `Sí, puntaje ${formatearPuntaje(p.puntaje)}` : ""}</td>}
                     </tr>
                   ))}
                 </tbody>
