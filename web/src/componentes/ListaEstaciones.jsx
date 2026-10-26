@@ -18,7 +18,7 @@ function Elemento({ grupo, parametro, meta, seleccion, onSeleccionar, opciones }
   const color = !actual ? "transparent" : meta?.ventana_ica_horas ? actual.estado.color || "var(--sin-ica)" : "var(--serie)";
   return (
     <li>
-      <button aria-pressed={grupo.id === seleccion} onClick={() => onSeleccionar(grupo.id)}>
+      <button type="button" aria-pressed={grupo.id === seleccion} onClick={() => onSeleccionar(grupo.id)}>
         <span className={`punto${actual ? "" : " hueco"}`} aria-hidden="true" style={{ background: color }} />
         <span>{grupo.nombre}</span>
         <span className="estado">

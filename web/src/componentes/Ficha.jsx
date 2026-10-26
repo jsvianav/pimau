@@ -38,9 +38,11 @@ function EscalaIca({ estado }) {
       <div className="escala-barra" role="img"
            aria-label={`ICA ${estado.ica}, categoría ${estado.categoria}, en una escala de 0 a 500`}>
         {COLORES_ICA.map((color, i) => (
-          <span key={color} className={i === indice ? "actual" : undefined} style={{ background: color }} />
+          <span key={color} className={i === indice ? "segmento actual" : "segmento"} style={{ background: color }} />
         ))}
-        <span className="escala-marcador" style={{ left: `${porcentaje}%` }} />
+        <span className="escala-pista" style={{ transform: `translateX(${porcentaje}%)` }}>
+          <span className="escala-marcador" />
+        </span>
       </div>
       <div className="escala-extremos" aria-hidden="true"><span>Buena</span><span>Peligrosa</span></div>
       <p className="escala-detalle">
@@ -92,7 +94,7 @@ function AvisoMarcada({ marcada, hayValido }) {
   if (!marcada) return null;
   return (
     <p className="aviso-calidad" role="note">
-      <strong>Datos no confiables.</strong> {hayValido ? "Las mediciones posteriores al último dato válido" : "Las mediciones"},
+      <strong>Datos no confiables</strong> {hayValido ? "Las mediciones posteriores al último dato válido" : "Las mediciones"},
       hasta la del {formatearFecha(marcada.instante)}, están marcadas porque {TEXTO_MARCA[marcada.bandera]}. No se usan
       para el ICA{hayValido ? ", que se calcula con el último dato válido" : ""}.
     </p>
@@ -102,13 +104,14 @@ function AvisoMarcada({ marcada, hayValido }) {
 // Las mediciones anómalas (RF-13) se marcan sobre la línea con un punto hueco.
 export function PuntoAnomalo({ cx, cy, payload, index }) {
   if (!payload?.anomalia || cx == null || cy == null) return <g key={index} />;
-  return <circle key={index} cx={cx} cy={cy} r={5} fill="#ffffff" stroke="#1b2b28" strokeWidth={2} />;
+  return <circle key={index} cx={cx} cy={cy} r={5} fill="var(--papel)" stroke="var(--anomalia)" strokeWidth={2} />;
 }
 
 function AvisoAnomalias({ estado }) {
   if (!estado.anomalias_48h) return null;
   return (
     <p className="aviso-anomalia" role="note">
+      <strong>{estado.ultima_anomala || estado.anomalias_48h === 1 ? "Valor anómalo" : "Valores anómalos"}</strong>{" "}
       {estado.ultima_anomala ? "El último dato fue señalado como anómalo" :
         `${estado.anomalias_48h} ${estado.anomalias_48h === 1 ? "valor señalado" : "valores señalados"} como anómalos en las
          últimas 48 horas`}{" "}
@@ -122,7 +125,7 @@ function AvisoAlerta({ alerta }) {
   if (!alerta) return null;
   return (
     <p className="aviso-alerta" role="alert" style={{ borderColor: COLOR_ALERTA }}>
-      <strong>Alerta:</strong> {formatearNumero(alerta.valor)} {alerta.unidad} el {formatearFecha(alerta.instante)}, igual
+      <strong>Alerta</strong> {formatearNumero(alerta.valor)} {alerta.unidad} el {formatearFecha(alerta.instante)}, igual
       o por encima del umbral de {formatearNumero(alerta.umbral)} {alerta.unidad} configurado para{" "}
       {nombreCorto(alerta.parametro)}.
     </p>
@@ -176,14 +179,14 @@ function UltimasHoras({ registro, parametro, meta, ahora }) {
         <ResponsiveContainer width="100%" height={96}>
           <LineChart data={puntos} margin={{ top: 6, right: 4, bottom: 0, left: 0 }}>
             <XAxis dataKey="t" hide />
-            <YAxis width={30} tick={{ fontSize: 11, fill: "#52625e" }} axisLine={false} tickLine={false}
+            <YAxis width={30} tick={{ fontSize: 11, fill: "var(--eje-texto)" }} axisLine={false} tickLine={false}
                    tickFormatter={formatearNumero} tickCount={3}
                    domain={meta?.variable === "meteorologia" ? ["auto", "auto"] : [0, "auto"]} />
-            <Tooltip contentStyle={{ borderRadius: 8, borderColor: "#d3dcd8", fontSize: 13 }}
+            <Tooltip contentStyle={{ borderRadius: 8, fontSize: 13 }}
                      formatter={(v) => [v == null ? "sin dato" : `${formatearNumero(v)} ${meta?.unidad || ""}`, nombreCorto(parametro)]}
                      labelFormatter={(t) => formatearFecha(t)} />
             {guia?.periodo === "24 horas" && guia.valor <= maximo.valor * 2 && (
-              <ReferenceLine y={guia.valor} stroke="#6b7c77" strokeDasharray="2 3" />
+              <ReferenceLine y={guia.valor} stroke="var(--referencia-oms)" strokeDasharray="2 3" />
             )}
             <Line type="linear" dataKey="valor" stroke="var(--serie)" strokeWidth={2} dot={PuntoAnomalo}
                   connectNulls={false} isAnimationActive={false} />
@@ -192,7 +195,7 @@ function UltimasHoras({ registro, parametro, meta, ahora }) {
       </div>
       {guia?.periodo === "24 horas" && guia.valor <= maximo.valor * 2 && (
         <p className="clave-guia">
-          <svg width="20" height="6" aria-hidden="true"><line x1="0" y1="3" x2="20" y2="3" stroke="#6b7c77" strokeDasharray="2 3" /></svg>
+          <svg width="20" height="6" aria-hidden="true"><line x1="0" y1="3" x2="20" y2="3" stroke="var(--referencia-oms)" strokeDasharray="2 3" /></svg>
           Guía de la OMS para 24 horas ({formatearNumero(guia.valor)} {meta?.unidad})
         </p>
       )}
@@ -216,7 +219,7 @@ function DatoFuente({ registro, parametro, meta, onVerHistorico, ahora, alertas,
     return (
       <section className="fuente-dato">
         <h3>{registro.fuente}</h3>
-        <AvisoMarcada marcada={estado.ultima_marcada} hayValido={false} />
+        <div className="avisos"><AvisoMarcada marcada={estado.ultima_marcada} hayValido={false} /></div>
       </section>
     );
   }
@@ -232,10 +235,13 @@ function DatoFuente({ registro, parametro, meta, onVerHistorico, ahora, alertas,
         Medido el {formatearFecha(estado.instante)},{" "}
         <span className={`antiguedad${reciente ? " reciente" : ""}`}>{antiguedad(estado.instante, ahora)}</span>
       </p>
-      <AvisoAlerta alerta={alertas.find((a) => a.estacion_id === registro.id && a.parametro === parametro)} />
-      <AvisoMarcada marcada={estado.ultima_marcada} hayValido />
-      <AvisoAnomalias estado={estado} />
-      {nota && <p className="nota-fuente">{nota}</p>}
+      {/* Avisos en orden de gravedad: alerta, datos no confiables, anomalía y nota sobre la fuente. */}
+      <div className="avisos">
+        <AvisoAlerta alerta={alertas.find((a) => a.estacion_id === registro.id && a.parametro === parametro)} />
+        <AvisoMarcada marcada={estado.ultima_marcada} hayValido />
+        <AvisoAnomalias estado={estado} />
+        {nota && <p className="nota-fuente"><strong>Sobre esta fuente</strong> {nota}</p>}
+      </div>
       <EscalaIca estado={estado} />
       <GuiaOms estado={estado} />
       {parametro === "RUIDO" && <NormaRuido estado={estado} umbrales={umbrales} />}
@@ -245,20 +251,32 @@ function DatoFuente({ registro, parametro, meta, onVerHistorico, ahora, alertas,
   );
 }
 
-export default function Ficha({ grupo, parametro, meta, zonas, onVerHistorico, ahora, alertas = [], umbrales }) {
+// Lo que dice la ficha cuando no hay una estación elegida, según el estado de la carga.
+const FICHA_VACIA = {
+  cargando: ["Cargando las estaciones…", "En unos segundos aparecen en el mapa y en la lista."],
+  vacio: ["No hay estaciones para mostrar", "La plataforma no recibió estaciones de ninguna fuente. Vuelva a intentarlo más tarde."],
+  error: ["No se pudieron cargar las estaciones", "Use «Reintentar» en el aviso de arriba."],
+  listo: ["Elija una estación", "Toque una estación en el mapa o búsquela en la lista para ver su último dato y, en los "
+    + "contaminantes, su categoría del ICA."],
+};
+
+export default function Ficha({ grupo, parametro, meta, zonas, onVerHistorico, ahora, alertas = [], umbrales,
+                                carga = "listo" }) {
   if (!grupo) {
+    const [titulo, texto] = FICHA_VACIA[carga];
     return (
-      <section className="ficha vacia">
-        <h2>Elija una estación</h2>
-        <p>Toque una estación en el mapa o búsquela en la lista para ver su último dato y, en los contaminantes, su
-          categoría del ICA.</p>
+      <section className="ficha vacia" aria-busy={carga === "cargando"}>
+        <h2>{titulo}</h2>
+        <p className={carga === "cargando" ? "cargando" : undefined}>{texto}</p>
       </section>
     );
   }
   return (
     // Sin aria-live: al elegir una estación el foco pasa al nombre (App.jsx), y
     // así el lector no vuelve a leer toda la ficha con cada actualización.
-    <section className="ficha" aria-labelledby="titulo-ficha">
+    // La clave hace que la ficha se vuelva a montar al cambiar de estación (con su
+    // fundido de entrada) y no cuando solo cambia la variable.
+    <section className="ficha" aria-labelledby="titulo-ficha" key={grupo.id}>
       <h2 id="titulo-ficha" tabIndex={-1}>{grupo.nombre}</h2>
       {zonas && zonaDe(zonas, grupo.coordenadas) && <p className="zona">{zonaDe(zonas, grupo.coordenadas)}</p>}
       {grupo.registros.length > 1 && (

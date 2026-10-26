@@ -17,13 +17,15 @@ export default function Alertas({ alertas, grupos, ahora, onElegir }) {
       <ul>
         {alertas.map((a) => {
           const grupo = grupos.find((g) => g.registros.some((r) => r.id === a.estacion_id));
+          // Una estación puede tener alertas de dos fuentes: la fuente las distingue.
+          const fuente = grupo?.registros.find((r) => r.id === a.estacion_id)?.fuente;
           return (
             <li key={`${a.estacion_id}-${a.parametro}`}>
-              <button onClick={() => grupo && onElegir(grupo.id, a.parametro)}>
+              <button type="button" onClick={() => grupo && onElegir(grupo.id, a.parametro)}>
                 <span>{grupo?.nombre || a.estacion}</span>
                 <span className="alerta-detalle">
                   {nombreCorto(a.parametro)}: {formatearNumero(a.valor)} {a.unidad} (umbral {formatearNumero(a.umbral)}),{" "}
-                  {fechaCorta(a.instante, ahora)}
+                  {fechaCorta(a.instante, ahora)}{fuente && ` · ${fuente}`}
                 </span>
               </button>
             </li>
