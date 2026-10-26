@@ -12,6 +12,17 @@ export function nombreCorto(codigo) {
   return PARAMETROS[codigo] || codigo;
 }
 
+// Marcas redondas para el eje Y de una gráfica que empieza en cero (0, 50, 100…),
+// con unas cinco divisiones y la última igual o por encima del máximo.
+export function marcasEje(maximo, divisiones = 5) {
+  if (!(maximo > 0)) return [0, 1];
+  const bruto = maximo / divisiones;
+  const potencia = 10 ** Math.floor(Math.log10(bruto));
+  const paso = [1, 2, 2.5, 5, 10].map((f) => f * potencia).find((p) => p >= bruto);
+  const pasos = Math.ceil(maximo / paso - 1e-9);
+  return Array.from({ length: pasos + 1 }, (_, i) => Number((i * paso).toFixed(10)));
+}
+
 export function textoVentana(horas) {
   return horas === 1 ? "valor de 1 hora" : `promedio de ${horas} horas`;
 }

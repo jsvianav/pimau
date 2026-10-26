@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../api.js";
-import { fechaISO, formatearFecha, formatearNumero, nombreCorto, restarDias, textoVentana } from "../util.js";
+import { fechaISO, formatearFecha, formatearNumero, marcasEje, nombreCorto, restarDias, textoVentana } from "../util.js";
 import SelectorParametro from "./SelectorParametro.jsx";
 import { PuntoAnomalo } from "./Ficha.jsx";
 
@@ -93,6 +93,9 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
   const verAceptable = visible(limiteAceptable);
   const verOms = visible(guiaOms);
   const ejeDesdeCero = datosParametro?.variable !== "meteorologia" || ["LLUVIA", "RAD"].includes(parametro);
+  // Marcas redondas (0, 50, 100…) que incluyen las líneas de referencia visibles.
+  const marcas = ejeDesdeCero
+    ? marcasEje(Math.max(maximo, verAceptable ? limiteAceptable : 0, verOms ? guiaOms : 0)) : undefined;
   const unidad = agregacion === "hora" ? "horas" : "días";
   const seleccionada = opciones.find((o) => o.id === estacionId);
   const fechaEje = (t) => (t.length > 10 ? t : t + "T12:00:00Z");
@@ -101,6 +104,7 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
     <section className="historico">
       <h2>Histórico</h2>
       <p className="nota">Consulte la serie de una estación, compárela con la norma y descargue los datos.</p>
+      {!opciones.length && <p className="nota">Todavía no hay estaciones para consultar.</p>}
       <form className="filtros" onSubmit={(e) => { e.preventDefault(); consultar(); }}>
         <label>Estación y fuente
           <select value={estacionId ?? ""} onChange={(e) => cambiarEstacion(Number(e.target.value))}>
@@ -147,29 +151,27 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
           <div role="img" aria-label={`Serie de ${nombre} con ${validos.length} ${unidad} con dato y ${faltantes} sin dato`}>
             <ResponsiveContainer width="100%" height={340}>
               <LineChart data={puntos} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
-                <CartesianGrid stroke="#e3e9e6" vertical={false} />
+                <CartesianGrid stroke="var(--rejilla)" vertical={false} />
                 <XAxis dataKey="t" tickFormatter={(t) => formatearFecha(fechaEje(t), false)} minTickGap={56}
-                       tick={{ fontSize: 12, fill: "#4a5d58" }} axisLine={{ stroke: "#d3dcd8" }} tickLine={false} />
-                <YAxis width={44} tick={{ fontSize: 12, fill: "#4a5d58" }} tickFormatter={formatearNumero}
-                       axisLine={false} tickLine={false}
-                       domain={ejeDesdeCero
-                         ? [0, (max) => Math.ceil(Math.max(max, verAceptable ? limiteAceptable : 0, verOms ? guiaOms : 0) * 1.1)]
-                         : ["auto", "auto"]} />
-                <Tooltip cursor={{ stroke: "#17322e", strokeWidth: 1 }}
-                         contentStyle={{ borderRadius: 8, borderColor: "#d3dcd8", fontFamily: "inherit" }}
+                       tick={{ fontSize: 12, fill: "var(--eje-texto)" }} axisLine={{ stroke: "var(--eje-linea)" }} tickLine={false} />
+                <YAxis width={44} tick={{ fontSize: 12, fill: "var(--eje-texto)" }} tickFormatter={formatearNumero}
+                       axisLine={false} tickLine={false} ticks={marcas}
+                       domain={marcas ? [0, marcas.at(-1)] : ["auto", "auto"]} />
+                <Tooltip cursor={{ stroke: "var(--referencia-ica)", strokeWidth: 1 }}
+                         contentStyle={{ borderRadius: 8, fontFamily: "inherit" }}
                          formatter={(v) => [v == null ? "sin dato" : `${formatearNumero(v)} ${unidadMedida}`, nombre]}
                          labelFormatter={(t) => formatearFecha(fechaEje(t), agregacion === "hora")} />
                 {verAceptable && (
-                  <ReferenceLine y={limiteAceptable} stroke="#17322e" strokeDasharray="5 4" strokeWidth={1} />
+                  <ReferenceLine y={limiteAceptable} stroke="var(--referencia-ica)" strokeDasharray="5 4" strokeWidth={1} />
                 )}
                 {verOms && (
-                  <ReferenceLine y={guiaOms} stroke="#6b7c77" strokeDasharray="2 3" strokeWidth={1} />
+                  <ReferenceLine y={guiaOms} stroke="var(--referencia-oms)" strokeDasharray="2 3" strokeWidth={1} />
                 )}
                 <Line type="linear" dataKey="valor" stroke="var(--serie)" strokeWidth={2} connectNulls={false}
                       dot={(props) => (props.payload?.anomalia || validos.length >= 60 ? PuntoAnomalo(props)
                         : <circle key={props.index} cx={props.cx} cy={props.cy} r={4} fill="var(--serie)"
-                                  stroke="#fff" strokeWidth={2} />)}
-                      activeDot={{ r: 5, stroke: "#fff", strokeWidth: 2 }} isAnimationActive={false} />
+                                  stroke="var(--papel)" strokeWidth={2} />)}
+                      activeDot={{ r: 5, stroke: "var(--papel)", strokeWidth: 2 }} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -180,19 +182,19 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
             </li>
             {anomalos > 0 && (
               <li>
-                <svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="#fff" stroke="#1b2b28" strokeWidth="2" /></svg>
+                <svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="var(--papel)" stroke="var(--anomalia)" strokeWidth="2" /></svg>
                 Valor señalado como anómalo (Isolation Forest): error del sensor o evento real, sin modificar
               </li>
             )}
             {verAceptable && (
               <li>
-                <svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="#17322e" strokeDasharray="5 4" /></svg>
+                <svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="var(--referencia-ica)" strokeDasharray="5 4" /></svg>
                 Fin de la categoría Aceptable del ICA ({limiteAceptable} µg/m³, {textoVentana(ventana)})
               </li>
             )}
             {verOms && (
               <li>
-                <svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="#6b7c77" strokeDasharray="2 3" /></svg>
+                <svg width="28" height="8" aria-hidden="true"><line x1="0" y1="4" x2="28" y2="4" stroke="var(--referencia-oms)" strokeDasharray="2 3" /></svg>
                 Guía de la OMS ({formatearNumero(guiaOms)} µg/m³, promedio de {periodoOms})
               </li>
             )}

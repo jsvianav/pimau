@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   agruparEstaciones, antiguedad, antiguedadCorta, claveEstacion, fechaCorta, periodoRuido, esReciente, estadoMasReciente, formatearFecha, formatearNumero, puntoEnGeometria,
-  restarDias, textoSobre, zonaDe, zonasConEstacion,
+  marcasEje, restarDias, textoSobre, zonaDe, zonasConEstacion,
 } from "./util.js";
 
 const punto = (id, nombre, fuente, lon, lat, parametros = {}) => ({
@@ -138,5 +138,19 @@ describe("ruido", () => {
     expect(periodoRuido("2026-10-22T12:00:00Z")).toBe("Noche");
     expect(periodoRuido("2026-10-23T02:00:00Z")).toBe("Día"); // 21:00
     expect(periodoRuido("2026-10-23T03:00:00Z")).toBe("Noche"); // 22:00
+  });
+});
+
+describe("marcas del eje", () => {
+  it("usa pasos redondos que cubren el máximo", () => {
+    expect(marcasEje(223)).toEqual([0, 50, 100, 150, 200, 250]);
+    expect(marcasEje(37)).toEqual([0, 10, 20, 30, 40]);
+    expect(marcasEje(1.3)).toEqual([0, 0.5, 1, 1.5]);
+  });
+  it("no se pasa cuando el máximo cae justo en una marca", () => {
+    expect(marcasEje(100)).toEqual([0, 20, 40, 60, 80, 100]);
+  });
+  it("devuelve un eje mínimo sin datos", () => {
+    expect(marcasEje(0)).toEqual([0, 1]);
   });
 });
