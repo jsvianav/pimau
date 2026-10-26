@@ -5,7 +5,7 @@
 :root {
   --tinta: #1b2b28;
   --tinta-suave: #52625e;
-  --tinta-tenue: #7a8783;
+  --tinta-tenue: #5f6d69;   /* 5,4:1 sobre blanco y 4,9:1 sobre neblina (antes #7a8783, 3,7:1) */
   --neblina: #f3f5f4;        /* fondo general, igual al fondo del mapa */
   --papel: #ffffff;
   --linea: #e3e8e6;
@@ -15,7 +15,9 @@
   --serie: #0b6fb3;          /* serie de datos (validada con dataviz) */
   --aviso: #7a4a0c;
   --aviso-fondo: #fdf6ea;
-  --sin-ica: #a3acb5;
+  --sin-ica: #7d8790;       /* gris de "sin ICA": 3,3:1 sobre el mapa, como pide WCAG 1.4.11 */
+  --borde-control: #858f8c; /* borde de campos y listas: 3,3:1 sobre blanco (antes #e3e8e6, 1,2:1) */
+  --foco: #b06f00;          /* anillo de foco: 4,1:1 sobre blanco (antes #e0a100, 2,3:1) */
   --sombra: 0 1px 2px rgba(27, 43, 40, 0.06), 0 8px 24px rgba(27, 43, 40, 0.10);
   --radio: 14px;
   --fuente-texto: "Public Sans Variable", system-ui, sans-serif;
@@ -33,7 +35,7 @@
 body { margin: 0; }
 h1, h2, h3 { margin: 0; font-family: var(--fuente-titulo); font-weight: 650; letter-spacing: -0.01em; }
 a { color: var(--acento); }
-:focus-visible { outline: 3px solid #e0a100; outline-offset: 2px; border-radius: 4px; }
+:focus-visible { outline: 3px solid var(--foco); outline-offset: 2px; border-radius: 4px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
 .aplicacion { display: flex; flex-direction: column; min-height: 100vh; }
@@ -73,20 +75,20 @@ a { color: var(--acento); }
 .controles-mapa label.campo { display: grid; gap: 5px; color: var(--tinta-tenue); font-size: 0.8rem; }
 .selector-capas { margin: 0; padding: 0; border: 0; display: grid; gap: 4px; }
 .selector-capas legend { color: var(--tinta-tenue); font-size: 0.8rem; margin-bottom: 5px; }
-.selector-capas label { display: flex; align-items: center; gap: 8px; color: var(--tinta-suave); }
+.selector-capas label { display: flex; align-items: center; gap: 8px; min-height: 24px; color: var(--tinta-suave); }
 .selector-capas input { accent-color: var(--acento); margin: 0; }
 .muestra-linea { display: inline-block; width: 14px; height: 0; border-top: 2px solid; opacity: 0.6; }
 .mas-opciones > * + * { margin-top: 12px; }
 .mas-opciones > summary { display: none; }
 .selector-vigencia { margin: 0; padding: 10px 0 0; border: 0; border-top: 1px solid var(--linea); display: grid; gap: 4px; }
 .selector-vigencia legend { color: var(--tinta-tenue); font-size: 0.8rem; margin-bottom: 5px; padding-top: 10px; float: left; width: 100%; }
-.selector-vigencia label { display: flex; align-items: center; gap: 8px; color: var(--tinta-suave); }
+.selector-vigencia label { display: flex; align-items: center; gap: 8px; min-height: 24px; color: var(--tinta-suave); }
 .selector-vigencia input { accent-color: var(--acento); margin: 0; }
 select, input[type="date"] {
-  font: inherit; font-size: 0.9rem; color: var(--tinta); padding: 7px 10px; border: 1px solid var(--linea);
+  font: inherit; font-size: 0.9rem; color: var(--tinta); padding: 7px 10px; border: 1px solid var(--borde-control);
   border-radius: 9px; background: var(--papel); width: 100%;
 }
-.filtros select, .filtros input[type="date"] { width: auto; }
+.filtros select, .filtros input[type="date"] { width: auto; max-width: 100%; }
 
 /* Estado de los datos: una etiqueta pequeña sobre el mapa, entre las tarjetas. */
 .contexto {
@@ -101,7 +103,7 @@ select, input[type="date"] {
 .pulso { display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #1f9d55;
          box-shadow: 0 0 0 3px rgba(31, 157, 85, 0.18); vertical-align: 1px; }
 .pulso.apagado { background: var(--sin-ica); box-shadow: none; }
-.enlace { flex: none; font: inherit; font-weight: 700; padding: 0; border: 0; background: none; color: var(--acento);
+.enlace { flex: none; font: inherit; font-weight: 700; padding: 4px 0; min-height: 24px; border: 0; background: none; color: var(--acento);
           text-decoration: underline; cursor: pointer; }
 
 /* Leyenda: compacta, abajo a la izquierda. */
@@ -128,7 +130,7 @@ select, input[type="date"] {
 .panel-lateral > section { padding: 20px 22px; }
 .panel-lateral > section + section { border-top: 1px solid var(--linea); }
 .fuentes { margin: 0; padding: 14px 22px 18px; font-size: 0.76rem; color: var(--tinta-tenue); border-top: 1px solid var(--linea); }
-.ficha h2 { font-size: 1.5rem; letter-spacing: -0.025em; }
+.ficha h2 { font-size: 1.5rem; letter-spacing: -0.025em; scroll-margin-top: 20px; }
 .ficha .zona { margin: 2px 0 0; color: var(--tinta-tenue); font-size: 0.9rem; }
 .ficha .nota, .ficha.vacia p, .nota { color: var(--tinta-suave); font-size: 0.9rem; margin: 4px 0 0; }
 
@@ -193,7 +195,7 @@ select, input[type="date"] {
 .historico h2 { font-size: 1.6rem; letter-spacing: -0.02em; }
 .historico > .nota { margin-bottom: 16px; }
 .filtros { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; padding: 16px; background: var(--papel); border-radius: var(--radio); box-shadow: var(--sombra); }
-.filtros label { display: grid; gap: 4px; font-size: 0.88rem; color: var(--tinta-suave); }
+.filtros label { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; max-width: 100%; font-size: 0.88rem; color: var(--tinta-suave); }
 .lienzo { margin-top: 16px; padding: 18px 18px 10px; background: var(--papel); border-radius: var(--radio); box-shadow: var(--sombra); }
 .lienzo-encabezado { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .lienzo-encabezado h3 { font-size: 1.1rem; }
@@ -221,17 +223,21 @@ select, input[type="date"] {
 .inicio-sesion h2 { font-size: 1.5rem; }
 .inicio-sesion label { display: grid; gap: 5px; font-size: 0.9rem; color: var(--tinta-suave); }
 .inicio-sesion input {
-  font: inherit; padding: 8px 10px; border: 1px solid var(--linea); border-radius: 9px; color: var(--tinta);
+  font: inherit; padding: 8px 10px; border: 1px solid var(--borde-control); border-radius: 9px; color: var(--tinta);
 }
 .inicio-sesion .aviso { margin: 0; }
+/* min-width: 0 deja que las tablas hagan scroll dentro de su tarjeta en vez de ensanchar la página. */
 .panel-admin { display: grid; gap: 16px; }
+.panel-admin > * { min-width: 0; }
 .panel-admin-encabezado { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
 .panel-admin-encabezado h2 { font-size: 1.6rem; letter-spacing: -0.02em; }
 .panel-admin-encabezado p { margin: 0; color: var(--tinta-suave); font-size: 0.9rem; }
 .tarjeta { padding: 18px; background: var(--papel); border-radius: var(--radio); box-shadow: var(--sombra); }
 .tarjeta h3 { font-size: 1.1rem; margin-bottom: 4px; }
 .tarjeta > .nota { margin-bottom: 12px; }
-.tabla-desplazable { overflow-x: auto; }
+/* position: relative contiene los textos .solo-lector de los encabezados: sin él
+   escapan del scroll y ensanchan la página en el celular. */
+.tabla-desplazable { overflow-x: auto; position: relative; }
 .tabla-fuentes, .tabla-auditoria { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .tabla-fuentes th, .tabla-fuentes td, .tabla-auditoria th, .tabla-auditoria td {
   padding: 10px 8px; text-align: left; border-bottom: 1px solid var(--linea); vertical-align: middle;
@@ -253,7 +259,7 @@ select, input[type="date"] {
 .resultado.correcto { color: #17713f; }
 .lista-eventos { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 0.88rem; }
 .lista-eventos span { display: block; color: var(--tinta-suave); }
-.campo-umbral { width: 90px; font: inherit; padding: 6px 8px; border: 1px solid var(--linea); border-radius: 8px; }
+.campo-umbral { width: 90px; font: inherit; padding: 6px 8px; border: 1px solid var(--borde-control); border-radius: 8px; }
 
 /* Alertas (RF-14) y anomalías (RF-13) */
 .alertas { background: #fdf1f1; }
@@ -297,7 +303,8 @@ select, input[type="date"] {
   .panel-lateral { position: static; width: auto; border-radius: 0; box-shadow: none; }
   .maplibregl-ctrl-bottom-right { right: 0; }
   .leyenda { display: none; }
-  .controles-mapa { top: 12px; left: 12px; width: 210px; gap: 8px; }
+  /* Con zoom al 200 % el mapa es bajo: la tarjeta hace scroll en vez de quedar cortada. */
+  .controles-mapa { top: 12px; left: 12px; width: 210px; gap: 8px; max-height: calc(100% - 24px); overflow-y: auto; }
   .mas-opciones > summary { display: list-item; cursor: pointer; color: var(--tinta-suave); font-size: 0.8rem; }
   .marca { flex-direction: column; gap: 0; }
   .vista-historico, .vista-admin { padding: 16px; }

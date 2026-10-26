@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "./api.js";
 import { agruparEstaciones, esReciente, estadoMasReciente, fechaCorta, nombreCorto, ultimoDatoDelGrupo } from "./util.js";
 import SelectorParametro from "./componentes/SelectorParametro.jsx";
@@ -35,10 +35,24 @@ export default function App() {
   const [soloRecientes, setSoloRecientes] = useState(true);
   const [ahora, setAhora] = useState(() => new Date());
   const [alertas, setAlertas] = useState([]);
-  const panel = useRef(null);
 
-  // Al elegir una estación, la ficha se muestra desde el inicio.
-  useEffect(() => { panel.current?.scrollTo({ top: 0 }); }, [seleccion]);
+  // Al elegir una estación, el foco pasa al nombre en la ficha: el lector de
+  // pantalla lo anuncia y la ficha queda a la vista aunque haya alertas encima
+  // o, en el celular, aunque vaya debajo del mapa.
+  useEffect(() => {
+    const titulo = seleccion == null ? null : document.getElementById("titulo-ficha");
+    if (!titulo) return;
+    titulo.focus({ preventScroll: true });
+    const ancho = window.matchMedia("(min-width: 901px)").matches;
+    const sinMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    titulo.scrollIntoView({ block: ancho ? "start" : "nearest", behavior: sinMovimiento ? "auto" : "smooth" });
+  }, [seleccion]);
+
+  // Cada sección tiene su propio título de página (WCAG 2.4.2).
+  useEffect(() => {
+    document.title = pestana === "mapa" ? "PIMAU · Calidad del aire en Cali"
+      : `${PESTANAS.find((p) => p.id === pestana).nombre} · PIMAU`;
+  }, [pestana]);
 
   useEffect(() => {
     Promise.all([api.estaciones(), api.umbrales(), api.parametros()])
@@ -142,7 +156,7 @@ export default function App() {
             {umbrales && <Leyenda umbrales={umbrales} parametro={parametro} meta={meta[parametro]}
                                   soloRecientes={soloRecientes} />}
           </div>
-          <aside className="panel-lateral" ref={panel}>
+          <aside className="panel-lateral">
             <Alertas alertas={alertas} grupos={grupos} ahora={ahora} onElegir={elegirAlerta} />
             <Ficha grupo={grupoSeleccionado} parametro={parametro} meta={meta[parametro]} zonas={zonas}
                    onVerHistorico={verHistorico} ahora={ahora} alertas={alertas} umbrales={umbrales} />

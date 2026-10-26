@@ -9,11 +9,19 @@ import { estadoMasReciente, formatearNumero, zonasConEstacion } from "../util.js
 maplibregl.setWorkerUrl(urlProcesoMapa);
 
 const ESTILO_BASE = "https://tiles.openfreemap.org/styles/positron";
-const COLOR_SIN_ICA = "#9aa3ad";
+const COLOR_SIN_ICA = "#7d8790";
 const COLOR_SIN_ESCALA = "#0b6fb3";
 // Color de estado "crítico" de la paleta validada: reservado para las alertas.
 export const COLOR_ALERTA = "#d03b3b";
 export const COLOR_ANOMALIA = "#1b2b28";
+// Textos de los controles de MapLibre en español, para el lector de pantalla.
+const TEXTOS_MAPA = {
+  "Map.Title": "Mapa",
+  "NavigationControl.ZoomIn": "Acercar",
+  "NavigationControl.ZoomOut": "Alejar",
+  "AttributionControl.ToggleAttribution": "Mostrar u ocultar las fuentes del mapa base",
+  "AttributionControl.MapFeedback": "Reportar un error del mapa base",
+};
 const CAPAS = [
   { tipo: "comuna", nombre: "Comunas", color: "#2f4a45", visible: true },
   { tipo: "corregimiento", nombre: "Corregimientos", color: "#5b7f63", visible: false },
@@ -101,6 +109,7 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
       zoom: 11.6,
       minZoom: 9,
       attributionControl: { compact: true },
+      locale: TEXTOS_MAPA,
     });
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     m.on("load", () => {
@@ -157,7 +166,7 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
                                  { "text-font": ["literal", ["Noto Sans Regular"]], "font-scale": 1.05 }],
                   "text-font": ["Noto Sans Regular"], "text-size": 11.5, "text-letter-spacing": 0.01,
                   "text-offset": [0, 1.5], "text-anchor": "top" },
-        paint: { "text-color": ["case", ["get", "conDatos"], "#1b2b28", "#7a8783"],
+        paint: { "text-color": ["case", ["get", "conDatos"], "#1b2b28", "#5f6d69"],
                  "text-halo-color": "rgba(255,255,255,0.92)", "text-halo-width": 1.8 },
       });
       m.on("click", "estaciones", (e) => onSeleccionar(e.features[0].properties.id));
@@ -247,15 +256,23 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
 
   useEffect(() => {
     if (!listo) return;
-    const m = mapa.current;
-    grupos.forEach((g) => m.setFeatureState({ source: "estaciones", id: g.id }, { seleccionada: g.id === seleccion }));
-    const g = grupos.find((x) => x.id === seleccion);
+    grupos.forEach((g) => mapa.current.setFeatureState({ source: "estaciones", id: g.id }, { seleccionada: g.id === seleccion }));
+  }, [listo, grupos, seleccion]);
+
+  // El mapa se mueve solo cuando cambia la estación elegida, no cada vez que
+  // llegan datos nuevos: si no, cada diez minutos volvería a la estación aunque
+  // la persona haya movido el mapa.
+  const gruposRef = useRef(grupos);
+  useEffect(() => { gruposRef.current = grupos; }, [grupos]);
+  useEffect(() => {
+    if (!listo) return;
+    const g = gruposRef.current.find((x) => x.id === seleccion);
     const sinMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     // En pantallas anchas se centra en el espacio libre entre las tarjetas.
     const ancho = window.matchMedia("(min-width: 901px)").matches;
-    if (g) m.easeTo({ center: g.coordenadas, duration: sinMovimiento ? 0 : 600,
-                      padding: ancho ? { top: 60, bottom: 0, left: 270, right: 400 } : 0 });
-  }, [listo, grupos, seleccion]);
+    if (g) mapa.current.easeTo({ center: g.coordenadas, duration: sinMovimiento ? 0 : 600,
+                                 padding: ancho ? { top: 60, bottom: 0, left: 270, right: 400 } : 0 });
+  }, [listo, seleccion]);
 
   function alternarCapa(tipo) {
     const visible = !capasVisibles[tipo];

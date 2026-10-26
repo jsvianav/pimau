@@ -256,8 +256,10 @@ export default function Ficha({ grupo, parametro, meta, zonas, onVerHistorico, a
     );
   }
   return (
-    <section className="ficha" aria-live="polite">
-      <h2>{grupo.nombre}</h2>
+    // Sin aria-live: al elegir una estación el foco pasa al nombre (App.jsx), y
+    // así el lector no vuelve a leer toda la ficha con cada actualización.
+    <section className="ficha" aria-labelledby="titulo-ficha">
+      <h2 id="titulo-ficha" tabIndex={-1}>{grupo.nombre}</h2>
       {zonas && zonaDe(zonas, grupo.coordenadas) && <p className="zona">{zonaDe(zonas, grupo.coordenadas)}</p>}
       {grupo.registros.length > 1 && (
         <p className="nota">Dos fuentes publican datos de esta estación. Se muestran por separado.</p>
