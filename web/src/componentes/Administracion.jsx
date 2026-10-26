@@ -36,6 +36,26 @@ function guardarSesion(sesion) {
   } catch { /* sin almacenamiento: la sesión dura mientras la página esté abierta */ }
 }
 
+// Botón de guardar de una fila. Sin cambios queda en su lugar, silencioso y con
+// aria-disabled en vez de disabled, para que el foco no se pierda al guardar;
+// después de guardar dice "Guardado" en la misma fila.
+function BotonGuardar({ cambiada, guardando, guardada, texto, nombre, onGuardar }) {
+  const etiqueta = guardando ? "Guardando…" : cambiada ? texto : guardada ? "Guardado" : "Sin cambios";
+  return (
+    <button type="button" aria-label={`${etiqueta} (${nombre})`} aria-disabled={!cambiada || guardando}
+            className={`boton${cambiada ? "" : " silencioso"}${guardada && !cambiada ? " guardado" : ""}`}
+            onClick={() => { if (cambiada && !guardando) onGuardar(); }}>
+      {guardada && !cambiada && !guardando && (
+        <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                strokeLinejoin="round" />
+        </svg>
+      )}
+      {etiqueta}
+    </button>
+  );
+}
+
 function textoFrecuencia(minutos) {
   return FRECUENCIAS.find(([m]) => m === minutos)?.[1] || `Cada ${minutos} min`;
 }
@@ -75,7 +95,7 @@ function InicioSesion({ onSesion, aviso }) {
   );
 }
 
-function FilaFuente({ fuente, onGuardar }) {
+function FilaFuente({ fuente, onGuardar, guardada }) {
   const [activa, setActiva] = useState(fuente.activa);
   const [frecuencia, setFrecuencia] = useState(fuente.frecuencia_min);
   const [guardando, setGuardando] = useState(false);
@@ -92,7 +112,7 @@ function FilaFuente({ fuente, onGuardar }) {
   }
 
   return (
-    <tr>
+    <tr className={guardada && !cambiada ? "fila-guardada" : undefined}>
       <th scope="row">
         {fuente.nombre}
         <small>{fuente.tipo_api}</small>
@@ -121,9 +141,8 @@ function FilaFuente({ fuente, onGuardar }) {
         {!fuente.con_conector && <small className="sin-conector">Sin conector todavía</small>}
       </td>
       <td>
-        <button className="boton" type="button" disabled={!cambiada || guardando} onClick={guardar}>
-          {guardando ? "Guardando…" : "Guardar cambios"}
-        </button>
+        <BotonGuardar cambiada={cambiada} guardando={guardando} guardada={guardada} texto="Guardar cambios"
+                      nombre={fuente.nombre} onGuardar={guardar} />
       </td>
     </tr>
   );
@@ -131,12 +150,13 @@ function FilaFuente({ fuente, onGuardar }) {
 
 // RF-14: umbral de alerta por parámetro. Se alerta cuando una medición de las
 // últimas horas lo iguala o lo supera.
-function FilaUmbral({ umbral, onGuardar }) {
+function FilaUmbral({ umbral, onGuardar, guardada }) {
   const [valor, setValor] = useState(umbral.valor ?? "");
   const [activo, setActivo] = useState(umbral.valor == null ? true : umbral.activo);
   const [guardando, setGuardando] = useState(false);
   const numero = Number(String(valor).replace(",", "."));
   const valido = valor !== "" && numero > 0;
+  const invalido = valor !== "" && !valido;
   const cambiado = valido && (numero !== umbral.valor || activo !== umbral.activo);
 
   function guardar() {
@@ -145,11 +165,16 @@ function FilaUmbral({ umbral, onGuardar }) {
   }
 
   return (
-    <tr>
+    <tr className={guardada && !cambiado ? "fila-guardada" : undefined}>
       <th scope="row">{umbral.nombre}</th>
       <td>
-        <input className="campo-umbral" inputMode="decimal" aria-label={`Umbral de ${umbral.nombre} en ${umbral.unidad}`}
+        <input className="campo-umbral" inputMode="decimal" enterKeyHint="done"
+               aria-label={`Umbral de ${umbral.nombre} en ${umbral.unidad}`} aria-invalid={invalido || undefined}
+               aria-describedby={invalido ? `error-umbral-${umbral.codigo}` : undefined}
                value={valor} placeholder="Sin umbral" onChange={(e) => setValor(e.target.value)} /> {umbral.unidad}
+        {invalido && (
+          <small className="error-campo" id={`error-umbral-${umbral.codigo}`}>Escriba un número mayor que 0.</small>
+        )}
       </td>
       <td>
         <label className="interruptor">
@@ -160,9 +185,8 @@ function FilaUmbral({ umbral, onGuardar }) {
       </td>
       <td>{umbral.actualizado ? formatearFecha(umbral.actualizado) : "—"}</td>
       <td>
-        <button className="boton" type="button" disabled={!cambiado || guardando} onClick={guardar}>
-          {guardando ? "Guardando…" : "Guardar umbral"}
-        </button>
+        <BotonGuardar cambiada={cambiado} guardando={guardando} guardada={guardada} texto="Guardar umbral"
+                      nombre={umbral.nombre} onGuardar={guardar} />
       </td>
     </tr>
   );
@@ -175,6 +199,8 @@ function Panel({ sesion, onSalir, onVencida }) {
   const [umbrales, setUmbrales] = useState([]);
   const [mensaje, setMensaje] = useState(null);
   const [error, setError] = useState(null);
+  // Fila guardada por última vez ("fuente-3", "umbral-PM25"), para confirmarlo en la fila.
+  const [guardada, setGuardada] = useState(null);
 
   const manejarError = useCallback((err) => {
     if (err.estado === 401) onVencida();
@@ -195,16 +221,22 @@ function Panel({ sesion, onSalir, onVencida }) {
   useEffect(() => { cargar(); }, [cargar]);
 
   function guardarUmbral(codigo, cambio) {
-    setMensaje(null);
+    setMensaje(null); setGuardada(null);
     return apiAdmin.configurarUmbral(sesion.token, codigo, cambio)
-      .then((u) => { setMensaje(`Umbral de ${u.nombre} guardado. El visor lo usa desde su próxima actualización.`); cargar(); })
+      .then((u) => {
+        setMensaje(`Umbral de ${u.nombre} guardado. El visor lo usa desde su próxima actualización.`);
+        setGuardada(`umbral-${codigo}`); cargar();
+      })
       .catch(manejarError);
   }
 
   function guardar(id, cambios) {
-    setMensaje(null);
+    setMensaje(null); setGuardada(null);
     return apiAdmin.cambiarFuente(sesion.token, id, cambios)
-      .then((f) => { setMensaje(`Cambios guardados en ${f.nombre}. Se aplican en la siguiente ejecución.`); cargar(); })
+      .then((f) => {
+        setMensaje(`Cambios guardados en ${f.nombre}. Se aplican en la siguiente ejecución.`);
+        setGuardada(`fuente-${id}`); cargar();
+      })
       .catch(manejarError);
   }
 
@@ -236,7 +268,8 @@ function Panel({ sesion, onSalir, onVencida }) {
               </thead>
               <tbody>
                 {fuentes.map((f) => (
-                  <FilaFuente key={`${f.id}-${f.activa}-${f.frecuencia_min}`} fuente={f} onGuardar={guardar} />
+                  // La clave es solo el id: al guardar, la fila no se vuelve a montar y el foco sigue en su botón.
+                  <FilaFuente key={f.id} fuente={f} onGuardar={guardar} guardada={guardada === `fuente-${f.id}`} />
                 ))}
               </tbody>
             </table>
@@ -256,7 +289,7 @@ function Panel({ sesion, onSalir, onVencida }) {
             </thead>
             <tbody>
               {umbrales.map((u) => (
-                <FilaUmbral key={`${u.codigo}-${u.valor}-${u.activo}`} umbral={u} onGuardar={guardarUmbral} />
+                <FilaUmbral key={u.codigo} umbral={u} onGuardar={guardarUmbral} guardada={guardada === `umbral-${u.codigo}`} />
               ))}
             </tbody>
           </table>
