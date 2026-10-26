@@ -2,7 +2,13 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover deja la página bajo la muesca del celular; el CSS
+         separa el contenido con env(safe-area-inset-*). Nunca se bloquea el zoom. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+    <!-- Color de la barra del navegador, igual al encabezado en cada modo. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1b2522" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="description" content="Calidad del aire en Santiago de Cali con datos abiertos integrados." />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>PIMAU · Calidad del aire en Cali</title>
