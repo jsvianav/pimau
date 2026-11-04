@@ -949,3 +949,21 @@ Perf Profiler y dataviz. Cada fase quedó en su propio commit.
   octubre (su propia descarga los omite), así que esos días quedan como faltantes.
 - **Portal de Datos Abiertos de Cali:** sigue con 403. No afecta, porque su
   histórico ya está cargado y la fuente no publica datos nuevos desde 2020.
+
+## 2026-11-04 — Despliegue en Azure for Students
+
+- **Servidor:** Ubuntu 24.04, Standard_B2als_v2 (2 vCPU, 4 GB) con disco de
+  64 GB en Chile Central (grupo `pimau-chile-rg`). La suscripción solo permite
+  Canadá, Brasil, Chile, Suiza y Bélgica, y en Canadá el tamaño B no está
+  disponible para estudiantes. Costo estimado: unos USD 47 al mes del crédito.
+- **Dirección:** https://pimau-cali.chilecentral.cloudapp.azure.com, con HTTPS de
+  Let's Encrypt por Caddy (`docker-compose.produccion.yml`). nginx toma la IP
+  real del cliente de Caddy; el registro de auditoría lo confirmó.
+- **Datos:** se restauró un `pg_dump` del equipo de desarrollo (6,19 millones de
+  mediciones). Secretos nuevos para la base y el JWT, solo en el `.env` del
+  servidor. La cuenta de prueba quedó desactivada.
+- **SATIC bloquea el servidor:** responde 403 a la IP de Azure, mientras que
+  desde Colombia responde 200. El descargador del servidor falla y el panel lo
+  advierte; los datos recientes llegan hasta el 4 de noviembre. Pendiente decidir
+  cómo traerlos (por ejemplo, descargar desde un equipo en Colombia y subir los
+  archivos).
