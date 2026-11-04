@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../api.js";
 import { fechaISO, formatearFecha, formatearNumero, marcasEje, nombreCorto, restarDias, textoVentana } from "../util.js";
@@ -16,7 +16,7 @@ function diasEntre(desde, hasta) {
   return Math.round((new Date(hasta) - new Date(desde)) / 86400000);
 }
 
-export default function Historico({ grupos, umbrales, parametros, meta, destino }) {
+export default function Historico({ grupos, umbrales, parametros, meta, destino, onConsulta }) {
   const opciones = useMemo(
     () => grupos.flatMap((g) => g.registros.map((r) => ({ id: r.id, etiqueta: `${g.nombre} (${r.fuente})`, registro: r })))
       .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, "es")),
@@ -30,8 +30,11 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
   const [verTabla, setVerTabla] = useState(false);
-  // Sin una estación elegida se muestra la primera de la lista.
-  const estacionId = estacionElegida ?? opciones[0]?.id ?? null;
+  // Sin una estación elegida (o si el enlace nombra una que no existe) se
+  // muestra la primera de la lista.
+  const estacionId = opciones.some((o) => o.id === estacionElegida) ? estacionElegida : opciones[0]?.id ?? null;
+  // Fechas que pidió el enlace (?desde=…&hasta=…): se usan en la primera consulta.
+  const fechasPedidas = useRef(destino?.desde && destino?.hasta ? { desde: destino.desde, hasta: destino.hasta } : null);
 
   // Cambiar de estación o de parámetro borra la consulta anterior.
   function limpiarConsulta() {
@@ -43,7 +46,11 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
   function pedirSerie(id, consulta, vigente = () => true) {
     setCargando(true); setError(null);
     return api.serie(id, consulta)
-      .then((s) => { if (vigente()) setSerie(s); })
+      .then((s) => {
+        if (!vigente()) return;
+        setSerie(s);
+        onConsulta?.({ estacionId: id, parametro: consulta.parametro, desde: consulta.desde, hasta: consulta.hasta });
+      })
       .catch((e) => { if (vigente()) setError(e); })
       .finally(() => { if (vigente()) setCargando(false); });
   }
@@ -60,10 +67,14 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
     api.rango(estacionId, parametro)
       .then((r) => {
         if (!activa) return;
-        const fin = estado?.instante_ica ? fechaISO(new Date(estado.instante_ica)) : r.hasta;
-        const inicio = restarDias(fin, 30);
+        const pedidas = fechasPedidas.current;
+        fechasPedidas.current = null;
+        const fin = pedidas?.hasta ?? (estado?.instante_ica ? fechaISO(new Date(estado.instante_ica)) : r.hasta);
+        const inicio = pedidas?.desde ?? restarDias(fin, 30);
         setRango(r); setHasta(fin); setDesde(inicio);
-        return pedirSerie(estacionId, { parametro, desde: inicio, hasta: fin, agregacion: "hora" }, vigente);
+        // Un enlace puede pedir más de 93 días: entonces la serie va en promedios diarios.
+        const agregacionInicial = diasEntre(inicio, fin) > MAXIMO_DIAS_HORARIO ? "dia" : "hora";
+        return pedirSerie(estacionId, { parametro, desde: inicio, hasta: fin, agregacion: agregacionInicial }, vigente);
       })
       .catch((e) => { if (activa) setError(e); });
     return () => { activa = false; };

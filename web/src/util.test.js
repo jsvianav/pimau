@@ -23,6 +23,13 @@ describe("agruparEstaciones", () => {
     expect(era.registros.map((r) => r.id)).toEqual([1, 2]);
     expect(era.coordenadas).toEqual([-76.51908, 3.44759]);
   });
+  it("el id del grupo sale del nombre y no cambia cuando llega otra estación", () => {
+    const antes = agruparEstaciones({ features: [punto(1, "Pance", "IDEAM", -76.5, 3.3), punto(2, "Valle del Lili", "SATIC", -76.5, 3.37)] });
+    const despues = agruparEstaciones({ features: [punto(3, "Bagatelle", "SATIC", -76.53, 3.36), ...[1, 2].map((id, i) =>
+      punto(id, ["Pance", "Valle del Lili"][i], ["IDEAM", "SATIC"][i], -76.5, 3.3 + i * 0.07))] });
+    expect(antes.map((g) => g.id)).toEqual(["pance", "valle-lili"]);
+    expect(despues.find((g) => g.nombre === "Valle del Lili").id).toBe("valle-lili");
+  });
   it("normaliza los nombres de las estaciones", () => {
     expect(claveEstacion("Transitoria EDB Navarro")).toBe(claveEstacion("Transitoria-Navarro"));
     expect(claveEstacion("Universidad Del Valle")).toBe(claveEstacion("Universidad del Valle"));

@@ -1,4 +1,5 @@
-import { antiguedadCorta, estadoMasReciente, formatearNumero, ultimoDatoDelGrupo } from "../util.js";
+import { useState } from "react";
+import { antiguedadCorta, claveEstacion, estadoMasReciente, formatearNumero, ultimoDatoDelGrupo } from "../util.js";
 
 // Alternativa accesible al mapa: todas las estaciones se pueden elegir con el teclado.
 function textoEstado(actual, meta, opciones) {
@@ -49,34 +50,55 @@ function Esqueleto() {
   );
 }
 
+function Grupo({ titulo, grupos, separado, ...props }) {
+  if (!grupos.length) return null;
+  return (
+    <>
+      <h3 className={separado ? "separado" : undefined}>{titulo} ({grupos.length})</h3>
+      <ul>{grupos.map((g) => <Elemento key={g.id} grupo={g} {...props} />)}</ul>
+    </>
+  );
+}
+
 export default function ListaEstaciones({ grupos, parametro, meta, seleccion, onSeleccionar, opciones, carga = "listo" }) {
+  const [busqueda, setBusqueda] = useState("");
   if (carga === "cargando") return <Esqueleto />;
   const props = { parametro, meta, seleccion, onSeleccionar, opciones };
-  if (!opciones.soloRecientes) {
-    return (
-      <section className="lista">
-        <h2>Estaciones</h2>
-        <ul>{grupos.map((g) => <Elemento key={g.id} grupo={g} {...props} />)}</ul>
-      </section>
-    );
-  }
-  const conRecientes = grupos.filter((g) => estadoMasReciente(g, parametro, opciones));
-  const sinRecientes = grupos.filter((g) => !conRecientes.includes(g));
+  // La búsqueda ignora tildes, mayúsculas y palabras como «de» o «la», igual que
+  // la regla que agrupa las estaciones de dos fuentes.
+  const clave = claveEstacion(busqueda);
+  const visibles = clave ? grupos.filter((g) => claveEstacion(g.nombre).includes(clave)) : grupos;
+  const conRecientes = opciones.soloRecientes ? visibles.filter((g) => estadoMasReciente(g, parametro, opciones)) : [];
+  const sinRecientes = visibles.filter((g) => !conRecientes.includes(g));
+
   return (
-    <section className="lista">
-      {conRecientes.length > 0 && (
-        <>
-          <h2>Con datos de las últimas 48 horas ({conRecientes.length})</h2>
-          <ul>{conRecientes.map((g) => <Elemento key={g.id} grupo={g} {...props} />)}</ul>
-        </>
+    // Destino del enlace «Saltar a la lista de estaciones» (App.jsx).
+    <section className="lista" id="lista-estaciones" tabIndex={-1} aria-labelledby="titulo-lista">
+      <h2 id="titulo-lista">Estaciones</h2>
+      {grupos.length > 0 && (
+        <div className="buscar-estacion">
+          <label htmlFor="buscar-estacion">Buscar una estación</label>
+          <input id="buscar-estacion" type="search" value={busqueda} autoComplete="off" enterKeyHint="search"
+                 placeholder="Pance, Cañaveralejo…" onChange={(e) => setBusqueda(e.target.value)} />
+        </div>
       )}
-      {sinRecientes.length > 0 && (
+      <p className="solo-lector" role="status">
+        {clave ? `${visibles.length} ${visibles.length === 1 ? "estación coincide" : "estaciones coinciden"}` : ""}
+      </p>
+      {clave && !visibles.length && (
+        <div className="sin-resultados">
+          <p>Ninguna estación coincide con «{busqueda.trim()}».</p>
+          <button className="boton" type="button" onClick={() => setBusqueda("")}>Borrar la búsqueda</button>
+        </div>
+      )}
+      {opciones.soloRecientes ? (
         <>
-          <h2 className={conRecientes.length ? "separado" : undefined}>
-            Sin datos recientes de esta variable ({sinRecientes.length})
-          </h2>
-          <ul>{sinRecientes.map((g) => <Elemento key={g.id} grupo={g} {...props} />)}</ul>
+          <Grupo titulo="Con datos de las últimas 48 horas" grupos={conRecientes} {...props} />
+          <Grupo titulo="Sin datos recientes de esta variable" grupos={sinRecientes} separado={conRecientes.length > 0}
+                 {...props} />
         </>
+      ) : (
+        <ul>{visibles.map((g) => <Elemento key={g.id} grupo={g} {...props} />)}</ul>
       )}
     </section>
   );

@@ -99,11 +99,13 @@ function aGeoJSON(grupos, parametro, meta, opciones, alertas, tema) {
   const conIca = Boolean(meta?.ventana_ica_horas);
   return {
     type: "FeatureCollection",
-    features: grupos.map((g) => {
+    features: grupos.map((g, i) => {
       const actual = estadoMasReciente(g, parametro, opciones);
       return {
         type: "Feature",
-        id: g.id,
+        // MapLibre pide ids numéricos para el estado de cada punto (la selección);
+        // el id de la estación va en las propiedades.
+        id: i,
         geometry: { type: "Point", coordinates: g.coordenadas },
         properties: {
           id: g.id,
@@ -276,15 +278,24 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
     if (listo) mapa.current.getSource("zonas")?.setData(zonasConEstacion(geometrias.current, grupos, parametro, opciones));
   }, [listo, grupos, parametro, capasCargadas, opciones]);
 
+  const seleccionRef = useRef(seleccion);
+  useEffect(() => { seleccionRef.current = seleccion; }, [seleccion]);
   // Al llegar las estaciones, el mapa las encuadra todas una sola vez, dejando
   // libre el espacio de las tarjetas que flotan encima en pantallas anchas.
   const encuadrado = useRef(false);
   useEffect(() => {
     if (!listo || encuadrado.current || !grupos.length) return;
     encuadrado.current = true;
+    const ancho = window.matchMedia("(min-width: 901px)").matches;
+    // Si la página se abrió con el enlace de una estación, el mapa empieza en ella.
+    const elegida = grupos.find((g) => g.id === seleccionRef.current);
+    if (elegida) {
+      mapa.current.jumpTo({ center: elegida.coordenadas, zoom: 13,
+                            padding: ancho ? { top: 60, bottom: 0, left: 270, right: 400 } : 0 });
+      return;
+    }
     const limites = new maplibregl.LngLatBounds();
     grupos.forEach((g) => limites.extend(g.coordenadas));
-    const ancho = window.matchMedia("(min-width: 901px)").matches;
     // Los márgenes se limitan al tamaño del mapa: con uno fijo de 200 px arriba,
     // un mapa bajo (celular horizontal, zoom al 200 %) quedaba sin estaciones a la vista.
     const { clientWidth: w, clientHeight: h } = mapa.current.getContainer();
@@ -298,7 +309,7 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
 
   useEffect(() => {
     if (!listo) return;
-    grupos.forEach((g) => mapa.current.setFeatureState({ source: "estaciones", id: g.id }, { seleccionada: g.id === seleccion }));
+    grupos.forEach((g, i) => mapa.current.setFeatureState({ source: "estaciones", id: i }, { seleccionada: g.id === seleccion }));
   }, [listo, grupos, seleccion]);
 
   // El mapa se mueve solo cuando cambia la estación elegida, no cada vez que

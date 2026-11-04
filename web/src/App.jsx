@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api.js";
 import { agruparEstaciones, esReciente, estadoMasReciente, fechaCorta, nombreCorto, ultimoDatoDelGrupo } from "./util.js";
 import SelectorParametro from "./componentes/SelectorParametro.jsx";
@@ -8,6 +8,7 @@ import ListaEstaciones from "./componentes/ListaEstaciones.jsx";
 import Leyenda from "./componentes/Leyenda.jsx";
 import Alertas from "./componentes/Alertas.jsx";
 import AvisoError from "./componentes/AvisoError.jsx";
+import { esNuevoPaso, escribirUrl, leerUrl, VARIABLE_INICIAL } from "./url.js";
 
 // El Histórico (con Recharts) y la Administración se descargan al abrir su
 // pestaña: la carga inicial solo trae lo que necesita el mapa.
@@ -38,22 +39,46 @@ function useModoOscuro() {
   return oscuro;
 }
 
+// Lo que pide el Histórico al abrirse, a partir de la URL.
+function destinoDesdeUrl(estado) {
+  return estado.vista === "historico"
+    ? { estacionId: estado.serie, parametro: estado.variable, desde: estado.desde, hasta: estado.hasta } : null;
+}
+
 export default function App() {
-  const [pestana, setPestana] = useState("mapa");
-  const [parametro, setParametro] = useState("PM25");
+  // El estado inicial sale de la URL: un enlace abre la misma vista.
+  const [inicial] = useState(() => leerUrl(window.location.search));
+  const [pestana, setPestana] = useState(inicial.vista);
+  const [parametroElegido, setParametro] = useState((inicial.vista === "mapa" && inicial.variable) || VARIABLE_INICIAL);
   const [datos, setDatos] = useState(null);
   const [umbrales, setUmbrales] = useState(null);
   const [parametros, setParametros] = useState([]);
   const [error, setError] = useState(null);
-  const [seleccion, setSeleccion] = useState(null);
-  const [destinoHistorico, setDestinoHistorico] = useState(null);
+  const [seleccionElegida, setSeleccion] = useState(inicial.estacion ?? null);
+  const [destinoHistorico, setDestinoHistorico] = useState(() => destinoDesdeUrl(inicial));
+  // Última consulta del Histórico, para escribirla en la URL. Empieza con lo que
+  // trae el enlace, para no borrarlo antes de que el Histórico consulte.
+  const [consultaHistorico, setConsultaHistorico] = useState(() => destinoDesdeUrl(inicial));
   const [zonas, setZonas] = useState(null);
   // Por defecto el mapa muestra solo lo medido en las últimas 48 horas, para no
   // pintar con el mismo color un dato de hoy y uno de hace años.
-  const [soloRecientes, setSoloRecientes] = useState(true);
+  const [soloRecientes, setSoloRecientes] = useState(inicial.soloRecientes ?? true);
   const [ahora, setAhora] = useState(() => new Date());
   const [alertas, setAlertas] = useState([]);
   const oscuro = useModoOscuro();
+
+  const grupos = useMemo(() => (datos ? agruparEstaciones(datos) : []), [datos]);
+  const meta = useMemo(() => Object.fromEntries(parametros.map((p) => [p.codigo, p])), [parametros]);
+  // En el mapa solo van los contaminantes con ICA y la meteorología. Un
+  // contaminante sin escala del ICA (hoy, el sulfuro de hidrógeno, que además
+  // solo tiene datos hasta 2020) no se puede colorear y queda en el Histórico.
+  const parametrosMapa = useMemo(
+    () => parametros.filter((p) => p.variable !== "calidad_aire" || p.ventana_ica_horas), [parametros]);
+  // Un enlace viejo puede nombrar una variable o una estación que ya no existen:
+  // cuando llegan los datos se ignoran, y la URL se corrige sola.
+  const parametro = parametrosMapa.length && !parametrosMapa.some((p) => p.codigo === parametroElegido)
+    ? VARIABLE_INICIAL : parametroElegido;
+  const seleccion = datos && seleccionElegida && !grupos.some((g) => g.id === seleccionElegida) ? null : seleccionElegida;
 
   // Al elegir una estación, el foco pasa al nombre en la ficha: el lector de
   // pantalla lo anuncia y la ficha queda a la vista aunque haya alertas encima
@@ -66,6 +91,42 @@ export default function App() {
     const sinMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     titulo.scrollIntoView({ block: ancho ? "start" : "nearest", behavior: sinMovimiento ? "auto" : "smooth" });
   }, [seleccion]);
+
+  // La URL sigue al estado. Cambiar de pestaña o de estación agrega un paso al
+  // historial (así funciona «Atrás»); lo demás reemplaza la dirección actual.
+  const estadoAnterior = useRef(null);
+  useEffect(() => {
+    const estado = pestana === "mapa" ? { vista: "mapa", estacion: seleccion, variable: parametro, soloRecientes }
+      : pestana === "historico" ? { vista: "historico", serie: consultaHistorico?.estacionId, variable: consultaHistorico?.parametro,
+                                    desde: consultaHistorico?.desde, hasta: consultaHistorico?.hasta }
+        : { vista: "admin" };
+    const destino = escribirUrl(estado);
+    if (destino !== window.location.search) {
+      const metodo = esNuevoPaso(estadoAnterior.current, estado) ? "pushState" : "replaceState";
+      window.history[metodo](null, "", window.location.pathname + destino);
+    }
+    estadoAnterior.current = estado;
+  }, [pestana, seleccion, parametro, soloRecientes, consultaHistorico]);
+
+  // «Atrás» y «Adelante» restauran la vista que dice la URL.
+  useEffect(() => {
+    function alVolver() {
+      const estado = leerUrl(window.location.search);
+      estadoAnterior.current = null;
+      setPestana(estado.vista);
+      if (estado.vista === "mapa") {
+        setSeleccion(estado.estacion ?? null);
+        setParametro(estado.variable || VARIABLE_INICIAL);
+        setSoloRecientes(estado.soloRecientes);
+      }
+      if (estado.vista === "historico") {
+        setDestinoHistorico(destinoDesdeUrl(estado));
+        setConsultaHistorico(destinoDesdeUrl(estado));
+      }
+    }
+    window.addEventListener("popstate", alVolver);
+    return () => window.removeEventListener("popstate", alVolver);
+  }, []);
 
   // Cada sección tiene su propio título de página (WCAG 2.4.2).
   useEffect(() => {
@@ -98,13 +159,6 @@ export default function App() {
     return () => clearInterval(intervalo);
   }, []);
 
-  const grupos = useMemo(() => (datos ? agruparEstaciones(datos) : []), [datos]);
-  const meta = useMemo(() => Object.fromEntries(parametros.map((p) => [p.codigo, p])), [parametros]);
-  // En el mapa solo van los contaminantes con ICA y la meteorología. Un
-  // contaminante sin escala del ICA (hoy, el sulfuro de hidrógeno, que además
-  // solo tiene datos hasta 2020) no se puede colorear y queda en el Histórico.
-  const parametrosMapa = useMemo(
-    () => parametros.filter((p) => p.variable !== "calidad_aire" || p.ventana_ica_horas), [parametros]);
   // Fecha del dato más reciente entre todas las fuentes, para dar contexto.
   const ultimoDato = useMemo(() => grupos.map(ultimoDatoDelGrupo).filter(Boolean).sort().at(-1) || null, [grupos]);
   const recientes = useMemo(
@@ -140,11 +194,30 @@ export default function App() {
 
   function verHistorico(estacionId) {
     setDestinoHistorico({ estacionId, parametro });
+    setConsultaHistorico({ estacionId, parametro });
     setPestana("historico");
+  }
+
+  // Al volver al Histórico por su pestaña se abre la última consulta.
+  function cambiarPestana(id) {
+    if (id === "historico" && consultaHistorico) setDestinoHistorico(consultaHistorico);
+    setPestana(id);
+  }
+
+  // Enlace para saltar los controles del mapa (o el encabezado) con el teclado.
+  const destinoSalto = pestana === "mapa" ? "lista-estaciones" : "contenido";
+  function saltar(evento) {
+    const destino = document.getElementById(destinoSalto);
+    if (!destino) return;
+    evento.preventDefault();
+    destino.focus();
   }
 
   return (
     <div className="aplicacion">
+      <a className="saltar" href={`#${destinoSalto}`} onClick={saltar}>
+        {pestana === "mapa" ? "Saltar a la lista de estaciones" : "Saltar al contenido"}
+      </a>
       <header className="encabezado">
         <div className="marca">
           <h1>PIMAU</h1>
@@ -153,7 +226,7 @@ export default function App() {
         <nav className="pestanas" aria-label="Secciones">
           {PESTANAS.map((p) => (
             <button key={p.id} type="button" className="pestana" aria-current={pestana === p.id ? "page" : undefined}
-                    disabled={p.deshabilitada} title={p.nota} onClick={() => setPestana(p.id)}>
+                    disabled={p.deshabilitada} title={p.nota} onClick={() => cambiarPestana(p.id)}>
               {p.nombre}
             </button>
           ))}
@@ -212,15 +285,16 @@ export default function App() {
       )}
 
       {pestana === "historico" && (
-        <main className="vista-historico">
+        <main className="vista-historico" id="contenido" tabIndex={-1}>
           <Suspense fallback={CARGANDO_VISTA}>
-            <Historico grupos={grupos} umbrales={umbrales} parametros={parametros} meta={meta} destino={destinoHistorico} />
+            <Historico key={JSON.stringify(destinoHistorico)} grupos={grupos} umbrales={umbrales} parametros={parametros}
+                       meta={meta} destino={destinoHistorico} onConsulta={setConsultaHistorico} />
           </Suspense>
         </main>
       )}
 
       {pestana === "admin" && (
-        <main className="vista-admin">
+        <main className="vista-admin" id="contenido" tabIndex={-1}>
           <Suspense fallback={CARGANDO_VISTA}>
             <Administracion />
           </Suspense>

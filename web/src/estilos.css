@@ -251,6 +251,8 @@ select, input[type="date"] {
 .fuentes { margin: 0; padding: 14px 22px 18px; font-size: var(--texto-meta); color: var(--tinta-tenue); border-top: 1px solid var(--linea); }
 .ficha h2 { font-size: var(--titulo-1); letter-spacing: -0.025em; scroll-margin-top: 20px; }
 .ficha .zona { margin: 2px 0 0; color: var(--tinta-tenue); font-size: var(--texto-secundario); }
+.copiar-enlace { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 4px 0 0; font-size: var(--texto-meta); color: var(--exito); }
+.copiar-enlace .boton.texto { min-height: 24px; font-size: var(--texto-meta); }
 .ficha .nota, .ficha.vacia p, .nota { color: var(--tinta-suave); font-size: var(--texto-secundario); margin: 4px 0 0; }
 /* Al elegir otra estación la ficha nueva aparece con un fundido corto, para que
    se note que cambió; con "reducir movimiento" no se desplaza. */
@@ -327,7 +329,16 @@ select, input[type="date"] {
 .boton.silencioso { border-color: transparent; background: none; color: var(--tinta-tenue); font-weight: 600; cursor: default; }
 .boton.silencioso.guardado { color: var(--exito); }
 
-.lista h2 { font-size: var(--texto-meta); font-family: var(--fuente-texto); font-weight: 600; color: var(--tinta-tenue); margin-bottom: 6px; }
+.lista h2 { font-size: var(--texto-secundario); font-family: var(--fuente-texto); font-weight: 600; margin-bottom: 8px; }
+.lista h3 { font-size: var(--texto-meta); font-family: var(--fuente-texto); font-weight: 600; color: var(--tinta-tenue); margin: 14px 0 6px; }
+/* Buscador de la lista: etiqueta visible y el mismo campo que el resto del visor. */
+.buscar-estacion { display: grid; gap: 5px; font-size: var(--texto-secundario); color: var(--tinta-suave); }
+.buscar-estacion input {
+  font: inherit; color: var(--tinta); padding: 7px 10px; border: 1px solid var(--borde-control); border-radius: 9px;
+  background: var(--papel); width: 100%;
+}
+.sin-resultados { padding: 12px 0 4px; }
+.sin-resultados p { margin: 0 0 10px; color: var(--tinta-suave); font-size: var(--texto-secundario); }
 .lista ul { list-style: none; margin: 0; padding: 0; }
 .lista button {
   width: 100%; display: grid; grid-template-columns: 14px minmax(0, 1fr); align-items: center; gap: 10px;
@@ -343,7 +354,7 @@ select, input[type="date"] {
 .lista .estado { color: var(--tinta-tenue); font-size: var(--texto-meta); font-weight: 400; }
 /* Separadores finos: la lista se lee como lista y cada fila como algo que se elige. */
 .lista li + li { border-top: 1px solid var(--linea); }
-.lista h2.separado { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--linea); }
+.lista h3.separado { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--linea); }
 
 /* Estados de carga, vacío y error. */
 .cargando { color: var(--tinta-suave); font-size: var(--texto-secundario); }
@@ -475,6 +486,16 @@ select, input[type="date"] {
 
 .solo-lector { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
+/* Enlace para saltar los controles con el teclado: aparece solo al recibir el foco. */
+.saltar {
+  position: absolute; z-index: 10; top: 8px; left: max(16px, env(safe-area-inset-left)); padding: 10px 14px; border-radius: 9px;
+  background: var(--acento); color: var(--sobre-acento); font-weight: 600; text-decoration: none;
+  transform: translateY(-150%);
+}
+.saltar:focus { transform: none; }
+/* Al saltar al contenido el foco queda en la vista entera: no hace falta un anillo alrededor de toda la página. */
+main:focus { outline: none; }
+
 .aviso { margin: 12px 24px; padding: 10px 12px; border-radius: 8px; }
 .aviso.exito { margin: 0; background: var(--exito-fondo); color: var(--exito); }
 .aviso.error { background: var(--peligro-fondo); color: var(--peligro); border: 1px solid var(--peligro-borde); }
@@ -499,7 +520,7 @@ select, input[type="date"] {
    mínimo con el que iOS no acerca la página al enfocarlos. */
 @media (pointer: coarse) {
   select, input, textarea, input[type="date"], .campo-umbral, .inicio-sesion input { font-size: 16px; }
-  select, input[type="date"], .campo-umbral, .inicio-sesion input, .boton { min-height: 44px; }
+  select, input[type="date"], .campo-umbral, .inicio-sesion input, .buscar-estacion input, .boton { min-height: 44px; }
   .pestana, .lista button, .alertas button, .enlace { min-height: 44px; }
   .selector-capas label, .selector-vigencia label, .interruptor { min-height: 44px; }
   .selector-capas, .selector-vigencia { gap: 0; }

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { antiguedad, esReciente, formatearFecha, formatearNumero, nombreCorto, periodoRuido, zonaDe } from "../util.js";
 import { COLOR_ALERTA } from "./Mapa.jsx";
 
@@ -198,6 +198,24 @@ function DatoFuente({ registro, parametro, meta, onVerHistorico, ahora, alertas,
   );
 }
 
+// La dirección de la página ya lleva la estación y la variable (url.js): copiarla
+// basta para compartir esta ficha. El mensaje queda en una región que el lector
+// de pantalla anuncia.
+function CopiarEnlace() {
+  const [mensaje, setMensaje] = useState("");
+  function copiar() {
+    const fallo = () => setMensaje("No se pudo copiar. Copie la dirección desde la barra del navegador.");
+    if (!navigator.clipboard) return fallo();
+    navigator.clipboard.writeText(window.location.href).then(() => setMensaje("Enlace copiado."), fallo);
+  }
+  return (
+    <p className="copiar-enlace">
+      <button className="boton texto" type="button" onClick={copiar}>Copiar el enlace de esta estación</button>
+      <span role="status">{mensaje}</span>
+    </p>
+  );
+}
+
 // Lo que dice la ficha cuando no hay una estación elegida, según el estado de la
 // carga. Sin estaciones o con error, la ficha ofrece volver a cargar: un estado
 // vacío no debe ser un callejón sin salida.
@@ -233,6 +251,7 @@ export default function Ficha({ grupo, parametro, meta, zonas, onVerHistorico, a
     <section className="ficha" aria-labelledby="titulo-ficha" key={grupo.id}>
       <h2 id="titulo-ficha" tabIndex={-1}>{grupo.nombre}</h2>
       {zonas && zonaDe(zonas, grupo.coordenadas) && <p className="zona">{zonaDe(zonas, grupo.coordenadas)}</p>}
+      <CopiarEnlace />
       {grupo.registros.length > 1 && (
         <p className="nota">Dos fuentes publican datos de esta estación. Se muestran por separado.</p>
       )}

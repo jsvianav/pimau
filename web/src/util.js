@@ -60,10 +60,13 @@ export function agruparEstaciones(geojson) {
     }
     grupos.set(clave, grupo);
   }
-  return [...grupos.values()]
-    .map((g) => ({ coordenadas: g.coordenadas, nombre: nombreDelGrupo(g.registros), registros: g.registros }))
-    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
-    .map((g, i) => ({ id: i, ...g }));
+  // El id sale del nombre normalizado ("universidad-libre"): no cambia cuando
+  // llega una estación nueva, como pasaba con la posición en la lista, y sirve
+  // para el enlace de cada estación (?estacion=universidad-libre).
+  return [...grupos.entries()]
+    .map(([clave, g]) => ({ id: clave.replace(/ /g, "-"), coordenadas: g.coordenadas, nombre: nombreDelGrupo(g.registros),
+                            registros: g.registros }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 }
 
 function nombreDelGrupo(registros) {
