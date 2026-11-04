@@ -885,3 +885,46 @@ va con su nombre. No se tocaron la API ni lo que muestran los datos.
 - **Pendiente:** probar en un celular real (la emulación del navegador no
   reproduce la barra del navegador, el teclado ni el zoom de iOS) y revisar el
   movimiento con `review-animations`.
+
+## 2026-11-04 — Plan de mejora de la interfaz y su ejecución
+
+Se ejecutó el plan de [plan_mejora_interfaz.md](plan_mejora_interfaz.md) en
+siete fases, con las skills de los plugins Design, VectorLab, frontend-design,
+Perf Profiler y dataviz. Cada fase quedó en su propio commit.
+
+- **Errores encontrados al medir el build de producción con una API simulada:**
+  el riel del marcador del ICA (commit 6b769bb) ensanchaba la página en el
+  celular (473 px en 375, y hasta 1470 px en 768 con ICA alto) y el panel de
+  escritorio; con «Dañina a la salud de grupos sensibles» el nombre se encimaba
+  con el estado en la lista; a 1366 × 768 y 1280 × 800 la leyenda tapaba las
+  casillas de los límites, que seguían recibiendo el foco (la revisión del 26 de
+  octubre se hizo a 1440 × 900); en un mapa bajo el encuadre no mostraba ninguna
+  estación; y la selección de estación era un índice que podía cambiar con cada
+  actualización.
+- **nginx no comprimía:** la imagen oficial trae gzip apagado, así que el mapa
+  (cerca de 1 MB), las gráficas y las capas de la IDESC viajaban sin comprimir.
+  Se activó gzip, también para las respuestas de la API.
+- **Pruebas de extremo a extremo y de accesibilidad (cierra el pendiente de
+  RNF-07):** 68 pruebas con Playwright 1.63 y axe-core 4.14 contra el build, con
+  una API simulada, en escritorio y celular, claro y oscuro. axe no encuentra
+  violaciones WCAG 2.2 A/AA. Corren en CI (job `e2e`) y guardan una captura de
+  cada vista. Con el código anterior, las de reflujo fallan.
+- **Interfaz:** estado en la URL (enlaces por estación y por consulta del
+  Histórico, «Atrás» funciona), buscador en la lista, enlace para saltar al
+  panel, ficha que empieza por la categoría del ICA con avisos breves y su porqué
+  plegado, leyenda plegada en el celular, escala tipográfica con tokens (de 19
+  tamaños a 12 y 14 px más tres títulos; pesos 400, 600 y 700), errores con
+  detalle técnico copiable, y en el Histórico atajos de periodo, estaciones según
+  la variable y comparación de dos series con un segundo color validado.
+- **Rendimiento (Lighthouse 13.5, móvil, mediana de tres corridas, API simulada):**
+  rendimiento 65 → 86, FCP 3,8 → 2,6 s, LCP 4,2 → 3,7 s, CLS 0,244 → 0,029. La
+  carga inicial bajó de 426 a 56 kB de JavaScript con gzip: el mapa, el Histórico,
+  la Administración y las gráficas se cargan en diferido. Un presupuesto en CI
+  (`npm run presupuesto`) impide que vuelva a crecer.
+- **Descartados, con su motivo en el plan:** el Brush de Recharts (sus controles
+  quedarían dentro de una gráfica marcada como imagen), pedir los datos antes de
+  pintar (no cambió la medición), la retícula de 8 px y los objetivos de 44 px
+  con mouse del catálogo de VectorLab.
+- **Pendiente:** la prueba con cinco personas y la revisión en celulares reales,
+  con el guion de [guion_prueba_usuarios.md](guion_prueba_usuarios.md); con sus
+  resultados se decide si la ficha del celular necesita una hoja inferior.

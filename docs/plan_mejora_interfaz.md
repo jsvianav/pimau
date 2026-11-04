@@ -2,6 +2,20 @@
 
 4 de noviembre de 2026 · rama `claude/plan-mejora-interfaz-khegj8`
 
+## Avance
+
+| Fase | Estado | Qué quedó |
+| --- | --- | --- |
+| 0. Arreglos confirmados | Hecha | H1 a H5. |
+| 1. Pruebas | Hecha | 68 pruebas e2e y de accesibilidad en CI (job `e2e`). |
+| 2. Auditoría guiada | Hecha | H11 a H19, arreglados (ver abajo). |
+| 3. URL y búsqueda | Hecha | Enlaces por estación y consulta, «Atrás», buscador, salto al panel. |
+| 4. Ficha y celular | Hecha, salvo la prueba con usuarios | Categoría primero, avisos breves, leyenda plegada. Guion en [guion_prueba_usuarios.md](guion_prueba_usuarios.md). La hoja inferior espera esa prueba. |
+| 5. Histórico | Hecha, sin Brush | Atajos, estaciones según la variable, comparación. El Brush se descartó: sus controles quedarían dentro de una gráfica marcada como imagen. |
+| 6. Rendimiento | Hecha | Mapa diferido, gzip en nginx, presupuesto en CI, `src/colores.js`. Lighthouse móvil: 65 → 86. |
+
+El detalle de cada cambio está en la bitácora (2026-11-04).
+
 Este plan sale de tres fuentes: la lectura del código de `web/`, la bitácora
 (sobre todo la revisión del 2026-10-26) y una auditoría del build de
 producción. Reúne lo que se encontró, las skills, agentes y plugins que sirven

@@ -10,7 +10,7 @@ calidad. Es el producto del trabajo de grado de John Sebastian Viana Vargas
 | Incremento | Requisitos | Estado |
 | --- | --- | --- |
 | 1. Integración de datos | RF-01 a RF-04 | Hecho |
-| 2. Consulta y visualización | RF-05 a RF-09 | Hecho; faltan las pruebas de extremo a extremo y de accesibilidad |
+| 2. Consulta y visualización | RF-05 a RF-09 | Hecho, con pruebas de extremo a extremo y de accesibilidad; falta la prueba con usuarios |
 | 3. Administración | RF-10 y RF-11 | Hecho; falta el despliegue en producción |
 | 4. Analítica (Semestre 8) | RF-12 a RF-14 | Anomalías (RF-13) y alertas por umbral (RF-14) hechas; falta el pronóstico (RF-12) |
 | 5. Nuevas variables (Semestre 8) | RF-15 | Ruido de SATIC hecho; falta el del portal de Cali (fuera de línea) |
@@ -83,6 +83,13 @@ Visor:
 
 ```bash
 cd web && npm run lint && npm test
+```
+
+Pruebas de extremo a extremo y de accesibilidad (Playwright y axe-core, con una
+API simulada; no necesitan el backend) y presupuesto de la carga inicial:
+
+```bash
+cd web && npm run e2e && npm run presupuesto
 ```
 
 Backend (Ruff revisa el estilo PEP 8 y los errores comunes):
