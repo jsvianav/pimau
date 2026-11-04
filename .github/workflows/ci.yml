@@ -61,6 +61,8 @@ jobs:
         run: npm audit --audit-level=high
       - name: Construcción
         run: npm run build
+      - name: Presupuesto de la carga inicial
+        run: npm run presupuesto
 
   e2e:
     # Pruebas de extremo a extremo y de accesibilidad (RNF-07) del visor contra

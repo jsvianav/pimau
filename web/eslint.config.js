@@ -22,5 +22,5 @@ export default [
     },
   },
   // Configuración y pruebas de extremo a extremo corren en Node.
-  { files: ['vite.config.js', 'playwright.config.js', 'e2e/**/*.js'], languageOptions: { globals: { ...globals.node } } },
+  { files: ['vite.config.js', 'playwright.config.js', 'e2e/**/*.js', 'scripts/**/*.mjs'], languageOptions: { globals: { ...globals.node } } },
 ]

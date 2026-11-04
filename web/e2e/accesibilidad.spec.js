@@ -65,6 +65,7 @@ test.describe("casos extremos", () => {
     await instalarApi(page, { caso: "vacio" });
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "No hay estaciones para mostrar" })).toBeVisible();
+    await page.locator(".controles-mapa").waitFor();
     await revisar(page, testInfo);
   });
 
@@ -72,6 +73,7 @@ test.describe("casos extremos", () => {
     await instalarApi(page, { caso: "error" });
     await page.goto("/");
     await expect(page.getByRole("button", { name: "Reintentar" })).toBeVisible();
+    await page.locator(".controles-mapa").waitFor();
     await revisar(page, testInfo);
   });
 });

@@ -1,5 +1,5 @@
 import { formatearNumero, nombreCorto, textoVentana } from "../util.js";
-import { COLOR_ALERTA } from "./Mapa.jsx";
+import { COLOR_ALERTA } from "../colores.js";
 
 // Anillos que pueden rodear una estación, con cualquier variable.
 function Anillos() {

@@ -298,8 +298,10 @@ export async function instalarApi(page, { caso = "normal", sesion = false } = {}
 // Pasos comunes de las pruebas.
 export async function abrirVisor(page) {
   await page.goto("/");
-  // La lista aparece cuando llegan las estaciones; el mapa crea su lienzo aparte.
+  // La lista aparece cuando llegan las estaciones. El mapa se carga en diferido:
+  // se espera también su tarjeta de controles, para revisar la página completa.
   await page.locator(".lista, .ficha.vacia").first().waitFor();
+  await page.locator(".controles-mapa").waitFor();
 }
 
 export async function elegirEstacion(page, nombre) {

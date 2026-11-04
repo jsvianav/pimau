@@ -2,16 +2,18 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api.js";
 import { agruparEstaciones, esReciente, estadoMasReciente, fechaCorta, nombreCorto, ultimoDatoDelGrupo } from "./util.js";
 import SelectorParametro from "./componentes/SelectorParametro.jsx";
-import Mapa, { TEMAS_MAPA } from "./componentes/Mapa.jsx";
 import Ficha from "./componentes/Ficha.jsx";
 import ListaEstaciones from "./componentes/ListaEstaciones.jsx";
 import Leyenda from "./componentes/Leyenda.jsx";
 import Alertas from "./componentes/Alertas.jsx";
 import AvisoError from "./componentes/AvisoError.jsx";
+import { TEMAS_MAPA } from "./colores.js";
 import { esNuevoPaso, escribirUrl, leerUrl, VARIABLE_INICIAL } from "./url.js";
 
-// El Histórico (con Recharts) y la Administración se descargan al abrir su
-// pestaña: la carga inicial solo trae lo que necesita el mapa.
+// El mapa (MapLibre, unos 280 kB comprimidos) se descarga en paralelo: el panel
+// se pinta y pide los datos sin esperarlo. El Histórico (con Recharts) y la
+// Administración se descargan al abrir su pestaña.
+const Mapa = lazy(() => import("./componentes/Mapa.jsx"));
 const Historico = lazy(() => import("./componentes/Historico.jsx"));
 const Administracion = lazy(() => import("./componentes/Administracion.jsx"));
 const CARGANDO_VISTA = <p className="cargando" role="status">Cargando…</p>;
@@ -238,28 +240,31 @@ export default function App() {
       {pestana === "mapa" && (
         <main className="vista-mapa">
           <div className="mapa-contenedor">
-            {/* El mapa se vuelve a crear al pasar a modo oscuro, con el mapa base y los colores de ese modo. */}
-            <Mapa key={oscuro ? "oscuro" : "claro"} tema={oscuro ? TEMAS_MAPA.oscuro : TEMAS_MAPA.claro}
-                  grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion} onSeleccionar={setSeleccion}
-                  onZonas={setZonas} opciones={opcionesEstado} alertas={alertas}
-                  leyenda={umbrales && <Leyenda umbrales={umbrales} parametro={parametro} meta={meta[parametro]}
-                                                soloRecientes={soloRecientes} />}>
-              <label className="campo">
-                Variable
-                <SelectorParametro parametros={parametrosMapa} valor={parametro} onCambiar={setParametro} corto />
-              </label>
-              <fieldset className="selector-vigencia">
-                <legend>Mostrar</legend>
-                <label>
-                  <input type="radio" name="vigencia" checked={soloRecientes} onChange={() => setSoloRecientes(true)} />
-                  Datos recientes (48 horas)
+            {/* El mapa se vuelve a crear al pasar a modo oscuro, con el mapa base y los colores de ese modo.
+                Mientras llega su archivo se ve el fondo del mapa, sin mover nada de la página. */}
+            <Suspense fallback={<div className="mapa" />}>
+              <Mapa key={oscuro ? "oscuro" : "claro"} tema={oscuro ? TEMAS_MAPA.oscuro : TEMAS_MAPA.claro}
+                    grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion} onSeleccionar={setSeleccion}
+                    onZonas={setZonas} opciones={opcionesEstado} alertas={alertas}
+                    leyenda={umbrales && <Leyenda umbrales={umbrales} parametro={parametro} meta={meta[parametro]}
+                                                  soloRecientes={soloRecientes} />}>
+                <label className="campo">
+                  Variable
+                  <SelectorParametro parametros={parametrosMapa} valor={parametro} onCambiar={setParametro} corto />
                 </label>
-                <label>
-                  <input type="radio" name="vigencia" checked={!soloRecientes} onChange={() => setSoloRecientes(false)} />
-                  Todo el histórico
-                </label>
-              </fieldset>
-            </Mapa>
+                <fieldset className="selector-vigencia">
+                  <legend>Mostrar</legend>
+                  <label>
+                    <input type="radio" name="vigencia" checked={soloRecientes} onChange={() => setSoloRecientes(true)} />
+                    Datos recientes (48 horas)
+                  </label>
+                  <label>
+                    <input type="radio" name="vigencia" checked={!soloRecientes} onChange={() => setSoloRecientes(false)} />
+                    Todo el histórico
+                  </label>
+                </fieldset>
+              </Mapa>
+            </Suspense>
             {estadoDatos && (
               <div className={`contexto${sinRecientes ? " sin-recientes" : ""}`} role="status">{estadoDatos}</div>
             )}

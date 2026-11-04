@@ -1,13 +1,10 @@
 import { lazy, Suspense, useState } from "react";
 import { antiguedad, esReciente, fechaCorta, formatearFecha, formatearNumero, nombreCorto, periodoRuido, zonaDe } from "../util.js";
-import { COLOR_ALERTA } from "./Mapa.jsx";
+import { COLOR_ALERTA, COLORES_ICA, RANGOS_INDICE } from "../colores.js";
 
 // La gráfica de las últimas 48 horas usa Recharts (unos 100 kB comprimidos):
 // se descarga al abrir una estación con datos recientes, no con la página.
 const UltimasHoras = lazy(() => import("./UltimasHoras.jsx"));
-
-const RANGOS_INDICE = [[0, 50], [51, 100], [101, 150], [151, 200], [201, 300], [301, 500]];
-const COLORES_ICA = ["#00E400", "#FFFF00", "#FF7E00", "#FF0000", "#8F3F97", "#7E0023"];
 
 // Posición del marcador sobre seis segmentos iguales: cada categoría ocupa lo
 // mismo, aunque sus rangos del índice no midan lo mismo.
@@ -18,7 +15,7 @@ function posicionEnEscala(ica) {
   return { indice: i === -1 ? 5 : i, porcentaje: (((i === -1 ? 5 : i) + fraccion) / 6) * 100 };
 }
 
-function EscalaIca({ estado }) {
+function EscalaIca({ estado, colores = COLORES_ICA }) {
   if (!estado.ventana_ica_horas) return null;
   if (!estado.categoria) {
     const minimo = Math.ceil(estado.ventana_ica_horas * 0.75);
@@ -38,8 +35,8 @@ function EscalaIca({ estado }) {
       </p>
       <div className="escala-barra" role="img"
            aria-label={`ICA ${estado.ica}, categoría ${estado.categoria}, en una escala de 0 a 500`}>
-        {COLORES_ICA.map((color, i) => (
-          <span key={color} className={i === indice ? "segmento actual" : "segmento"} style={{ background: color }} />
+        {colores.map((color, i) => (
+          <span key={i} className={i === indice ? "segmento actual" : "segmento"} style={{ background: color }} />
         ))}
         {/* La posición va en una variable de CSS: el marcador se desliza con
             transform dentro de la barra, sin salirse de ella (ver estilos.css). */}
@@ -190,10 +187,14 @@ function DatoFuente({ registro, parametro, meta, onVerHistorico, ahora, alertas,
   // El valor horario queda debajo, como detalle. Sin ICA (meteorología, ruido o
   // un periodo sin horas suficientes) la cifra sigue siendo lo principal.
   const conCategoria = Boolean(estado.ventana_ica_horas && estado.categoria);
+  // Los colores de la escala son los de /api/umbrales (Resolución 2254); si no
+  // llegaron seis, se usan los de respaldo de colores.js.
+  const coloresApi = umbrales?.[parametro]?.ica?.map((c) => c.color);
+  const colores = coloresApi?.length === 6 && coloresApi.every(Boolean) ? coloresApi : COLORES_ICA;
   return (
     <section className="fuente-dato">
       <h3>{registro.fuente}</h3>
-      {conCategoria && <EscalaIca estado={estado} />}
+      {conCategoria && <EscalaIca estado={estado} colores={colores} />}
       <p className={conCategoria ? "valor-horario" : "cifra"}>
         <strong>{formatearNumero(estado.valor_horario)}</strong>
         <span>{meta?.unidad} de {nombre}, último valor horario</span>
