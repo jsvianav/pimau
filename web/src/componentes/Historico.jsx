@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { fechaISO, formatearFecha, formatearNumero, marcasEje, nombreCorto, restarDias, textoVentana } from "../util.js";
 import SelectorParametro from "./SelectorParametro.jsx";
 import PuntoAnomalo from "./PuntoAnomalo.jsx";
+import AvisoError from "./AvisoError.jsx";
 
 const MAXIMO_DIAS_HORARIO = 93;
 // El puntaje de anomalía va de 0 a 1 y las señaladas quedan entre 0,62 y 0,8:
@@ -43,7 +44,7 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
     setCargando(true); setError(null);
     return api.serie(id, consulta)
       .then((s) => { if (vigente()) setSerie(s); })
-      .catch((e) => { if (vigente()) setError(e.message); })
+      .catch((e) => { if (vigente()) setError(e); })
       .finally(() => { if (vigente()) setCargando(false); });
   }
 
@@ -64,15 +65,20 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
         setRango(r); setHasta(fin); setDesde(inicio);
         return pedirSerie(estacionId, { parametro, desde: inicio, hasta: fin, agregacion: "hora" }, vigente);
       })
-      .catch((e) => { if (activa) setError(e.message); });
+      .catch((e) => { if (activa) setError(e); });
     return () => { activa = false; };
   }, [estacionId, parametro]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const agregacion = desde && hasta && diasEntre(desde, hasta) > MAXIMO_DIAS_HORARIO ? "dia" : "hora";
   const consulta = { parametro, desde, hasta, agregacion };
 
+  // El botón nunca queda deshabilitado por faltar una fecha: al pulsarlo, el
+  // aviso dice qué falta (skill forms).
   function consultar() {
-    if (!desde || !hasta) return;
+    if (!desde || !hasta) {
+      setError("Elija la fecha de inicio y la de fin para consultar.");
+      return;
+    }
     pedirSerie(estacionId, consulta);
   }
 
@@ -125,7 +131,7 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
         <label>Hasta
           <input type="date" value={hasta} min={desde} max={rango?.hasta} onChange={(e) => setHasta(e.target.value)} />
         </label>
-        <button className="boton primario" type="submit" disabled={!desde || !hasta || cargando}>
+        <button className="boton primario" type="submit" disabled={cargando}>
           {cargando ? "Consultando…" : "Consultar"}
         </button>
       </form>
@@ -135,7 +141,7 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino 
           {agregacion === "dia" && " Para más de 93 días la serie se muestra como promedio diario."}
         </p>
       )}
-      {error && <p className="aviso error" role="alert">{error}</p>}
+      {error && <AvisoError titulo="No se pudo consultar la serie." error={error} />}
 
       {serie && (
         <div className="lienzo">

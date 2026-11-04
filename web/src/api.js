@@ -1,19 +1,31 @@
 // Cliente de la API de PIMAU. Todas las rutas son relativas a /api.
 
+// El mensaje es para la persona; el detalle técnico (código HTTP, ruta, error de
+// red) va aparte, para copiarlo y enviarlo a soporte sin ponerlo en primer plano.
 export class ErrorApi extends Error {
-  constructor(mensaje, estado) {
+  constructor(mensaje, estado, detalle = null) {
     super(mensaje);
     this.estado = estado;
+    this.detalle = detalle;
   }
 }
 
 async function obtener(ruta, opciones = {}) {
-  const respuesta = await fetch(ruta, opciones);
+  let respuesta;
+  try {
+    respuesta = await fetch(ruta, opciones);
+  } catch (e) {
+    throw new ErrorApi("No hubo conexión con la plataforma.", 0, `${e.message} (${ruta})`);
+  }
   if (!respuesta.ok) {
     const cuerpo = await respuesta.json().catch(() => ({}));
-    // FastAPI devuelve los errores de validación como una lista.
-    const detalle = Array.isArray(cuerpo.detail) ? "Revise los valores enviados" : cuerpo.detail;
-    throw new ErrorApi(detalle || `Error ${respuesta.status} al consultar ${ruta}`, respuesta.status);
+    const tecnico = `HTTP ${respuesta.status} en ${ruta}`;
+    // La API explica sus errores en una frase; FastAPI devuelve los de validación como una lista.
+    if (typeof cuerpo.detail === "string") throw new ErrorApi(cuerpo.detail, respuesta.status, tecnico);
+    if (Array.isArray(cuerpo.detail)) {
+      throw new ErrorApi("Revise los valores enviados.", respuesta.status, `${tecnico}: ${JSON.stringify(cuerpo.detail)}`);
+    }
+    throw new ErrorApi("La plataforma no respondió como se esperaba.", respuesta.status, tecnico);
   }
   return respuesta.json();
 }

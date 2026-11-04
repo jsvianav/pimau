@@ -7,6 +7,7 @@ import Ficha from "./componentes/Ficha.jsx";
 import ListaEstaciones from "./componentes/ListaEstaciones.jsx";
 import Leyenda from "./componentes/Leyenda.jsx";
 import Alertas from "./componentes/Alertas.jsx";
+import AvisoError from "./componentes/AvisoError.jsx";
 
 // El Histórico (con Recharts) y la Administración se descargan al abrir su
 // pestaña: la carga inicial solo trae lo que necesita el mapa.
@@ -77,7 +78,7 @@ export default function App() {
       .then(([estaciones, limites, lista]) => {
         setDatos(estaciones); setUmbrales(limites); setParametros(lista.filter((p) => p.con_datos));
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => setError(e));
     // Las alertas son un complemento: si fallan, el mapa funciona igual.
     api.alertas().then(setAlertas).catch(() => {});
   }
@@ -159,12 +160,7 @@ export default function App() {
         </nav>
       </header>
 
-      {error && (
-        <div className="aviso error con-accion" role="alert">
-          <p>No fue posible cargar los datos: {error}</p>
-          <button className="boton" type="button" onClick={reintentar}>Reintentar</button>
-        </div>
-      )}
+      {error && <AvisoError titulo="No se pudieron cargar las estaciones." error={error} onReintentar={reintentar} />}
 
       {pestana === "mapa" && (
         <main className="vista-mapa">
@@ -172,7 +168,9 @@ export default function App() {
             {/* El mapa se vuelve a crear al pasar a modo oscuro, con el mapa base y los colores de ese modo. */}
             <Mapa key={oscuro ? "oscuro" : "claro"} tema={oscuro ? TEMAS_MAPA.oscuro : TEMAS_MAPA.claro}
                   grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion} onSeleccionar={setSeleccion}
-                  onZonas={setZonas} opciones={opcionesEstado} alertas={alertas}>
+                  onZonas={setZonas} opciones={opcionesEstado} alertas={alertas}
+                  leyenda={umbrales && <Leyenda umbrales={umbrales} parametro={parametro} meta={meta[parametro]}
+                                                soloRecientes={soloRecientes} />}>
               <label className="campo">
                 Variable
                 <SelectorParametro parametros={parametrosMapa} valor={parametro} onCambiar={setParametro} corto />
@@ -192,8 +190,6 @@ export default function App() {
             {estadoDatos && (
               <div className={`contexto${sinRecientes ? " sin-recientes" : ""}`} role="status">{estadoDatos}</div>
             )}
-            {umbrales && <Leyenda umbrales={umbrales} parametro={parametro} meta={meta[parametro]}
-                                  soloRecientes={soloRecientes} />}
           </div>
           <aside className="panel-lateral">
             {estadoDatos && (
@@ -201,11 +197,12 @@ export default function App() {
             )}
             <Alertas alertas={alertas} grupos={grupos} ahora={ahora} onElegir={elegirAlerta} />
             <Ficha grupo={grupoSeleccionado} parametro={parametro} meta={meta[parametro]} zonas={zonas}
-                   onVerHistorico={verHistorico} ahora={ahora} alertas={alertas} umbrales={umbrales} carga={carga} />
+                   onVerHistorico={verHistorico} ahora={ahora} alertas={alertas} umbrales={umbrales} carga={carga}
+                   onReintentar={reintentar} />
             {umbrales && <Leyenda umbrales={umbrales} parametro={parametro} meta={meta[parametro]}
                                   soloRecientes={soloRecientes} variante="panel" />}
             <ListaEstaciones grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion}
-                             onSeleccionar={setSeleccion} opciones={opcionesEstado} />
+                             onSeleccionar={setSeleccion} opciones={opcionesEstado} carga={carga} />
             <p className="fuentes">
               Datos del IDEAM, del portal de Datos Abiertos de Cali (DAGMA), de SATIC (red OAC22) y de la IDESC.{" "}
               <a href="/api/docs">Documentación de la API</a>.

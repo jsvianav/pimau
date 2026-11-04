@@ -208,6 +208,39 @@ Una lista priorizada de mejoras con evidencia, más allá de lo que mide axe.
 **Salida:** los hallazgos se suman a este plan (o como issues, si el equipo lo
 prefiere) y ajustan las fases 3 a 5.
 
+#### Resultado (2026-11-04)
+
+Se aplicaron `design-critique`, `accessibility-review`, `ux-audit` y las listas
+de VectorLab sobre capturas a 375, 1280 × 800, 1366 × 768 y 1440 × 900. La
+crítica se hizo en la misma sesión, sin agentes aparte: ya había contexto de
+sobra y no hacía falta repartirlo. El proyecto no tiene `.ux-profile.md`, así
+que las reglas del catálogo se tomaron como referencia y se descartaron las que
+chocan con decisiones ya registradas en la bitácora.
+
+| # | Hallazgo | Arreglo |
+| --- | --- | --- |
+| H11 | A 1366 × 768 (la resolución de portátil más común) y a 1280 × 800 la leyenda tapaba las casillas de los límites, que seguían recibiendo el foco (WCAG 2.4.11 y 2.5.8). La revisión del 26 de octubre se hizo a 1440 × 900, donde sí cabía. | Controles y leyenda en una misma columna; la leyenda se desplaza por dentro, con foco y sombras que avisan que sigue. Prueba nueva a 1366 × 768, 1280 × 800 y 1280 × 720. |
+| H12 | El encuadre inicial usaba márgenes fijos (200 px arriba en el celular). En un mapa bajo (zoom al 200 %, celular horizontal) no se veía ninguna estación y MapLibre avisaba «Map cannot fit». | Márgenes proporcionales al tamaño del mapa. |
+| H13 | 19 tamaños de letra (uno de 11,8 px) y cinco pesos (uno de 760). | Escala con tokens: 12 y 14 px para casi todo, tres tamaños de título y la cifra; pesos 400, 600 y 700. Rótulos del mapa y ejes a 12 px. Interlineado 1,5 en el texto y 1,2 en los títulos. |
+| H14 | Tarjetas translúcidas con desenfoque y sin borde, y sombras de opacidad 0,10. | Tarjetas opacas con borde de 1 px apenas visible y sombra menor a 0,08. |
+| H15 | El umbral se marcaba como error mientras se escribía; «Consultar» se deshabilitaba si faltaba una fecha. | El error aparece al salir del campo o al guardar y se borra con la primera tecla; «Consultar» siempre responde y dice qué falta. |
+| H16 | Errores con el código HTTP en primer plano («Error 503 al consultar…») o en inglés si fallaba la red. | Mensaje en una frase, «Reintentar» y el detalle técnico plegado, con botón para copiarlo (`AvisoError.jsx`). |
+| H17 | Sin estaciones, la ficha no ofrecía nada que hacer; la lista quedaba en blanco mientras cargaba. | «Volver a cargar» en la ficha vacía y filas grises mientras llegan las estaciones. |
+| H18 | Duraciones de 120, 160 y 240 ms. | 100, 150 y 200 ms. Quedan como excepciones el resaltado de 1,2 s de la fila guardada (es un cambio de color y se conserva al reducir el movimiento) y los 600 ms de la cámara del mapa. |
+| H19 | La lista no se leía como lista. | Separadores finos entre filas. |
+
+**Reglas del catálogo que no se adoptaron:** la retícula de 8 px (el visor
+tiene su propio espaciado y cambiarlo sería solo cosmético), objetivos de 44 px
+también con mouse (el proyecto usa 24 px con mouse, como pide WCAG 2.5.8, y
+44 px en pantallas táctiles) y tooltips propios en los botones de zoom (son de
+MapLibre y ya tienen nombre en español).
+
+**Hallazgos para las fases siguientes:** en la ficha lo primero que se ve es la
+concentración horaria y dos avisos largos; la categoría del ICA queda a mitad
+de la tarjeta (fase 4). Los avisos repiten el valor y la fecha que ya están
+arriba (fase 4, `ux-copy`). **Queda pendiente** la prueba en celulares reales y
+con lector de pantalla: no se puede hacer desde el contenedor.
+
 ### Fase 3. Estado en la URL y búsqueda (2 a 3 días)
 
 Que un enlace abra la misma vista, que «Atrás» funcione y que encontrar una

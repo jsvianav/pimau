@@ -36,10 +36,10 @@ export default function UltimasHoras({ registro, parametro, meta, ahora }) {
         <ResponsiveContainer width="100%" height={96}>
           <LineChart data={puntos} margin={{ top: 6, right: 4, bottom: 0, left: 0 }}>
             <XAxis dataKey="t" hide />
-            <YAxis width={30} tick={{ fontSize: 11, fill: "var(--eje-texto)" }} axisLine={false} tickLine={false}
+            <YAxis width={30} tick={{ fontSize: 12, fill: "var(--eje-texto)" }} axisLine={false} tickLine={false}
                    tickFormatter={formatearNumero} tickCount={3}
                    domain={meta?.variable === "meteorologia" ? ["auto", "auto"] : [0, "auto"]} />
-            <Tooltip contentStyle={{ borderRadius: 8, fontSize: 13 }}
+            <Tooltip contentStyle={{ borderRadius: 8, fontSize: 14 }}
                      formatter={(v) => [v == null ? "sin dato" : `${formatearNumero(v)} ${meta?.unidad || ""}`, nombreCorto(parametro)]}
                      labelFormatter={(t) => formatearFecha(t)} />
             {guia?.periodo === "24 horas" && guia.valor <= maximo.valor * 2 && (

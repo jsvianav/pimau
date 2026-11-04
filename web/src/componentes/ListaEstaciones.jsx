@@ -35,7 +35,22 @@ function Elemento({ grupo, parametro, meta, seleccion, onSeleccionar, opciones }
   );
 }
 
-export default function ListaEstaciones({ grupos, parametro, meta, seleccion, onSeleccionar, opciones }) {
+// Mientras llegan las estaciones, filas grises con la forma de la lista: el panel
+// no salta cuando aparecen. La ficha anuncia la carga al lector de pantalla.
+function Esqueleto() {
+  return (
+    <section className="lista" aria-hidden="true">
+      <span className="esqueleto esqueleto-titulo" />
+      <ul>{[62, 48, 70, 55, 66, 44].map((ancho) => (
+        <li key={ancho} className="esqueleto-fila"><span className="esqueleto esqueleto-punto" />
+          <span className="esqueleto" style={{ width: `${ancho}%` }} /></li>
+      ))}</ul>
+    </section>
+  );
+}
+
+export default function ListaEstaciones({ grupos, parametro, meta, seleccion, onSeleccionar, opciones, carga = "listo" }) {
+  if (carga === "cargando") return <Esqueleto />;
   const props = { parametro, meta, seleccion, onSeleccionar, opciones };
   if (!opciones.soloRecientes) {
     return (

@@ -198,23 +198,30 @@ function DatoFuente({ registro, parametro, meta, onVerHistorico, ahora, alertas,
   );
 }
 
-// Lo que dice la ficha cuando no hay una estación elegida, según el estado de la carga.
+// Lo que dice la ficha cuando no hay una estación elegida, según el estado de la
+// carga. Sin estaciones o con error, la ficha ofrece volver a cargar: un estado
+// vacío no debe ser un callejón sin salida.
 const FICHA_VACIA = {
   cargando: ["Cargando las estaciones…", "En unos segundos aparecen en el mapa y en la lista."],
-  vacio: ["No hay estaciones para mostrar", "La plataforma no recibió estaciones de ninguna fuente. Vuelva a intentarlo más tarde."],
-  error: ["No se pudieron cargar las estaciones", "Use «Reintentar» en el aviso de arriba."],
+  vacio: ["No hay estaciones para mostrar", "La plataforma no recibió estaciones de ninguna fuente. Puede que la "
+    + "ingesta esté en curso: vuelva a cargar en unos minutos.", "Volver a cargar"],
+  error: ["No se pudieron cargar las estaciones", "Sin estaciones no hay mapa ni lista. Vuelva a intentarlo en un "
+    + "momento.", "Volver a cargar"],
   listo: ["Elija una estación", "Toque una estación en el mapa o búsquela en la lista para ver su último dato y, en los "
     + "contaminantes, su categoría del ICA."],
 };
 
 export default function Ficha({ grupo, parametro, meta, zonas, onVerHistorico, ahora, alertas = [], umbrales,
-                                carga = "listo" }) {
+                                carga = "listo", onReintentar }) {
   if (!grupo) {
-    const [titulo, texto] = FICHA_VACIA[carga];
+    const [titulo, texto, accion] = FICHA_VACIA[carga];
     return (
       <section className="ficha vacia" aria-busy={carga === "cargando"}>
         <h2>{titulo}</h2>
         <p className={carga === "cargando" ? "cargando" : undefined}>{texto}</p>
+        {accion && onReintentar && (
+          <button className="boton" type="button" onClick={onReintentar}>{accion}</button>
+        )}
       </section>
     );
   }

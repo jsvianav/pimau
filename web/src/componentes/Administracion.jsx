@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiAdmin } from "../api.js";
 import { formatearFecha, formatearNumero } from "../util.js";
+import AvisoError from "./AvisoError.jsx";
 
 // Flujo F3 (incremento 3): el administrador inicia sesión, revisa el estado de
 // la ingesta de cada fuente (RF-11), la activa o desactiva y cambia su
@@ -154,12 +155,23 @@ function FilaUmbral({ umbral, onGuardar, guardada }) {
   const [valor, setValor] = useState(umbral.valor ?? "");
   const [activo, setActivo] = useState(umbral.valor == null ? true : umbral.activo);
   const [guardando, setGuardando] = useState(false);
+  // El error aparece al salir del campo o al intentar guardar, nunca mientras se
+  // escribe, y se borra con la primera tecla (skill forms).
+  const [revisar, setRevisar] = useState(false);
+  const campo = useRef(null);
   const numero = Number(String(valor).replace(",", "."));
   const valido = valor !== "" && numero > 0;
-  const invalido = valor !== "" && !valido;
-  const cambiado = valido && (numero !== umbral.valor || activo !== umbral.activo);
+  // Un campo vacío solo es error si antes había un umbral (no hay cómo borrarlo).
+  const invalido = revisar && !valido && (valor !== "" || umbral.valor != null);
+  const cambiado = valor === "" ? umbral.valor != null || activo !== umbral.activo
+    : numero !== umbral.valor || activo !== umbral.activo;
 
   function guardar() {
+    if (!valido) {
+      setRevisar(true);
+      campo.current?.focus();
+      return;
+    }
     setGuardando(true);
     onGuardar(umbral.codigo, { valor: numero, activo }).finally(() => setGuardando(false));
   }
@@ -168,10 +180,12 @@ function FilaUmbral({ umbral, onGuardar, guardada }) {
     <tr className={guardada && !cambiado ? "fila-guardada" : undefined}>
       <th scope="row">{umbral.nombre}</th>
       <td>
-        <input className="campo-umbral" inputMode="decimal" enterKeyHint="done"
+        <input ref={campo} className="campo-umbral" inputMode="decimal" enterKeyHint="done"
+               onBlur={() => setRevisar(true)}
                aria-label={`Umbral de ${umbral.nombre} en ${umbral.unidad}`} aria-invalid={invalido || undefined}
                aria-describedby={invalido ? `error-umbral-${umbral.codigo}` : undefined}
-               value={valor} placeholder="Sin umbral" onChange={(e) => setValor(e.target.value)} /> {umbral.unidad}
+               value={valor} placeholder="Sin umbral" onChange={(e) => { setValor(e.target.value); setRevisar(false); }} />{" "}
+        {umbral.unidad}
         {invalido && (
           <small className="error-campo" id={`error-umbral-${umbral.codigo}`}>Escriba un número mayor que 0.</small>
         )}
@@ -204,7 +218,7 @@ function Panel({ sesion, onSalir, onVencida }) {
 
   const manejarError = useCallback((err) => {
     if (err.estado === 401) onVencida();
-    else setError(err.message);
+    else setError(err);
   }, [onVencida]);
 
   const cargar = useCallback(() => {
@@ -250,7 +264,7 @@ function Panel({ sesion, onSalir, onVencida }) {
         </p>
       </div>
       {mensaje && <p className="aviso exito" role="status">{mensaje}</p>}
-      {error && <p className="aviso error" role="alert">{error}</p>}
+      {error && <AvisoError titulo="No se pudo completar la acción." error={error} onReintentar={cargar} />}
 
       <div className="tarjeta">
         <h3>Fuentes de datos</h3>

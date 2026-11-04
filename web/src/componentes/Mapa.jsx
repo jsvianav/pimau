@@ -123,7 +123,7 @@ function aGeoJSON(grupos, parametro, meta, opciones, alertas, tema) {
 }
 
 export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar, onZonas, opciones, alertas = [],
-                               tema = TEMAS_MAPA.claro, children }) {
+                               tema = TEMAS_MAPA.claro, leyenda = null, children }) {
   const contenedor = useRef(null);
   const mapa = useRef(null);
   const [listo, setListo] = useState(false);
@@ -201,7 +201,7 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
         layout: { "text-field": ["format", ["get", "nombre"], { "text-font": ["literal", ["Noto Sans Bold"]] },
                                  ["case", ["==", ["get", "valor"], ""], "", ["concat", "\n", ["get", "valor"]]],
                                  { "text-font": ["literal", ["Noto Sans Regular"]], "font-scale": 1.05 }],
-                  "text-font": ["Noto Sans Regular"], "text-size": 11.5, "text-letter-spacing": 0.01,
+                  "text-font": ["Noto Sans Regular"], "text-size": 12, "text-letter-spacing": 0.01,
                   "text-offset": [0, 1.5], "text-anchor": "top" },
         paint: { "text-color": ["case", ["get", "conDatos"], tema.texto, tema.textoSinDatos],
                  "text-halo-color": tema.halo, "text-halo-width": 1.8 },
@@ -285,8 +285,13 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
     const limites = new maplibregl.LngLatBounds();
     grupos.forEach((g) => limites.extend(g.coordenadas));
     const ancho = window.matchMedia("(min-width: 901px)").matches;
+    // Los márgenes se limitan al tamaño del mapa: con uno fijo de 200 px arriba,
+    // un mapa bajo (celular horizontal, zoom al 200 %) quedaba sin estaciones a la vista.
+    const { clientWidth: w, clientHeight: h } = mapa.current.getContainer();
     mapa.current.fitBounds(limites, {
-      padding: ancho ? { top: 110, bottom: 60, left: 290, right: 420 } : { top: 200, bottom: 30, left: 30, right: 30 },
+      padding: ancho
+        ? { top: Math.min(110, h * 0.2), bottom: Math.min(60, h * 0.1), left: Math.min(290, w * 0.3), right: Math.min(420, w * 0.35) }
+        : { top: Math.min(200, h * 0.4), bottom: Math.min(30, h * 0.08), left: 30, right: 30 },
       maxZoom: 13, duration: 0,
     });
   }, [listo, grupos]);
@@ -335,21 +340,27 @@ export default function Mapa({ grupos, parametro, meta, seleccion, onSeleccionar
     <>
       <div ref={contenedor} className="mapa" role="region"
            aria-label="Mapa de estaciones. Las estaciones también se pueden elegir en la lista." />
-      <div className="flotante controles-mapa">
-        {principal}
-        <details className="mas-opciones" open={abierto} onToggle={(e) => setAbierto(e.currentTarget.open)}>
-          <summary>Vigencia y límites del territorio</summary>
-          {demas}
-          <fieldset className="selector-capas">
-            <legend>Límites del territorio</legend>
-            {CAPAS.map((c) => (
-              <label key={c.tipo}>
-                <input type="checkbox" checked={capasVisibles[c.tipo]} onChange={() => alternarCapa(c.tipo)} />
-                <span className="muestra-linea" style={{ borderColor: tema.capas[c.tipo] }} aria-hidden="true" /> {c.nombre}
-              </label>
-            ))}
-          </fieldset>
-        </details>
+      {/* Controles y leyenda comparten una columna: la leyenda va abajo y, si no
+          cabe, se desplaza por dentro. Antes cada tarjeta se ubicaba por su cuenta
+          y a 1366 × 768 la leyenda tapaba las casillas de los límites. */}
+      <div className="columna-mapa">
+        <div className="flotante controles-mapa">
+          {principal}
+          <details className="mas-opciones" open={abierto} onToggle={(e) => setAbierto(e.currentTarget.open)}>
+            <summary>Vigencia y límites del territorio</summary>
+            {demas}
+            <fieldset className="selector-capas">
+              <legend>Límites del territorio</legend>
+              {CAPAS.map((c) => (
+                <label key={c.tipo}>
+                  <input type="checkbox" checked={capasVisibles[c.tipo]} onChange={() => alternarCapa(c.tipo)} />
+                  <span className="muestra-linea" style={{ borderColor: tema.capas[c.tipo] }} aria-hidden="true" /> {c.nombre}
+                </label>
+              ))}
+            </fieldset>
+          </details>
+        </div>
+        {leyenda}
       </div>
     </>
   );

@@ -17,11 +17,14 @@ function Anillos() {
 // del panel (variante "panel").
 export default function Leyenda({ umbrales, parametro, meta, soloRecientes, variante = "flotante" }) {
   const clase = variante === "panel" ? "leyenda leyenda-panel" : "flotante leyenda";
+  // Sobre el mapa la leyenda se desplaza por dentro si no cabe: recibe el foco
+  // para poder desplazarla con el teclado.
+  const foco = variante === "panel" ? undefined : 0;
   const cortes = umbrales[parametro]?.ica || [];
   const ruido = umbrales[parametro]?.ruido || {};
   if (ruido["Día"]) {
     return (
-      <section className={clase} aria-label="Leyenda del ruido">
+      <section className={clase} tabIndex={foco} aria-label="Leyenda del ruido">
         <h2>{meta?.nombre || "Ruido ambiental"}</h2>
         <p>
           Nivel equivalente de cada hora, en dB(A). La Resolución 627 de 2006 fija para zonas residenciales,
@@ -34,7 +37,7 @@ export default function Leyenda({ umbrales, parametro, meta, soloRecientes, vari
   }
   if (!cortes.length) {
     return (
-      <section className={clase} aria-label="Leyenda">
+      <section className={clase} tabIndex={foco} aria-label="Leyenda">
         <h2>{meta?.nombre || nombreCorto(parametro)}</h2>
         <p>
           {meta?.variable === "meteorologia"
@@ -47,7 +50,7 @@ export default function Leyenda({ umbrales, parametro, meta, soloRecientes, vari
     );
   }
   return (
-    <section className={clase} aria-label="Leyenda del Índice de Calidad del Aire">
+    <section className={clase} tabIndex={foco} aria-label="Leyenda del Índice de Calidad del Aire">
       <h2>Índice de Calidad del Aire</h2>
       {/* El selector del mapa usa el nombre corto; aquí va el completo. */}
       <p>{meta?.nombre || nombreCorto(parametro)}, {textoVentana(meta?.ventana_ica_horas)}. Resolución 2254 de 2017, en µg/m³.</p>

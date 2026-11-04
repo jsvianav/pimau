@@ -72,6 +72,24 @@ test.describe("panel lateral de escritorio", () => {
   });
 });
 
+// En portátiles comunes la leyenda tapaba las casillas de los límites del
+// territorio, que seguían recibiendo el foco (WCAG 2.4.11 y 2.5.8).
+for (const [ancho, alto] of [[1366, 768], [1280, 800], [1280, 720]]) {
+  test(`a ${ancho} × ${alto} la leyenda no tapa los controles del mapa`, async ({ page }) => {
+    await page.setViewportSize({ width: ancho, height: alto });
+    await instalarApi(page);
+    await abrirVisor(page);
+    const tapados = await page.locator(".controles-mapa input, .controles-mapa select").evaluateAll((controles) => controles
+      .filter((control) => {
+        const caja = control.getBoundingClientRect();
+        const encima = document.elementFromPoint(caja.left + caja.width / 2, caja.top + caja.height / 2);
+        return !(encima === control || control.closest("label")?.contains(encima));
+      })
+      .map((control) => control.closest("label")?.innerText.trim() || control.tagName));
+    expect(tapados).toEqual([]);
+  });
+}
+
 test.describe("lista de estaciones", () => {
   for (const ancho of [320, 375]) {
     test(`a ${ancho} px el nombre no se monta sobre el estado`, async ({ page }) => {
