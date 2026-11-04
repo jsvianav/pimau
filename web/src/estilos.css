@@ -17,7 +17,11 @@
   --acento-hover: #0a4540;
   --acento-suave: #e6f0ee;
   --sobre-acento: #ffffff;     /* texto del botón principal: 7,8:1 */
-  --serie: #0b6fb3;            /* serie de datos (validada con dataviz) */
+  /* Series de datos: la principal y la de comparación del Histórico. El par se
+     validó con la skill dataviz (ΔE con daltonismo 12,7; con visión normal 25,9;
+     contraste de 3:1 o más). Ninguna repite un color del ICA. */
+  --serie: #0b6fb3;
+  --serie-2: #b8336a;
   --aviso: #7a4a0c;
   --aviso-fondo: #fdf6ea;
   --peligro: #7d1d1d;
@@ -82,7 +86,9 @@
     --acento-hover: #8ad6cc;
     --acento-suave: #1f3732;
     --sobre-acento: #0d1f1c;   /* 8,6:1 sobre el acento */
-    --serie: #5aa9e6;          /* 6,2:1 */
+    /* Pasos del modo oscuro dentro de su banda de luminosidad (ΔE 15,9 y 26,5). */
+    --serie: #3987e5;
+    --serie-2: #d55181;
     --aviso: #f0c27a;
     --aviso-fondo: #2d2414;
     --peligro: #ffb4b0;        /* 9,0:1 sobre su fondo */
@@ -393,6 +399,10 @@ select, input[type="date"] {
 .historico h2 { font-size: var(--titulo-1); letter-spacing: -0.02em; }
 .historico > .nota { margin-bottom: 16px; }
 .filtros { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; padding: 16px; background: var(--papel); border-radius: var(--radio); border: 1px solid var(--borde-superficie); box-shadow: var(--sombra); }
+/* Atajos de periodo, rango de datos y comparación ocupan su propio renglón en los filtros. */
+.atajos { display: flex; flex-wrap: wrap; gap: 6px; flex-basis: 100%; }
+.atajos .boton[aria-pressed="true"] { background: var(--acento-suave); }
+.filtros .nota-rango { flex-basis: 100%; margin: 0; }
 .filtros label { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; max-width: 100%; font-size: var(--texto-secundario); color: var(--tinta-suave); }
 .lienzo { margin-top: 16px; padding: 18px 18px 10px; background: var(--papel); border-radius: var(--radio); border: 1px solid var(--borde-superficie); box-shadow: var(--sombra); }
 .lienzo-encabezado { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
