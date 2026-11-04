@@ -928,3 +928,24 @@ Perf Profiler y dataviz. Cada fase quedó en su propio commit.
 - **Pendiente:** la prueba con cinco personas y la revisión en celulares reales,
   con el guion de [guion_prueba_usuarios.md](guion_prueba_usuarios.md); con sus
   resultados se decide si la ficha del celular necesita una hoja inferior.
+
+## 2026-11-04 — SATIC volvió y los faltantes ya no bloquean los datos tardíos
+
+- **SATIC volvió:** el geoportal responde otra vez (200). Estuvo caído desde el
+  2026-10-22 02:44 UTC; el descargador reintentó cada hora con
+  `TimeoutError` y el panel mostró la advertencia, como prevé el escenario 6. Al
+  encender la plataforma, la descarga de las 05:23 UTC trajo 65 archivos.
+- **Error encontrado:** la primera ingesta tras la caída cargó desde el 2 de
+  noviembre y `completar_faltantes` llenó del 22 de octubre al 2 de noviembre
+  con filas sin valor. Una descarga de 15 días trajo después el 31 de octubre y
+  el 1 de noviembre, pero el `ON CONFLICT DO NOTHING` los descartaba porque esas
+  horas ya existían como faltantes.
+- **Arreglo:** si una hora guardada sin valor llega después con valor, el valor
+  la reemplaza, con la procedencia de la ejecución que lo trajo. Un valor ya
+  guardado nunca se reemplaza. Prueba nueva:
+  `test_un_valor_que_llega_tarde_reemplaza_al_faltante` (110 pruebas pasan).
+- **Relleno:** con `descarga_satic --rango "Últimos 15 días"` e ingesta
+  `--completa` entraron 3 943 mediciones. SATIC no tiene datos del 22 al 30 de
+  octubre (su propia descarga los omite), así que esos días quedan como faltantes.
+- **Portal de Datos Abiertos de Cali:** sigue con 403. No afecta, porque su
+  histórico ya está cargado y la fuente no publica datos nuevos desde 2020.

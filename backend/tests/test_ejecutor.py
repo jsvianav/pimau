@@ -87,6 +87,25 @@ def test_genera_los_faltantes_implicitos_de_la_serie(sesion, monkeypatch):
     assert ejecutor.ejecutar_fuente(sesion, fuente, completa=True).registros == 0  # no duplica
 
 
+def test_un_valor_que_llega_tarde_reemplaza_al_faltante(sesion, monkeypatch):
+    # La fuente se cae a las 02:00 y 03:00; al volver publica las 03:00 atrasada.
+    registros = [_registro(1, 10.0), _registro(4, 12.0)]
+    monkeypatch.setitem(ejecutor.CONECTORES, "buena", lambda: ConectorFijo(registros))
+    fuente = sesion.scalar(select(Fuente).where(Fuente.nombre == "buena"))
+    ejecutor.ejecutar_fuente(sesion, fuente)
+    registros.append(_registro(3, 11.0))
+    tardia = ejecutor.ejecutar_fuente(sesion, fuente, completa=True)
+    assert tardia.registros == 1
+    horas = sesion.execute(select(Medicion.instante, Medicion.valor, Medicion.bandera, Medicion.ejecucion_id)
+                           .order_by(Medicion.instante)).all()
+    assert [(h.hour, v, b) for h, v, b, _ in horas] == [
+        (1, 10.0, "valido"), (2, None, "faltante"), (3, 11.0, "valido"), (4, 12.0, "valido")]
+    assert horas[2].ejecucion_id == tardia.id  # procedencia de la ejecucion que trajo el valor
+    # Un valor ya guardado no se reemplaza aunque la fuente lo cambie.
+    registros[0] = _registro(1, 99.0)
+    assert ejecutor.ejecutar_fuente(sesion, fuente, completa=True).registros == 0
+
+
 def test_la_ingesta_incremental_solo_trae_datos_nuevos(sesion, monkeypatch):
     registros = [_registro(1, 10.0)]
     monkeypatch.setitem(ejecutor.CONECTORES, "buena", lambda: ConectorFijo(registros))

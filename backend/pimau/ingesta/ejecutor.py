@@ -108,8 +108,16 @@ def _cargar_mediciones(sesion, fuente, ejecucion, registros) -> int:
         if not filas:
             continue
         # Si una ingesta se repite, no duplica datos y conserva la procedencia original.
-        resultado = sesion.execute(insert(Medicion).values(filas).on_conflict_do_nothing(
-            index_elements=["estacion_id", "parametro_id", "instante"]).returning(Medicion.id))
+        # La excepcion es un faltante que despues llega con valor (por ejemplo, una
+        # fuente que vuelve tras una caida y publica las horas atrasadas): ese
+        # valor reemplaza al faltante, con la procedencia de la ejecucion que lo trajo.
+        sentencia = insert(Medicion).values(filas)
+        nuevo = sentencia.excluded
+        resultado = sesion.execute(sentencia.on_conflict_do_update(
+            index_elements=["estacion_id", "parametro_id", "instante"],
+            set_={"valor": nuevo.valor, "bandera": nuevo.bandera,
+                  "ejecucion_id": nuevo.ejecucion_id, "fecha_publicacion": nuevo.fecha_publicacion},
+            where=Medicion.valor.is_(None) & nuevo.valor.is_not(None)).returning(Medicion.id))
         insertadas += len(resultado.all())
         sesion.commit()
     return insertadas
