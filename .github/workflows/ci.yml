@@ -62,11 +62,40 @@ jobs:
       - name: Construcción
         run: npm run build
 
+  e2e:
+    # Pruebas de extremo a extremo y de accesibilidad (RNF-07) del visor contra
+    # el build de producción, con la API simulada de web/e2e: no necesitan el
+    # backend ni el mapa base. El informe guarda una captura de cada vista.
+    runs-on: ubuntu-latest
+    needs: [web]
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Navegador de las pruebas
+        run: npx playwright install --with-deps chromium
+      - name: Pruebas de extremo a extremo y de accesibilidad
+        run: npm run e2e
+      - name: Informe con las capturas
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: informe-e2e
+          path: web/playwright-report/
+          retention-days: 14
+
   imagenes:
     # Construye las imágenes de los contenedores para comprobar que se pueden
     # desplegar.
     runs-on: ubuntu-latest
-    needs: [backend, web]
+    needs: [backend, web, e2e]
     steps:
       - uses: actions/checkout@v4
       - run: cp .env.example .env

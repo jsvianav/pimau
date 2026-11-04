@@ -18,3 +18,7 @@ respaldos/
 
 # Modelos entrenados por la analítica (se regeneran)
 /modelos/
+
+# Resultados de las pruebas de extremo a extremo del visor
+web/test-results/
+web/playwright-report/
