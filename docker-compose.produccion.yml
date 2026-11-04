@@ -1,0 +1,32 @@
+# Ajustes para el servidor de producción (Azure). Se usa junto con el archivo
+# principal:
+#   docker compose -f docker-compose.yml -f docker-compose.produccion.yml up -d
+#
+# Caddy recibe el tráfico de internet en los puertos 80 y 443, obtiene el
+# certificado HTTPS de Let's Encrypt y lo reenvía al visor. El visor ya no
+# publica su puerto, así que solo se llega a él a través de Caddy.
+services:
+  web:
+    ports: !reset []
+    volumes:
+      # nginx toma la IP del cliente de la cabecera que pone Caddy, para que el
+      # límite de solicitudes y el bloqueo de inicio de sesión sigan siendo por
+      # persona y no por la IP de Caddy.
+      - ./despliegue/nginx_ip_real.conf:/etc/nginx/conf.d/ip_real.conf:ro
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+    environment:
+      DOMINIO: ${DOMINIO}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./despliegue/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_datos:/data
+
+volumes:
+  caddy_datos:

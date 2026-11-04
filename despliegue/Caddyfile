@@ -1,0 +1,6 @@
+# Caddy obtiene y renueva solo el certificado HTTPS del dominio. Como no se le
+# declara ningún proxy de confianza, ignora la cabecera X-Forwarded-For que
+# mande el cliente y pone la IP real de la conexión.
+{$DOMINIO} {
+	reverse_proxy web:80
+}
