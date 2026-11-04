@@ -6,7 +6,18 @@
 # certificado HTTPS de Let's Encrypt y lo reenvía al visor. El visor ya no
 # publica su puerto, así que solo se llega a él a través de Caddy.
 services:
+  # En el servidor todo arranca solo cuando la máquina se enciende o se reinicia.
+  db:
+    restart: unless-stopped
+  ingesta:
+    restart: unless-stopped
+  api:
+    restart: unless-stopped
+  respaldo:
+    restart: unless-stopped
+
   web:
+    restart: unless-stopped
     ports: !reset []
     volumes:
       # nginx toma la IP del cliente de la cabecera que pone Caddy, para que el
