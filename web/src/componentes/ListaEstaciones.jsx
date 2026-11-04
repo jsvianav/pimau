@@ -66,8 +66,11 @@ export default function ListaEstaciones({ grupos, parametro, meta, seleccion, on
   const props = { parametro, meta, seleccion, onSeleccionar, opciones };
   // La búsqueda ignora tildes, mayúsculas y palabras como «de» o «la», igual que
   // la regla que agrupa las estaciones de dos fuentes.
-  const clave = claveEstacion(busqueda);
-  const visibles = clave ? grupos.filter((g) => claveEstacion(g.nombre).includes(clave)) : grupos;
+  // Una búsqueda hecha solo de esas palabras se compara tal cual: no debe
+  // quedar ignorada en silencio.
+  const consulta = busqueda.trim();
+  const clave = claveEstacion(consulta) || consulta.toLowerCase();
+  const visibles = consulta ? grupos.filter((g) => claveEstacion(g.nombre).includes(clave)) : grupos;
   const conRecientes = opciones.soloRecientes ? visibles.filter((g) => estadoMasReciente(g, parametro, opciones)) : [];
   const sinRecientes = visibles.filter((g) => !conRecientes.includes(g));
 
@@ -83,9 +86,9 @@ export default function ListaEstaciones({ grupos, parametro, meta, seleccion, on
         </div>
       )}
       <p className="solo-lector" role="status">
-        {clave ? `${visibles.length} ${visibles.length === 1 ? "estación coincide" : "estaciones coinciden"}` : ""}
+        {consulta ? `${visibles.length} ${visibles.length === 1 ? "estación coincide" : "estaciones coinciden"}` : ""}
       </p>
-      {clave && !visibles.length && (
+      {consulta && !visibles.length && (
         <div className="sin-resultados">
           <p>Ninguna estación coincide con «{busqueda.trim()}».</p>
           <button className="boton" type="button" onClick={() => setBusqueda("")}>Borrar la búsqueda</button>

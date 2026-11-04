@@ -60,7 +60,11 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino,
   function limpiarConsulta() {
     setRango(null); setSerie(null); setSerieComparada(null); setError(null);
   }
-  function cambiarEstacion(id) { setEstacionElegida(id); limpiarConsulta(); }
+  function cambiarEstacion(id) {
+    // Si la nueva estación era la comparada, la comparación se descarta del todo.
+    if (id === comparar) setComparar(null);
+    setEstacionElegida(id); limpiarConsulta();
+  }
   function cambiarParametro(codigo) { setParametro(codigo); setComparar(null); limpiarConsulta(); }
 
   function pedirComparacion(id, consulta, vigente = () => true) {

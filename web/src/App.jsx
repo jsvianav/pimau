@@ -202,17 +202,17 @@ export default function App() {
 
   // Al volver al Histórico por su pestaña se abre la última consulta.
   function cambiarPestana(id) {
-    if (id === "historico" && consultaHistorico) setDestinoHistorico(consultaHistorico);
+    if (id === "historico" && pestana !== "historico" && consultaHistorico) setDestinoHistorico(consultaHistorico);
     setPestana(id);
   }
 
   // Enlace para saltar los controles del mapa (o el encabezado) con el teclado.
   const destinoSalto = pestana === "mapa" ? "lista-estaciones" : "contenido";
   function saltar(evento) {
-    const destino = document.getElementById(destinoSalto);
-    if (!destino) return;
+    // Sin destino todavía (la lista está cargando) no se navega al #ancla: solo
+    // agregaría un paso al historial.
     evento.preventDefault();
-    destino.focus();
+    document.getElementById(destinoSalto)?.focus();
   }
 
   return (

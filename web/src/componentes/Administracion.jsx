@@ -161,10 +161,11 @@ function FilaUmbral({ umbral, onGuardar, guardada }) {
   const campo = useRef(null);
   const numero = Number(String(valor).replace(",", "."));
   const valido = valor !== "" && numero > 0;
-  // Un campo vacío solo es error si antes había un umbral (no hay cómo borrarlo).
-  const invalido = revisar && !valido && (valor !== "" || umbral.valor != null);
   const cambiado = valor === "" ? umbral.valor != null || activo !== umbral.activo
     : numero !== umbral.valor || activo !== umbral.activo;
+  // Un campo vacío solo es error si hay algo que guardar (no hay cómo borrar un
+  // umbral, y activar la alerta exige un valor).
+  const invalido = revisar && !valido && (valor !== "" || cambiado);
 
   function guardar() {
     if (!valido) {
