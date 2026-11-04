@@ -219,6 +219,11 @@ select, input[type="date"] {
 
 /* Leyenda: compacta, abajo a la izquierda. En el celular va dentro del panel. */
 .leyenda-panel { display: none; }
+/* En el panel del celular la leyenda es un desplegable al final, con el mismo margen de las demás secciones. */
+.panel-lateral > .leyenda-panel { padding: 16px 22px; border-top: 1px solid var(--linea); }
+.leyenda-panel > summary { cursor: pointer; padding-block: 4px; }
+.leyenda-panel > summary h2 { display: inline; }
+.leyenda-panel[open] > summary { margin-bottom: 8px; }
 .leyenda h2 { font-size: var(--texto-secundario); font-weight: 600; }
 .leyenda p { margin: 2px 0 10px; color: var(--tinta-tenue); font-size: var(--texto-meta); }
 .leyenda ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
@@ -266,14 +271,23 @@ select, input[type="date"] {
 .cifra { display: flex; align-items: baseline; gap: 8px; margin: 0; }
 .cifra strong { font-family: var(--fuente-titulo); font-size: var(--texto-cifra); line-height: 1.1; font-weight: 700; letter-spacing: -0.03em; }
 .cifra span { color: var(--tinta-suave); }
+/* Con ICA, el valor horario va debajo de la categoría, como detalle. */
+.valor-horario { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; margin: 12px 0 0; }
+.valor-horario strong { font-family: var(--fuente-titulo); font-size: var(--titulo-2); font-weight: 700; }
+.valor-horario span { color: var(--tinta-suave); font-size: var(--texto-secundario); }
 .fecha-dato { margin: 4px 0 12px; font-size: var(--texto-secundario); color: var(--tinta-suave); }
 .fecha-dato .antiguedad { color: var(--aviso); font-weight: 600; }
 .fecha-dato .antiguedad.reciente { color: var(--exito); }
 /* Avisos de la ficha, en orden de gravedad y cada uno con su título. */
 .avisos { display: grid; gap: 6px; margin: 6px 0 12px; }
 .avisos:empty { display: none; }
-.avisos > p { margin: 0; font-size: var(--texto-secundario); padding: 9px 11px; border-radius: 8px; }
+.avisos > * { margin: 0; font-size: var(--texto-secundario); padding: 9px 11px; border-radius: 8px; }
+.avisos p { margin: 0; }
 .avisos strong { display: block; }
+/* «¿Qué significa?»: el porqué de cada aviso, plegado. */
+.aviso-detalle { margin-top: 4px; }
+.aviso-detalle summary { cursor: pointer; width: fit-content; font-size: var(--texto-meta); text-decoration: underline; }
+.aviso-detalle p { margin-top: 4px; }
 .aviso-alerta { background: var(--peligro-fondo); color: var(--peligro); border-left: 4px solid; }
 .aviso-calidad { background: var(--peligro-fondo); color: var(--peligro); }
 .aviso-anomalia { background: var(--neblina); color: var(--tinta-suave); }
@@ -281,11 +295,13 @@ select, input[type="date"] {
 .ultimas-horas { margin: 4px 0 14px; }
 .ultimas-horas figcaption { font-size: var(--texto-secundario); color: var(--tinta-suave); margin-bottom: 2px; }
 .clave-guia { display: flex; align-items: center; gap: 6px; margin: 2px 0 0; font-size: var(--texto-meta); color: var(--tinta-tenue); }
+/* Referencias de tiempo bajo la gráfica de 48 horas, alineadas con su área (el eje Y mide 36 px). */
+.eje-tiempo { display: flex; justify-content: space-between; margin: 0; padding-left: 36px; font-size: var(--texto-meta); color: var(--tinta-tenue); }
 
 /* Escala del ICA: el elemento memorable de la ficha. */
 .escala { margin: 6px 0 10px; }
 .escala-categoria { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
-.escala-categoria strong { font-size: var(--titulo-3); }
+.escala-categoria strong { font-size: var(--titulo-2); line-height: 1.2; }
 .escala-categoria span { color: var(--tinta-suave); font-size: var(--texto-secundario); }
 /* La barra es un contenedor de consulta: 1cqi es el 1 % de su ancho. */
 .escala-barra { position: relative; display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; height: 12px;

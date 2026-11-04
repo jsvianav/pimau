@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../api.js";
-import { fechaISO, formatearFecha, formatearNumero, nombreCorto, restarDias } from "../util.js";
+import { antiguedadCorta, fechaISO, formatearFecha, formatearNumero, nombreCorto, restarDias } from "../util.js";
 import PuntoAnomalo from "./PuntoAnomalo.jsx";
 
 // Serie de las últimas 48 horas, solo para las fuentes que publican datos
@@ -36,7 +36,7 @@ export default function UltimasHoras({ registro, parametro, meta, ahora }) {
         <ResponsiveContainer width="100%" height={96}>
           <LineChart data={puntos} margin={{ top: 6, right: 4, bottom: 0, left: 0 }}>
             <XAxis dataKey="t" hide />
-            <YAxis width={30} tick={{ fontSize: 12, fill: "var(--eje-texto)" }} axisLine={false} tickLine={false}
+            <YAxis width={36} tick={{ fontSize: 12, fill: "var(--eje-texto)" }} axisLine={false} tickLine={false}
                    tickFormatter={formatearNumero} tickCount={3}
                    domain={meta?.variable === "meteorologia" ? ["auto", "auto"] : [0, "auto"]} />
             <Tooltip contentStyle={{ borderRadius: 8, fontSize: 14 }}
@@ -50,6 +50,12 @@ export default function UltimasHoras({ registro, parametro, meta, ahora }) {
           </LineChart>
         </ResponsiveContainer>
       </div>
+      {/* El eje X va oculto para que la gráfica quepa en la ficha; los extremos
+          dicen de cuándo es el primer y el último punto sin pasar el puntero. */}
+      <p className="eje-tiempo" aria-hidden="true">
+        <span>{antiguedadCorta(puntos[0].t, ahora)}</span>
+        <span>{antiguedadCorta(puntos.at(-1).t, ahora)}</span>
+      </p>
       {guia?.periodo === "24 horas" && guia.valor <= maximo.valor * 2 && (
         <p className="clave-guia">
           <svg width="20" height="6" aria-hidden="true"><line x1="0" y1="3" x2="20" y2="3" stroke="var(--referencia-oms)" strokeDasharray="2 3" /></svg>

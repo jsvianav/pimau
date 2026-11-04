@@ -272,10 +272,11 @@ export default function App() {
             <Ficha grupo={grupoSeleccionado} parametro={parametro} meta={meta[parametro]} zonas={zonas}
                    onVerHistorico={verHistorico} ahora={ahora} alertas={alertas} umbrales={umbrales} carga={carga}
                    onReintentar={reintentar} />
-            {umbrales && <Leyenda umbrales={umbrales} parametro={parametro} meta={meta[parametro]}
-                                  soloRecientes={soloRecientes} variante="panel" />}
             <ListaEstaciones grupos={grupos} parametro={parametro} meta={meta[parametro]} seleccion={seleccion}
                              onSeleccionar={setSeleccion} opciones={opcionesEstado} carga={carga} />
+            {/* En el celular la leyenda va después de la lista y plegada (en pantallas anchas flota sobre el mapa). */}
+            {umbrales && <Leyenda umbrales={umbrales} parametro={parametro} meta={meta[parametro]}
+                                  soloRecientes={soloRecientes} variante="panel" />}
             <p className="fuentes">
               Datos del IDEAM, del portal de Datos Abiertos de Cali (DAGMA), de SATIC (red OAC22) y de la IDESC.{" "}
               <a href="/api/docs">Documentación de la API</a>.

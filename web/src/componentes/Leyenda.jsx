@@ -13,32 +13,45 @@ function Anillos() {
   );
 }
 
-// Sobre el mapa flota en una tarjeta; en el celular, donde no cabe, va dentro
-// del panel (variante "panel").
+// Sobre el mapa flota en una tarjeta que se desplaza por dentro si no cabe (y
+// por eso recibe el foco). En el celular va al final del panel, plegada: la
+// lista y la ficha ya dicen la categoría de cada estación con su nombre.
+function Contenedor({ variante, etiqueta, titulo, children }) {
+  if (variante === "panel") {
+    return (
+      <details className="leyenda leyenda-panel">
+        <summary><h2>{etiqueta}</h2></summary>
+        {children}
+      </details>
+    );
+  }
+  return (
+    <section className="flotante leyenda" tabIndex={0} aria-label={etiqueta}>
+      <h2>{titulo}</h2>
+      {children}
+    </section>
+  );
+}
+
 export default function Leyenda({ umbrales, parametro, meta, soloRecientes, variante = "flotante" }) {
-  const clase = variante === "panel" ? "leyenda leyenda-panel" : "flotante leyenda";
-  // Sobre el mapa la leyenda se desplaza por dentro si no cabe: recibe el foco
-  // para poder desplazarla con el teclado.
-  const foco = variante === "panel" ? undefined : 0;
   const cortes = umbrales[parametro]?.ica || [];
   const ruido = umbrales[parametro]?.ruido || {};
   if (ruido["Día"]) {
     return (
-      <section className={clase} tabIndex={foco} aria-label="Leyenda del ruido">
-        <h2>{meta?.nombre || "Ruido ambiental"}</h2>
+      <Contenedor variante={variante} etiqueta="Leyenda del ruido" titulo={meta?.nombre || "Ruido ambiental"}>
         <p>
           Nivel equivalente de cada hora, en dB(A). La Resolución 627 de 2006 fija para zonas residenciales,
           universidades y colegios (sector B) {formatearNumero(ruido["Día"])} dB(A) de día y{" "}
           {formatearNumero(ruido["Noche"])} de noche. El límite exacto depende del uso del suelo de cada sitio.
         </p>
         <Anillos />
-      </section>
+      </Contenedor>
     );
   }
   if (!cortes.length) {
+    const nombre = meta?.nombre || nombreCorto(parametro);
     return (
-      <section className={clase} tabIndex={foco} aria-label="Leyenda">
-        <h2>{meta?.nombre || nombreCorto(parametro)}</h2>
+      <Contenedor variante={variante} etiqueta={`Leyenda: ${nombre}`} titulo={nombre}>
         <p>
           {meta?.variable === "meteorologia"
             ? "Variable meteorológica: no tiene escala de calidad del aire."
@@ -46,12 +59,11 @@ export default function Leyenda({ umbrales, parametro, meta, soloRecientes, vari
           El último valor aparece junto a cada estación, en {meta?.unidad}.
         </p>
         <Anillos />
-      </section>
+      </Contenedor>
     );
   }
   return (
-    <section className={clase} tabIndex={foco} aria-label="Leyenda del Índice de Calidad del Aire">
-      <h2>Índice de Calidad del Aire</h2>
+    <Contenedor variante={variante} etiqueta="Leyenda del Índice de Calidad del Aire" titulo="Índice de Calidad del Aire">
       {/* El selector del mapa usa el nombre corto; aquí va el completo. */}
       <p>{meta?.nombre || nombreCorto(parametro)}, {textoVentana(meta?.ventana_ica_horas)}. Resolución 2254 de 2017, en µg/m³.</p>
       <ol>
@@ -78,6 +90,6 @@ export default function Leyenda({ umbrales, parametro, meta, soloRecientes, vari
         La comuna o el corregimiento de cada estación toma su color. El dato es de la estación, no una medición de
         toda la zona.
       </p>
-    </section>
+    </Contenedor>
   );
 }

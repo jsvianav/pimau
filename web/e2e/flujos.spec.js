@@ -68,3 +68,46 @@ test("administración: guardar una fila deja el foco en su botón", async ({ pag
   await expect(guardado).toBeFocused();
   await expect(page.getByRole("status")).toContainText("Cambios guardados en Datos Abiertos de Cali");
 });
+
+test("con ICA, la ficha empieza por la categoría y deja el valor horario como detalle", async ({ page }) => {
+  await instalarApi(page);
+  await abrirVisor(page);
+  await elegirEstacion(page, "San Martín");
+  const orden = await page.locator(".fuente-dato").first().evaluate((fuente) =>
+    [...fuente.children].map((hijo) => hijo.className).filter(Boolean));
+  expect(orden.indexOf("escala")).toBeLessThan(orden.indexOf("valor-horario"));
+  // Sin ICA (temperatura) la cifra sigue siendo lo principal.
+  await page.locator(".controles-mapa select").selectOption("TEMP");
+  await elegirEstacion(page, "Universidad de San Buenaventura");
+  await expect(page.locator(".fuente-dato .cifra strong")).toHaveText("26,4");
+});
+
+test("cada aviso dice qué pasa en una línea y guarda el porqué plegado", async ({ page }) => {
+  await instalarApi(page);
+  await abrirVisor(page);
+  await elegirEstacion(page, "San Martín");
+  const aviso = page.locator(".aviso-anomalia");
+  await expect(aviso).toContainText("El último dato se sale del patrón de esta serie.");
+  await expect(aviso.getByText("Isolation Forest", { exact: false })).toBeHidden();
+  await aviso.getByText("¿Qué significa?").click();
+  await expect(aviso.getByText("Isolation Forest", { exact: false })).toBeVisible();
+});
+
+test.describe("celular", () => {
+  test.use({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
+
+  test("la leyenda va plegada después de la lista", async ({ page }) => {
+    await instalarApi(page);
+    await abrirVisor(page);
+    const leyenda = page.locator("details.leyenda-panel");
+    await expect(leyenda).not.toHaveAttribute("open", "");
+    const despuesDeLaLista = await page.evaluate(() => {
+      const lista = document.getElementById("lista-estaciones");
+      const leyendaPanel = document.querySelector(".leyenda-panel");
+      return Boolean(lista.compareDocumentPosition(leyendaPanel) & Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+    expect(despuesDeLaLista).toBe(true);
+    await leyenda.locator("summary").click();
+    await expect(leyenda.getByText("Dañina a la salud de grupos sensibles")).toBeVisible();
+  });
+});
