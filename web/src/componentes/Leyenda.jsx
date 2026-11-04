@@ -49,7 +49,8 @@ export default function Leyenda({ umbrales, parametro, meta, soloRecientes, vari
   return (
     <section className={clase} aria-label="Leyenda del Índice de Calidad del Aire">
       <h2>Índice de Calidad del Aire</h2>
-      <p>{nombreCorto(parametro)}, {textoVentana(meta?.ventana_ica_horas)}. Resolución 2254 de 2017, en µg/m³.</p>
+      {/* El selector del mapa usa el nombre corto; aquí va el completo. */}
+      <p>{meta?.nombre || nombreCorto(parametro)}, {textoVentana(meta?.ventana_ica_horas)}. Resolución 2254 de 2017, en µg/m³.</p>
       <ol>
         {cortes.map((c) => (
           <li key={c.categoria}>

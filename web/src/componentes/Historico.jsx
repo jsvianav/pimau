@@ -3,7 +3,7 @@ import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Too
 import { api } from "../api.js";
 import { fechaISO, formatearFecha, formatearNumero, marcasEje, nombreCorto, restarDias, textoVentana } from "../util.js";
 import SelectorParametro from "./SelectorParametro.jsx";
-import { PuntoAnomalo } from "./Ficha.jsx";
+import PuntoAnomalo from "./PuntoAnomalo.jsx";
 
 const MAXIMO_DIAS_HORARIO = 93;
 // El puntaje de anomalía va de 0 a 1 y las señaladas quedan entre 0,62 y 0,8:

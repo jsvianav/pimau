@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { api } from "./api.js";
 import { agruparEstaciones, esReciente, estadoMasReciente, fechaCorta, nombreCorto, ultimoDatoDelGrupo } from "./util.js";
 import SelectorParametro from "./componentes/SelectorParametro.jsx";
@@ -6,9 +6,13 @@ import Mapa, { TEMAS_MAPA } from "./componentes/Mapa.jsx";
 import Ficha from "./componentes/Ficha.jsx";
 import ListaEstaciones from "./componentes/ListaEstaciones.jsx";
 import Leyenda from "./componentes/Leyenda.jsx";
-import Historico from "./componentes/Historico.jsx";
-import Administracion from "./componentes/Administracion.jsx";
 import Alertas from "./componentes/Alertas.jsx";
+
+// El Histórico (con Recharts) y la Administración se descargan al abrir su
+// pestaña: la carga inicial solo trae lo que necesita el mapa.
+const Historico = lazy(() => import("./componentes/Historico.jsx"));
+const Administracion = lazy(() => import("./componentes/Administracion.jsx"));
+const CARGANDO_VISTA = <p className="cargando" role="status">Cargando…</p>;
 
 // SATIC se descarga cada hora y la API renueva su caché cada nueve minutos, así
 // que el visor vuelve a pedir las estaciones cada diez minutos.
@@ -171,7 +175,7 @@ export default function App() {
                   onZonas={setZonas} opciones={opcionesEstado} alertas={alertas}>
               <label className="campo">
                 Variable
-                <SelectorParametro parametros={parametrosMapa} valor={parametro} onCambiar={setParametro} />
+                <SelectorParametro parametros={parametrosMapa} valor={parametro} onCambiar={setParametro} corto />
               </label>
               <fieldset className="selector-vigencia">
                 <legend>Mostrar</legend>
@@ -212,13 +216,17 @@ export default function App() {
 
       {pestana === "historico" && (
         <main className="vista-historico">
-          <Historico grupos={grupos} umbrales={umbrales} parametros={parametros} meta={meta} destino={destinoHistorico} />
+          <Suspense fallback={CARGANDO_VISTA}>
+            <Historico grupos={grupos} umbrales={umbrales} parametros={parametros} meta={meta} destino={destinoHistorico} />
+          </Suspense>
         </main>
       )}
 
       {pestana === "admin" && (
         <main className="vista-admin">
-          <Administracion />
+          <Suspense fallback={CARGANDO_VISTA}>
+            <Administracion />
+          </Suspense>
         </main>
       )}
 

@@ -20,10 +20,15 @@ function Elemento({ grupo, parametro, meta, seleccion, onSeleccionar, opciones }
     <li>
       <button type="button" aria-pressed={grupo.id === seleccion} onClick={() => onSeleccionar(grupo.id)}>
         <span className={`punto${actual ? "" : " hueco"}`} aria-hidden="true" style={{ background: color }} />
-        <span>{grupo.nombre}</span>
-        <span className="estado">
-          {actual || !opciones.soloRecientes ? textoEstado(actual, meta, opciones)
-            : marcada ? "Datos no confiables" : ultimo ? `Último dato: ${ultimo.slice(0, 4)}` : "Sin datos"}
+        {/* Nombre y estado comparten renglón si caben; si no, el estado baja al
+            siguiente. Con «Dañina a la salud de grupos sensibles» en una sola
+            columna fija, el nombre quedaba sin ancho y se dibujaba encima. */}
+        <span className="texto-estacion">
+          <span>{grupo.nombre}</span>
+          <span className="estado">
+            {actual || !opciones.soloRecientes ? textoEstado(actual, meta, opciones)
+              : marcada ? "Datos no confiables" : ultimo ? `Último dato: ${ultimo.slice(0, 4)}` : "Sin datos"}
+          </span>
         </span>
       </button>
     </li>

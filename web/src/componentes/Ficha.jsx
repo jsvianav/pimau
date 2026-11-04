@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { api } from "../api.js";
-import { antiguedad, esReciente, fechaISO, formatearFecha, formatearNumero, nombreCorto, periodoRuido, restarDias,
-         zonaDe } from "../util.js";
+import { lazy, Suspense } from "react";
+import { antiguedad, esReciente, formatearFecha, formatearNumero, nombreCorto, periodoRuido, zonaDe } from "../util.js";
 import { COLOR_ALERTA } from "./Mapa.jsx";
+
+// La gráfica de las últimas 48 horas usa Recharts (unos 100 kB comprimidos):
+// se descarga al abrir una estación con datos recientes, no con la página.
+const UltimasHoras = lazy(() => import("./UltimasHoras.jsx"));
 
 const RANGOS_INDICE = [[0, 50], [51, 100], [101, 150], [151, 200], [201, 300], [301, 500]];
 const COLORES_ICA = ["#00E400", "#FFFF00", "#FF7E00", "#FF0000", "#8F3F97", "#7E0023"];
@@ -40,9 +41,9 @@ function EscalaIca({ estado }) {
         {COLORES_ICA.map((color, i) => (
           <span key={color} className={i === indice ? "segmento actual" : "segmento"} style={{ background: color }} />
         ))}
-        <span className="escala-pista" style={{ transform: `translateX(${porcentaje}%)` }}>
-          <span className="escala-marcador" />
-        </span>
+        {/* La posición va en una variable de CSS: el marcador se desliza con
+            transform dentro de la barra, sin salirse de ella (ver estilos.css). */}
+        <span className="escala-marcador" style={{ "--posicion": porcentaje }} />
       </div>
       <div className="escala-extremos" aria-hidden="true"><span>Buena</span><span>Peligrosa</span></div>
       <p className="escala-detalle">
@@ -101,12 +102,6 @@ function AvisoMarcada({ marcada, hayValido }) {
   );
 }
 
-// Las mediciones anómalas (RF-13) se marcan sobre la línea con un punto hueco.
-export function PuntoAnomalo({ cx, cy, payload, index }) {
-  if (!payload?.anomalia || cx == null || cy == null) return <g key={index} />;
-  return <circle key={index} cx={cx} cy={cy} r={5} fill="var(--papel)" stroke="var(--anomalia)" strokeWidth={2} />;
-}
-
 function AvisoAnomalias({ estado }) {
   if (!estado.anomalias_48h) return null;
   return (
@@ -146,60 +141,6 @@ function NormaRuido({ estado, umbrales }) {
       residenciales, universidades y colegios (sector B). Este valor, medido {periodo === "Día" ? "de día" : "de noche"},{" "}
       {supera ? "lo supera" : "está por debajo"}. El límite exacto depende del uso del suelo de la estación.
     </p>
-  );
-}
-
-// Serie de las últimas 48 horas, solo para las fuentes que publican datos recientes.
-function UltimasHoras({ registro, parametro, meta, ahora }) {
-  const [puntos, setPuntos] = useState(null);
-  useEffect(() => {
-    let activa = true;
-    const hasta = fechaISO(ahora);
-    api.serie(registro.id, { parametro, desde: restarDias(hasta, 2), hasta, agregacion: "hora" })
-      .then((s) => {
-        if (!activa) return;
-        const limite = ahora - 48 * 3600000;
-        setPuntos(s.datos.filter((d) => new Date(d.instante) >= limite)
-          .map((d) => ({ t: d.instante, valor: d.valor, anomalia: d.anomalia })));
-      })
-      .catch(() => { if (activa) setPuntos([]); });
-    return () => { activa = false; };
-  }, [registro.id, parametro, ahora]);
-  const validos = (puntos || []).filter((p) => p.valor != null);
-  if (!validos.length) return null;
-  const maximo = validos.reduce((m, p) => (p.valor > m.valor ? p : m));
-  const guia = registro.parametros[parametro]?.guia_oms;
-  return (
-    <figure className="ultimas-horas">
-      <figcaption>
-        Últimas 48 horas, valores horarios. Máximo: {formatearNumero(maximo.valor)} {meta?.unidad} el{" "}
-        {formatearFecha(maximo.t)}.
-      </figcaption>
-      <div role="img" aria-label={`Serie de ${nombreCorto(parametro)} de las últimas 48 horas, con ${validos.length} horas con dato`}>
-        <ResponsiveContainer width="100%" height={96}>
-          <LineChart data={puntos} margin={{ top: 6, right: 4, bottom: 0, left: 0 }}>
-            <XAxis dataKey="t" hide />
-            <YAxis width={30} tick={{ fontSize: 11, fill: "var(--eje-texto)" }} axisLine={false} tickLine={false}
-                   tickFormatter={formatearNumero} tickCount={3}
-                   domain={meta?.variable === "meteorologia" ? ["auto", "auto"] : [0, "auto"]} />
-            <Tooltip contentStyle={{ borderRadius: 8, fontSize: 13 }}
-                     formatter={(v) => [v == null ? "sin dato" : `${formatearNumero(v)} ${meta?.unidad || ""}`, nombreCorto(parametro)]}
-                     labelFormatter={(t) => formatearFecha(t)} />
-            {guia?.periodo === "24 horas" && guia.valor <= maximo.valor * 2 && (
-              <ReferenceLine y={guia.valor} stroke="var(--referencia-oms)" strokeDasharray="2 3" />
-            )}
-            <Line type="linear" dataKey="valor" stroke="var(--serie)" strokeWidth={2} dot={PuntoAnomalo}
-                  connectNulls={false} isAnimationActive={false} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-      {guia?.periodo === "24 horas" && guia.valor <= maximo.valor * 2 && (
-        <p className="clave-guia">
-          <svg width="20" height="6" aria-hidden="true"><line x1="0" y1="3" x2="20" y2="3" stroke="var(--referencia-oms)" strokeDasharray="2 3" /></svg>
-          Guía de la OMS para 24 horas ({formatearNumero(guia.valor)} {meta?.unidad})
-        </p>
-      )}
-    </figure>
   );
 }
 
@@ -245,7 +186,13 @@ function DatoFuente({ registro, parametro, meta, onVerHistorico, ahora, alertas,
       <EscalaIca estado={estado} />
       <GuiaOms estado={estado} />
       {parametro === "RUIDO" && <NormaRuido estado={estado} umbrales={umbrales} />}
-      {reciente && <UltimasHoras registro={registro} parametro={parametro} meta={meta} ahora={ahora} />}
+      {/* Mientras llega el archivo de la gráfica no se muestra nada: la gráfica
+          también espera sus datos y aparece cuando los tiene. */}
+      {reciente && (
+        <Suspense fallback={null}>
+          <UltimasHoras registro={registro} parametro={parametro} meta={meta} ahora={ahora} />
+        </Suspense>
+      )}
       <button className="boton" onClick={() => onVerHistorico(registro.id)}>Ver el histórico de esta fuente</button>
     </section>
   );

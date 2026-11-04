@@ -41,6 +41,7 @@
   --referencia-ica: #17322e;
   --referencia-oms: #6b7c77;
   --sombra: 0 1px 2px rgba(27, 43, 40, 0.06), 0 8px 24px rgba(27, 43, 40, 0.10);
+  --sombra-borde: rgba(27, 43, 40, 0.18);  /* borde de una tabla que sigue de lado */
   --radio: 14px;
   /* Movimiento: salida rápida para lo que aparece y curva simétrica para lo que
      se desplaza en pantalla. */
@@ -94,6 +95,7 @@
     --referencia-ica: #c9d6d2;
     --referencia-oms: #8fa09b;
     --sombra: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+    --sombra-borde: rgba(0, 0, 0, 0.55);
   }
 }
 
@@ -259,18 +261,26 @@ select, input[type="date"] {
 .escala-categoria { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
 .escala-categoria strong { font-size: 1.05rem; }
 .escala-categoria span { color: var(--tinta-suave); font-size: 0.9rem; }
-.escala-barra { position: relative; display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; height: 12px; }
+/* La barra es un contenedor de consulta: 1cqi es el 1 % de su ancho. */
+.escala-barra { position: relative; display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; height: 12px;
+                container-type: inline-size; }
 .escala-barra > .segmento { border-radius: 2px; opacity: 0.35; transition: opacity 240ms ease; }
 .escala-barra > .segmento.actual { opacity: 1; }
 /* Sobre papel oscuro, a 0,35 los colores del ICA se ven turbios: se aclaran un poco. */
 @media (prefers-color-scheme: dark) { .escala-barra > .segmento { opacity: 0.5; } }
-/* El marcador va dentro de una pista del ancho de la barra: al cambiar de
-   variable se desliza con transform (sin recalcular el diseño) hasta el nuevo
-   valor, y así se ve cuánto subió o bajó el índice. */
-.escala-pista { position: absolute; inset: 0; pointer-events: none; transition: transform 240ms var(--curva-mover); }
+/* Al cambiar de variable el marcador se desliza con transform (sin recalcular
+   el diseño) hasta el nuevo valor, y así se ve cuánto subió o bajó el índice.
+   Se mueve en unidades de la barra (cqi): antes se movía una pista del ancho
+   de la barra con translateX(%), y la pista se salía por la derecha tanto como
+   avanzaba el marcador, lo que ensanchaba la página en el celular. */
 .escala-marcador {
   position: absolute; left: 0; top: -5px; width: 4px; height: 22px; margin-left: -2px; border-radius: 2px;
-  background: var(--tinta); box-shadow: 0 0 0 2px var(--papel);
+  background: var(--tinta); box-shadow: 0 0 0 2px var(--papel); pointer-events: none;
+  transform: translateX(calc(var(--posicion, 0) * 1cqi)); transition: transform 240ms var(--curva-mover);
+}
+/* Navegadores sin unidades de contenedor: el marcador se ubica sin animación. */
+@supports not (width: 1cqi) {
+  .escala-marcador { transform: none; left: calc(var(--posicion, 0) * 1%); }
 }
 .escala-extremos { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--tinta-tenue); margin-top: 4px; }
 .escala-detalle { font-size: 0.88rem; color: var(--tinta-suave); margin: 6px 0 0; }
@@ -296,13 +306,17 @@ select, input[type="date"] {
 .lista h2 { font-size: 0.8rem; font-family: var(--fuente-texto); font-weight: 600; color: var(--tinta-tenue); margin-bottom: 6px; }
 .lista ul { list-style: none; margin: 0; padding: 0; }
 .lista button {
-  width: 100%; display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  width: 100%; display: grid; grid-template-columns: 14px minmax(0, 1fr); align-items: center; gap: 10px;
   font: inherit; font-size: 0.92rem; text-align: left; padding: 9px 10px; margin: 0 -10px; width: calc(100% + 20px);
   border: 0; border-radius: 10px; background: none; cursor: pointer; color: var(--tinta);
 }
 .lista button:active { background: var(--neblina); }
 .lista button[aria-pressed="true"] { background: var(--acento-suave); font-weight: 650; }
-.lista .estado { color: var(--tinta-tenue); font-size: 0.8rem; text-align: right; white-space: nowrap; }
+/* Con space-between el estado va a la derecha si cabe en el renglón del
+   nombre; si baja solo al siguiente, queda alineado a la izquierda, bajo el nombre. */
+.texto-estacion { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline;
+                  gap: 1px 10px; min-width: 0; }
+.lista .estado { color: var(--tinta-tenue); font-size: 0.8rem; font-weight: 400; }
 .lista h2.separado { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--linea); }
 
 /* Estados de carga, vacío y error. */
@@ -357,8 +371,17 @@ select, input[type="date"] {
 .tarjeta h3 { font-size: 1.1rem; margin-bottom: 4px; }
 .tarjeta > .nota { margin-bottom: 12px; }
 /* position: relative contiene los textos .solo-lector de los encabezados: sin él
-   escapan del scroll y ensanchan la página en el celular. */
-.tabla-desplazable { overflow-x: auto; position: relative; }
+   escapan del scroll y ensanchan la página en el celular.
+   Las sombras de los bordes avisan que la tabla sigue de lado: las capas con
+   attachment local tapan cada sombra cuando el scroll llega a ese extremo. */
+.tabla-desplazable {
+  overflow-x: auto; position: relative;
+  background:
+    linear-gradient(to right, var(--papel) 40%, transparent) left center / 28px 100% no-repeat local,
+    linear-gradient(to left, var(--papel) 40%, transparent) right center / 28px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, var(--sombra-borde), transparent) left center / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, var(--sombra-borde), transparent) right center / 12px 100% no-repeat scroll;
+}
 .tabla-fuentes, .tabla-auditoria { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .tabla-fuentes th, .tabla-fuentes td, .tabla-auditoria th, .tabla-auditoria td {
   padding: 10px 8px; text-align: left; border-bottom: 1px solid var(--linea); vertical-align: middle;
@@ -383,7 +406,10 @@ select, input[type="date"] {
 .resultado { font-size: 0.8rem; font-weight: 650; }
 .resultado.rechazado, .resultado.bloqueado { color: var(--peligro); }
 .resultado.correcto { color: var(--exito); }
-.tabla-auditoria td { overflow-wrap: anywhere; }
+/* break-word solo parte una palabra que no cabe en ningún ancho; anywhere hacía
+   que la tabla se encogiera hasta partir la IP o «rechazado» letra por letra. */
+.tabla-auditoria td { overflow-wrap: break-word; }
+.tabla-auditoria td.sin-partir { white-space: nowrap; }
 .lista-eventos { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 0.88rem; }
 .lista-eventos span { display: block; color: var(--tinta-suave); overflow-wrap: anywhere; }
 .error-campo { display: block; margin-top: 4px; font-size: 0.78rem; color: var(--peligro); }
@@ -477,7 +503,7 @@ select, input[type="date"] {
    y los cambios de color, que ayudan a notar el cambio sin mover nada. */
 @media (prefers-reduced-motion: reduce) {
   .ficha:not(.vacia) { animation-name: aparecer-sin-mover; }
-  .escala-pista { transition: none; }
+  .escala-marcador { transition: none; }
   .boton { transition: background-color 120ms ease; }
   .boton:active:not(:disabled):not([aria-disabled="true"]) { transform: none; }
 }

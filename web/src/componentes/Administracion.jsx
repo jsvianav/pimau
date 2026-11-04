@@ -311,9 +311,11 @@ function Panel({ sesion, onSalir, onVencida }) {
       </div>
 
       <div className="tarjeta">
-        <h3>Registro de auditoría</h3>
+        <h3 id="titulo-auditoria">Registro de auditoría</h3>
         <p className="nota">Cada inicio de sesión, cada intento sin permiso y cada cambio quedan registrados.</p>
-        <div className="tabla-desplazable">
+        {/* En el celular la tabla se desplaza de lado. No tiene controles, así que
+            la región recibe el foco para poder desplazarla con el teclado. */}
+        <div className="tabla-desplazable" role="region" aria-labelledby="titulo-auditoria" tabIndex={0}>
           <table className="tabla-auditoria">
             <thead>
               <tr><th scope="col">Fecha</th><th scope="col">Quién</th><th scope="col">Acción</th>
@@ -322,11 +324,11 @@ function Panel({ sesion, onSalir, onVencida }) {
             <tbody>
               {auditoria.map((a, i) => (
                 <tr key={`${a.instante}-${i}`}>
-                  <td>{formatearFecha(a.instante)}</td>
+                  <td className="sin-partir">{formatearFecha(a.instante)}</td>
                   <td>{a.administrador || "Sin sesión"}</td>
                   <td>{a.accion}</td>
-                  <td><span className={`resultado ${a.resultado}`}>{a.resultado}</span></td>
-                  <td>{a.ip}</td>
+                  <td className="sin-partir"><span className={`resultado ${a.resultado}`}>{a.resultado}</span></td>
+                  <td className="sin-partir">{a.ip}</td>
                 </tr>
               ))}
             </tbody>
