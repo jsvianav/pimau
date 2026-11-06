@@ -16,6 +16,7 @@ import { esNuevoPaso, escribirUrl, leerUrl, VARIABLE_INICIAL } from "./url.js";
 const Mapa = lazy(() => import("./componentes/Mapa.jsx"));
 const Historico = lazy(() => import("./componentes/Historico.jsx"));
 const Administracion = lazy(() => import("./componentes/Administracion.jsx"));
+const Acerca = lazy(() => import("./componentes/Acerca.jsx"));
 const CARGANDO_VISTA = <p className="cargando" role="status">Cargando…</p>;
 
 // SATIC se descarga cada hora y la API renueva su caché cada nueve minutos, así
@@ -26,6 +27,7 @@ const PESTANAS = [
   { id: "mapa", nombre: "Mapa" },
   { id: "historico", nombre: "Histórico" },
   { id: "admin", nombre: "Administración" },
+  { id: "acerca", nombre: "Acerca de" },
 ];
 
 // Sigue la preferencia de modo claro u oscuro del sistema mientras la página está
@@ -101,7 +103,7 @@ export default function App() {
     const estado = pestana === "mapa" ? { vista: "mapa", estacion: seleccion, variable: parametro, soloRecientes }
       : pestana === "historico" ? { vista: "historico", serie: consultaHistorico?.estacionId, variable: consultaHistorico?.parametro,
                                     desde: consultaHistorico?.desde, hasta: consultaHistorico?.hasta }
-        : { vista: "admin" };
+        : { vista: pestana };
     const destino = escribirUrl(estado);
     if (destino !== window.location.search) {
       const metodo = esNuevoPaso(estadoAnterior.current, estado) ? "pushState" : "replaceState";
@@ -284,7 +286,8 @@ export default function App() {
                                   soloRecientes={soloRecientes} variante="panel" />}
             <p className="fuentes">
               Datos del IDEAM, del portal de Datos Abiertos de Cali (DAGMA), de SATIC (red OAC22) y de la IDESC.{" "}
-              <a href="/api/docs">Documentación de la API</a>.
+              <a href="/api/docs">Documentación de la API</a> ·{" "}
+              <button className="enlace" type="button" onClick={() => cambiarPestana("acerca")}>Acerca de los datos</button>.
             </p>
           </aside>
         </main>
@@ -303,6 +306,14 @@ export default function App() {
         <main className="vista-admin" id="contenido" tabIndex={-1}>
           <Suspense fallback={CARGANDO_VISTA}>
             <Administracion />
+          </Suspense>
+        </main>
+      )}
+
+      {pestana === "acerca" && (
+        <main className="vista-acerca" id="contenido" tabIndex={-1}>
+          <Suspense fallback={CARGANDO_VISTA}>
+            <Acerca />
           </Suspense>
         </main>
       )}

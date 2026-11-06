@@ -111,3 +111,15 @@ test("la pestaña Histórico reabre la última consulta", async ({ page }) => {
   await irA(page, "Histórico");
   await expect(page.getByRole("heading", { name: /PM2\.5 en San Martín/ })).toBeVisible();
 });
+
+test("«Acerca de» se abre desde el panel y tiene su propia dirección", async ({ page }) => {
+  await instalarApi(page);
+  await abrirVisor(page);
+  await page.getByRole("button", { name: "Acerca de los datos" }).click();
+  await expect(page.getByRole("heading", { name: "Acerca de PIMAU" })).toBeVisible();
+  await expect(page).toHaveURL(/vista=acerca/);
+  await expect(page).toHaveTitle("Acerca de · PIMAU");
+  await expect(page.getByRole("link", { name: "documentación interactiva de la API" })).toHaveAttribute("href", "/api/docs");
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Acerca de PIMAU" })).toHaveCount(0);
+});

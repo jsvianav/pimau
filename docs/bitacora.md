@@ -1023,3 +1023,24 @@ Perf Profiler y dataviz. Cada fase quedó en su propio commit.
   esfuerzo y prioridad, y hay una hoja de ruta de cinco semanas. Las P0: traer
   SATIC a producción pese al bloqueo de Azure, formalizar su uso, revisar el
   crédito de Azure, sacar los respaldos del servidor y poner el README al día.
+
+## 2026-11-05 — «Acerca de», ejemplos de la API y ciclo del día
+
+A partir de la comparación con SIATA, IBOCA, AirNow e IQAir
+(`docs/plan_funcionalidades.md`):
+
+- **«Acerca de» (F2):** pestaña nueva y enlace «Acerca de los datos» en el panel
+  del mapa. Explica las fuentes, el ICA, el ruido, las banderas, las anomalías y
+  las alertas, las limitaciones (no es fuente oficial, cobertura del sur, rasgos
+  de sensores de bajo costo, no es tiempo real) y quién hizo el proyecto.
+- **API (F3):** el enlace a `/api/docs` ya existía en el panel y el pie; se
+  agregaron tres ejemplos de consulta en «Acerca de».
+- **Ciclo del día (F4):** en el Histórico, el promedio de cada hora local del
+  periodo consultado, con la hora del pico y la del valle, un gráfico de barras y
+  su tabla. Solo con datos horarios (93 días o menos) y al menos 48 horas con
+  dato; no se calcula para la dirección del viento. En Pance (DAGMA), diciembre
+  de 2019, el PM2.5 sube hacia las 08:00 (29,2 µg/m³) y baja hacia las 17:00
+  (11,4 µg/m³).
+- **Pruebas:** `cicloDiario` con prueba unitaria (26 pasan), y pruebas de extremo
+  a extremo para el ciclo, la navegación a «Acerca de» y su revisión con axe en
+  escritorio y celular, claro y oscuro.

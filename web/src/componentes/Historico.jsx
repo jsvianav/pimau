@@ -5,6 +5,7 @@ import { fechaISO, formatearFecha, formatearNumero, marcasEje, nombreCorto, rest
 import SelectorParametro from "./SelectorParametro.jsx";
 import PuntoAnomalo from "./PuntoAnomalo.jsx";
 import AvisoError from "./AvisoError.jsx";
+import CicloDiario from "./CicloDiario.jsx";
 
 const MAXIMO_DIAS_HORARIO = 93;
 // El puntaje de anomalía va de 0 a 1 y las señaladas quedan entre 0,62 y 0,8:
@@ -324,6 +325,7 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino,
               ` Las referencias de la norma o de la OMS que superan el doble del valor máximo del periodo no se dibujan${
                 limiteAceptable != null ? ` (fin de "Aceptable" en el ICA: ${formatearNumero(limiteAceptable)} µg/m³)` : ""}.`}
           </p>
+          <CicloDiario puntos={puntos} nombre={nombre} unidad={unidadMedida} parametro={parametro} agregacion={agregacion} />
           <div className="acciones">
             <a className="boton" href={api.urlCsv(estacionId, consulta)} download>Descargar los datos en CSV</a>
             {hayComparacion && (

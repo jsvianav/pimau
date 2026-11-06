@@ -5,7 +5,7 @@
 // Los valores que llegan en la URL solo eligen entre opciones conocidas: lo que
 // no tiene la forma esperada se ignora y nunca se inserta como HTML.
 
-export const VISTAS = ["mapa", "historico", "admin"];
+export const VISTAS = ["mapa", "historico", "admin", "acerca"];
 export const VARIABLE_INICIAL = "PM25";
 
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;

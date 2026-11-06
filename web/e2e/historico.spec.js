@@ -46,3 +46,17 @@ test("comparar dos series: leyenda, cifras, tabla y descarga de cada una", async
   await page.getByRole("button", { name: "Ver los datos como tabla" }).click();
   await expect(page.locator(".tabla-datos thead th")).toContainText(["Fecha y hora", "Valor (µg/m³)", "San Martín (SATIC (red OAC22)) (µg/m³)"]);
 });
+
+test("el ciclo del día dice a qué hora suele estar más alto y tiene su tabla", async ({ page }) => {
+  await abrirHistorico(page);
+  const ciclo = page.locator(".ciclo");
+  await expect(ciclo.getByRole("heading", { name: "Ciclo del día" })).toBeVisible();
+  await expect(ciclo.locator(".resumen")).toContainText(/suele estar más alto hacia las \d{2}:00/);
+  await ciclo.getByText("Ver el ciclo como tabla").click();
+  await expect(ciclo.locator("tbody tr")).toHaveCount(24);
+  // Con promedios diarios no hay horas que promediar: lo dice en vez de dibujar.
+  await page.getByLabel("Estación y fuente").selectOption({ label: "Pance (IDEAM (datos.gov.co))" });
+  await page.locator(".lienzo").waitFor();
+  await page.getByRole("button", { name: "Todo" }).click();
+  await expect(ciclo.locator(".nota")).toContainText("93 días o menos");
+});

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   agruparEstaciones, antiguedad, antiguedadCorta, claveEstacion, fechaCorta, periodoRuido, esReciente, estadoMasReciente, formatearFecha, formatearNumero, puntoEnGeometria,
-  marcasEje, restarDias, textoSobre, zonaDe, zonasConEstacion,
+  marcasEje, restarDias, textoSobre, zonaDe, zonasConEstacion, cicloDiario, horaTexto,
 } from "./util.js";
 
 const punto = (id, nombre, fuente, lon, lat, parametros = {}) => ({
@@ -159,5 +159,25 @@ describe("marcas del eje", () => {
   });
   it("devuelve un eje mínimo sin datos", () => {
     expect(marcasEje(0)).toEqual([0, 1]);
+  });
+});
+
+describe("cicloDiario", () => {
+  it("promedia por hora de Colombia e ignora las horas sin dato", () => {
+    const ciclo = cicloDiario([
+      { t: "2026-11-01T12:00:00Z", valor: 10 }, // 07:00 en Cali
+      { t: "2026-11-02T12:00:00Z", valor: 20 },
+      { t: "2026-11-02T12:00:00Z", valor: null },
+      { t: "2026-11-02T04:00:00Z", valor: 5 }, // 23:00 del día anterior en Cali
+    ]);
+    expect(ciclo).toHaveLength(24);
+    expect(ciclo[7]).toEqual({ hora: 7, promedio: 15, n: 2 });
+    expect(ciclo[23]).toEqual({ hora: 23, promedio: 5, n: 1 });
+    expect(ciclo[0]).toEqual({ hora: 0, promedio: null, n: 0 });
+  });
+
+  it("escribe la hora con dos dígitos", () => {
+    expect(horaTexto(7)).toBe("07:00");
+    expect(horaTexto(23)).toBe("23:00");
   });
 });

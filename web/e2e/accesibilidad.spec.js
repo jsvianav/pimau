@@ -21,6 +21,7 @@ const VISTAS = [
     await page.locator(".lienzo").waitFor();
   } },
   { nombre: "inicio de sesión", pasos: (page) => irA(page, "Administración") },
+  { nombre: "acerca de", pasos: (page) => irA(page, "Acerca de") },
   { nombre: "panel de administración", sesion: true, pasos: async (page) => {
     await irA(page, "Administración");
     await page.locator(".tabla-fuentes").first().waitFor();

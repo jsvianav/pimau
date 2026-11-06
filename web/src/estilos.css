@@ -430,6 +430,19 @@ select, input[type="date"] {
 
 /* Administración (flujo F3) */
 .vista-admin { flex: 1; padding: 24px; width: 100%; max-width: 1180px; margin: 0 auto; }
+.vista-acerca { flex: 1; padding: 24px; width: 100%; max-width: 860px; margin: 0 auto; }
+.acerca h2 { font-size: var(--titulo-1); letter-spacing: -0.02em; }
+.acerca h3 { margin: 28px 0 8px; }
+.acerca p, .acerca li { max-width: 72ch; line-height: 1.55; }
+.acerca ul { padding-left: 20px; }
+.acerca li + li { margin-top: 8px; }
+.ejemplos-api div { margin: 12px 0; }
+.ejemplos-api dt code { overflow-wrap: anywhere; font-size: var(--texto-secundario); }
+.ejemplos-api dd { margin: 4px 0 0; color: var(--tinta-suave); font-size: var(--texto-secundario); }
+.ciclo { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--linea); }
+.ciclo h4 { margin: 0; }
+.tabla-ciclo { margin-top: 8px; }
+.tabla-ciclo summary { cursor: pointer; font-size: var(--texto-secundario); }
 .inicio-sesion {
   max-width: 400px; margin: 24px auto; padding: 24px; display: grid; gap: 14px;
   background: var(--papel); border-radius: var(--radio); border: 1px solid var(--borde-superficie); box-shadow: var(--sombra);
@@ -585,7 +598,7 @@ main:focus { outline: none; }
   .controles-mapa { flex: 0 1 auto; min-height: 0; overflow-y: auto; gap: 8px; }
   .mas-opciones > summary { display: list-item; cursor: pointer; color: var(--tinta-suave); font-size: var(--texto-secundario); }
   .marca { flex-direction: column; gap: 0; }
-  .vista-historico, .vista-admin { padding: 16px max(16px, env(safe-area-inset-right)) 16px max(16px, env(safe-area-inset-left)); }
+  .vista-historico, .vista-admin, .vista-acerca { padding: 16px max(16px, env(safe-area-inset-right)) 16px max(16px, env(safe-area-inset-left)); }
 }
 
 /* Reducir movimiento: se quita todo desplazamiento y se conservan los fundidos

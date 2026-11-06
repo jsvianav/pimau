@@ -229,3 +229,24 @@ export function zonasConEstacion(capas, grupos, parametro, opciones) {
   }
   return { type: "FeatureCollection", features: [...zonas.values()] };
 }
+
+// Ciclo del día: promedio de cada hora local (0 a 23) en el periodo consultado.
+// Colombia no tiene horario de verano, así que la hora local es la UTC menos 5.
+// Solo tiene sentido con datos horarios; la dirección del viento no se promedia
+// así (350° y 10° no dan 180°), y la serie necesita al menos dos días con dato.
+export const MINIMO_HORAS_CICLO = 48;
+
+export function cicloDiario(puntos) {
+  const horas = Array.from({ length: 24 }, (_, hora) => ({ hora, suma: 0, n: 0 }));
+  for (const p of puntos) {
+    if (p.valor == null) continue;
+    const hora = (new Date(p.t).getUTCHours() + 19) % 24;
+    horas[hora].suma += p.valor;
+    horas[hora].n += 1;
+  }
+  return horas.map(({ hora, suma, n }) => ({ hora, promedio: n ? suma / n : null, n }));
+}
+
+export function horaTexto(hora) {
+  return `${String(hora).padStart(2, "0")}:00`;
+}
