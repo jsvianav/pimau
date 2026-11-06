@@ -58,7 +58,7 @@ export default function CicloDiario({ puntos, nombre, unidad, parametro, agregac
       </div>
       <details className="tabla-ciclo">
         <summary>Ver el ciclo como tabla</summary>
-        <div className="tabla-datos">
+        <div className="tabla-datos-ciclo">
           <table>
             <thead><tr><th scope="col">Hora</th><th scope="col">Promedio ({unidad})</th><th scope="col">Horas con dato</th></tr></thead>
             <tbody>

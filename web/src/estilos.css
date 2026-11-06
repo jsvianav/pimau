@@ -421,11 +421,11 @@ select, input[type="date"] {
 .referencias svg { flex: none; }
 .resumen { font-size: var(--texto-secundario); color: var(--tinta-suave); margin: 8px 0 0; max-width: 72ch; }
 .acciones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-.tabla-datos { max-height: 320px; overflow: auto; margin-top: 12px; border: 1px solid var(--linea); border-radius: 8px; }
-.tabla-datos table { width: 100%; border-collapse: collapse; font-size: var(--texto-secundario); }
-.tabla-datos th, .tabla-datos td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--neblina); }
-.tabla-datos th { position: sticky; top: 0; background: var(--papel); }
-.tabla-datos td.numero { text-align: right; }
+.tabla-datos, .tabla-datos-ciclo { max-height: 320px; overflow: auto; margin-top: 12px; border: 1px solid var(--linea); border-radius: 8px; }
+.tabla-datos table, .tabla-datos-ciclo table { width: 100%; border-collapse: collapse; font-size: var(--texto-secundario); }
+.tabla-datos th, .tabla-datos td, .tabla-datos-ciclo th, .tabla-datos-ciclo td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--neblina); }
+.tabla-datos th, .tabla-datos-ciclo th { position: sticky; top: 0; background: var(--papel); }
+.tabla-datos td.numero, .tabla-datos-ciclo td.numero { text-align: right; }
 .recharts-default-tooltip { background: var(--papel) !important; border-color: var(--eje-linea) !important; color: var(--tinta); }
 
 /* Administración (flujo F3) */

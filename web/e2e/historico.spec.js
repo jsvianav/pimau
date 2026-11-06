@@ -51,7 +51,7 @@ test("el ciclo del día dice a qué hora suele estar más alto y tiene su tabla"
   await abrirHistorico(page);
   const ciclo = page.locator(".ciclo");
   await expect(ciclo.getByRole("heading", { name: "Ciclo del día" })).toBeVisible();
-  await expect(ciclo.locator(".resumen")).toContainText(/suele estar más alto hacia las \d{2}:00/);
+  await expect(ciclo.locator(".resumen")).toContainText(/suelen ser más altos hacia las \d{2}:00/);
   await ciclo.getByText("Ver el ciclo como tabla").click();
   await expect(ciclo.locator("tbody tr")).toHaveCount(24);
   // Con promedios diarios no hay horas que promediar: lo dice en vez de dibujar.
