@@ -209,7 +209,10 @@ export default function App() {
   }
 
   // Enlace para saltar los controles del mapa (o el encabezado) con el teclado.
-  const destinoSalto = pestana === "mapa" ? "lista-estaciones" : "contenido";
+  // Sin estaciones (o si no cargaron) no hay lista: el salto lleva a la ficha, que
+  // explica qué pasó y ofrece volver a cargar.
+  const hayLista = carga === "listo" || carga === "cargando";
+  const destinoSalto = pestana !== "mapa" ? "contenido" : hayLista ? "lista-estaciones" : "panel-lateral";
   function saltar(evento) {
     // Sin destino todavía (la lista está cargando) no se navega al #ancla: solo
     // agregaría un paso al historial.
@@ -220,7 +223,7 @@ export default function App() {
   return (
     <div className="aplicacion">
       <a className="saltar" href={`#${destinoSalto}`} onClick={saltar}>
-        {pestana === "mapa" ? "Saltar a la lista de estaciones" : "Saltar al contenido"}
+        {pestana !== "mapa" ? "Saltar al contenido" : hayLista ? "Saltar a la lista de estaciones" : "Saltar al panel"}
       </a>
       <header className="encabezado">
         <div className="marca">
@@ -271,7 +274,7 @@ export default function App() {
               <div className={`contexto${sinRecientes ? " sin-recientes" : ""}`} role="status">{estadoDatos}</div>
             )}
           </div>
-          <aside className="panel-lateral">
+          <aside className="panel-lateral" id="panel-lateral" tabIndex={-1}>
             {estadoDatos && (
               <div className={`estado-panel${sinRecientes ? " sin-recientes" : ""}`} role="status">{estadoDatos}</div>
             )}

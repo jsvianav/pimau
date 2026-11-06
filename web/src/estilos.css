@@ -609,3 +609,10 @@ main:focus { outline: none; }
   .boton { transition: background-color 100ms ease; }
   .boton:active:not(:disabled):not([aria-disabled="true"]) { transform: none; }
 }
+
+/* Cajas de las gráficas al pasar el cursor: Recharts pinta el texto con el color
+   de la serie sobre fondo blanco fijo, y en modo oscuro no alcanzaba el contraste
+   de WCAG 1.4.3. Se usan la tinta y el papel del modo activo. */
+.recharts-default-tooltip { background: var(--papel) !important; border-color: var(--linea) !important; }
+.recharts-tooltip-label, .recharts-tooltip-item, .recharts-tooltip-item-name,
+.recharts-tooltip-item-value, .recharts-tooltip-item-separator { color: var(--tinta) !important; }
