@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 
-// Medido el 2026-11-04: unos 58 kB de JavaScript y 7 kB de CSS. El margen deja
+// Medido el 2026-11-06: unos 57 kB de JavaScript y 7 kB de CSS. El margen deja
 // crecer el visor sin que una dependencia grande entre sin que nadie lo note.
 const PRESUPUESTO = { js: 90, css: 15 };
 

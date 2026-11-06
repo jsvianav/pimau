@@ -159,7 +159,8 @@ button, summary { user-select: none; -webkit-user-select: none; }
 .mapa-contenedor { position: absolute; inset: 0; }
 /* El CSS de MapLibre llega después, con el mapa diferido, y su
    .maplibregl-map { position: relative } dejaba el mapa en 0 px de alto:
-   el selector doble le gana sin depender del orden de carga. */
+   el selector doble le gana sin depender del orden de carga. Lo mismo pasaba
+   con los botones de zoom y la atribución: sus reglas van con .vista-mapa. */
 .mapa-contenedor > .mapa { position: absolute; inset: 0; background: var(--neblina); }
 .flotante {
   position: absolute; z-index: 2; background: var(--papel); border-radius: var(--radio); border: 1px solid var(--borde-superficie);
@@ -245,13 +246,13 @@ select, input[type="date"] {
 
 /* Controles de MapLibre con el mismo estilo de las tarjetas. */
 .maplibregl-ctrl-group { border-radius: 10px !important; box-shadow: var(--sombra) !important; }
-.maplibregl-ctrl-bottom-right { right: calc(392px + env(safe-area-inset-right)); }
+.vista-mapa .maplibregl-ctrl-bottom-right { right: calc(392px + env(safe-area-inset-right)); }
 @media (prefers-color-scheme: dark) {
   .maplibregl-ctrl-group { background: var(--papel) !important; }
   .maplibregl-ctrl-group button + button { border-top-color: var(--linea) !important; }
   .maplibregl-ctrl-icon, .maplibregl-ctrl-attrib-button { filter: invert(1) hue-rotate(180deg); }
-  .maplibregl-ctrl.maplibregl-ctrl-attrib { background: var(--flotante); color: var(--tinta-suave); }
-  .maplibregl-ctrl-attrib a { color: var(--tinta-suave); }
+  .vista-mapa .maplibregl-ctrl.maplibregl-ctrl-attrib { background: var(--flotante); color: var(--tinta-suave); }
+  .vista-mapa .maplibregl-ctrl-attrib a { color: var(--tinta-suave); }
 }
 
 /* Panel lateral: una tarjeta que flota a la derecha del mapa. */
@@ -576,7 +577,7 @@ main:focus { outline: none; }
     position: static; width: auto; border: 0; border-radius: 0; box-shadow: none; overflow: visible;
     padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
-  .maplibregl-ctrl-bottom-right { right: env(safe-area-inset-right); }
+  .vista-mapa .maplibregl-ctrl-bottom-right { right: env(safe-area-inset-right); }
   .leyenda.flotante { display: none; }
   .leyenda-panel { display: block; }
   /* Con zoom al 200 % el mapa es bajo: la tarjeta hace scroll en vez de quedar cortada. */

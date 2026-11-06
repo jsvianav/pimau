@@ -105,3 +105,31 @@ test.describe("lista de estaciones", () => {
     });
   }
 });
+
+// El CSS de MapLibre se carga en diferido, después de estilos.css: si alguna de
+// sus reglas vuelve a ganarle a las nuestras, el mapa queda sin alto o los
+// botones de zoom quedan debajo del panel. Pasó en la fase 6 sin que nada fallara.
+for (const [nombre, opciones] of [["escritorio", { viewport: { width: 1280, height: 800 } }],
+  ["celular", { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true }]]) {
+  test.describe(`mapa en ${nombre}`, () => {
+    test.use(opciones);
+    test("ocupa su contenedor y tiene lienzo", async ({ page }) => {
+      await instalarApi(page);
+      await abrirVisor(page);
+      await page.locator(".maplibregl-canvas").waitFor();
+      const medidas = await page.evaluate(() => {
+        const mapa = document.querySelector(".maplibregl-map").getBoundingClientRect();
+        const contenedor = document.querySelector(".mapa-contenedor").getBoundingClientRect();
+        const lienzo = document.querySelector(".maplibregl-canvas").getBoundingClientRect();
+        const zoom = document.querySelector(".maplibregl-ctrl-bottom-right").getBoundingClientRect();
+        return { mapa: mapa.height, contenedor: contenedor.height, lienzo: lienzo.height,
+                 zoomDerecha: window.innerWidth - zoom.right, ancho: window.innerWidth };
+      });
+      expect(medidas.mapa).toBeGreaterThan(200);
+      expect(Math.abs(medidas.mapa - medidas.contenedor)).toBeLessThan(2);
+      expect(Math.abs(medidas.lienzo - medidas.mapa)).toBeLessThan(2);
+      // En escritorio los botones de zoom quedan a la izquierda del panel (360 px más márgenes).
+      if (medidas.ancho > 900) expect(medidas.zoomDerecha).toBeGreaterThanOrEqual(380);
+    });
+  });
+}

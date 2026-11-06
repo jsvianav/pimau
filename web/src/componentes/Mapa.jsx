@@ -1,7 +1,8 @@
 import { Children, useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 // El CSS de MapLibre viaja con este archivo, que se carga en diferido: no
-// bloquea el primer pintado de la página.
+// bloquea el primer pintado. Llega después de estilos.css, así que las reglas
+// propias que compiten con las suyas llevan un selector más específico.
 import "maplibre-gl/dist/maplibre-gl.css";
 // MapLibre 6 dibuja el mapa con un proceso en segundo plano (worker) que va en
 // un archivo aparte. Vite lo empaqueta y aquí se le indica a MapLibre dónde está.
