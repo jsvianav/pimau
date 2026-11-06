@@ -917,9 +917,10 @@ Perf Profiler y dataviz. Cada fase quedó en su propio commit.
   detalle técnico copiable, y en el Histórico atajos de periodo, estaciones según
   la variable y comparación de dos series con un segundo color validado.
 - **Rendimiento (Lighthouse 13.5, móvil, mediana de tres corridas, API simulada):**
-  rendimiento 65 → 86, FCP 3,8 → 2,6 s, LCP 4,2 → 3,7 s, CLS 0,244 → 0,029. La
-  carga inicial bajó de 426 a 56 kB de JavaScript con gzip: el mapa, el Histórico,
-  la Administración y las gráficas se cargan en diferido. Un presupuesto en CI
+  rendimiento 65 → 86, FCP 3,8 → 2,6 s, LCP 4,2 → 3,7 s, CLS 0,244 → 0,029.
+  *Cifras inválidas, corregidas el 2026-11-06 (abajo).* La carga inicial bajó de
+  426 a 56 kB de JavaScript con gzip: el mapa, el Histórico, la Administración y
+  las gráficas se cargan en diferido. Un presupuesto en CI
   (`npm run presupuesto`) impide que vuelva a crecer.
 - **Descartados, con su motivo en el plan:** el Brush de Recharts (sus controles
   quedarían dentro de una gráfica marcada como imagen), pedir los datos antes de
@@ -967,3 +968,58 @@ Perf Profiler y dataviz. Cada fase quedó en su propio commit.
   advierte; los datos recientes llegan hasta el 4 de noviembre. Pendiente decidir
   cómo traerlos (por ejemplo, descargar desde un equipo en Colombia y subir los
   archivos).
+
+## 2026-11-06 — Fuentes al día, regresión del mapa y paleta del ICA
+
+- **Fuentes, probadas desde la nube:**
+  - SATIC responde 200 con el geoportal normal, sin el comunicado de
+    suspensión. El 403 a la IP de Azure (entrada anterior) no se pudo comprobar
+    desde aquí, porque esta sesión no corre en ese servidor. La descarga
+    completa con el navegador tampoco se probó: acepta los términos del portal
+    de forma automática, que es lo que falta formalizar.
+  - El Portal de Datos Abiertos de Cali sigue en 403, con el comunicado del 21
+    de octubre.
+  - El IDEAM (datos.gov.co) responde. Su último registro es del 1 de enero de
+    2026 y, para Cali, 2025 solo trae Cascajal (CVC): 58 503 registros. Las
+    estaciones del DAGMA ya no aparecen en ese conjunto.
+  - La IDESC y OpenFreeMap, normales.
+- **Regresión del mapa:** desde que el mapa se carga en diferido (fase 6), el
+  CSS de MapLibre llega después de `estilos.css` y, con la misma especificidad,
+  sus reglas ganaban. `.maplibregl-map { position: relative }` dejaba el mapa en
+  0 px de alto, los botones de zoom quedaban debajo del panel lateral y la
+  atribución perdía los colores del modo oscuro. Ninguna prueba falló. John
+  arregló el alto (d988445); los botones y la atribución quedaron con
+  selectores más específicos (51d679f). Una prueba de reflujo nueva mide el
+  mapa, el lienzo y la posición del zoom en escritorio y celular. Sin el
+  arreglo, falla.
+- **Cifras de Lighthouse corregidas:** las del 4 de noviembre (65 → 86) no
+  sirven. La de 86 se midió con el mapa en 0 px, y ninguna de las dos dibujaba
+  el mapa base, porque la red de la sesión bloqueaba OpenFreeMap. Con los tres
+  builds medidos en las mismas condiciones (Lighthouse 13.5, móvil, mediana de
+  tres corridas, API simulada y mapa base dibujado):
+
+  | Build | Rendimiento | FCP | LCP | TBT | CLS |
+  | --- | --- | --- | --- | --- | --- |
+  | Antes del plan de la interfaz | 32 | 3,8 s | 4,2 s | 4,3 s | 0,31 |
+  | Mapa cargado de entrada | 50 | 3,2 s | 3,7 s | 4,5 s | 0,10 |
+  | Mapa diferido (lo que quedó) | 54 | 2,5 s | 3,6 s | 4,5 s | 0,10 |
+
+  El diferido se queda. El TBT de 4,5 s es MapLibre dibujando con WebGL por
+  software (el contenedor no tiene GPU); falta medirlo en un celular real. La
+  reducción de la carga inicial, de 426 a 56 kB de JavaScript con gzip, sigue
+  valiendo.
+- **Paleta del ICA «Farallones» (propuesta, sin implementar):** reemplaza los
+  colores del índice de Estados Unidos. Contra el mapa claro, el verde
+  `#00E400` tiene 1,59:1 y el amarillo `#FFFF00`, 1,02:1. La propuesta conserva
+  los seis colores de la Resolución 2254 con menos croma, hace que la
+  luminosidad baje con la gravedad, trae un juego para cada modo y, en claro,
+  un trazo del mismo tono que da el contraste de 3:1. Entre vecinos, ΔE de 16,3
+  a 23,5 en claro y de 13,8 o más con daltonismo. Valores, lámina y pasos de
+  implementación en la sección 3 de
+  [plan_mejora_aplicacion.md](plan_mejora_aplicacion.md).
+- **Plan para toda la aplicación:** el mismo documento reúne tareas por frente
+  (datos, backend, analítica, visor, administración, seguridad, operación,
+  pruebas y documentación). Cada una trae su porqué, cómo, criterio de cierre,
+  esfuerzo y prioridad, y hay una hoja de ruta de cinco semanas. Las P0: traer
+  SATIC a producción pese al bloqueo de Azure, formalizar su uso, revisar el
+  crédito de Azure, sacar los respaldos del servidor y poner el README al día.
