@@ -12,7 +12,9 @@ const GRUPOS = [
 // nombre completo va en la leyenda.
 export default function SelectorParametro({ parametros, valor, onCambiar, corto = false }) {
   return (
-    <select value={valor} onChange={(e) => onCambiar(e.target.value)}>
+    // Sin la lista de variables (la API no respondió) el selector queda inactivo
+    // en vez de mostrarse vacío.
+    <select value={valor} onChange={(e) => onCambiar(e.target.value)} disabled={!parametros.length}>
       {GRUPOS.map((g) => {
         const opciones = parametros.filter((p) => p.variable === g.variable);
         if (!opciones.length) return null;

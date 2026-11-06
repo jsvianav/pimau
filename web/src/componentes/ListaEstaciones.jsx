@@ -63,6 +63,9 @@ function Grupo({ titulo, grupos, separado, ...props }) {
 export default function ListaEstaciones({ grupos, parametro, meta, seleccion, onSeleccionar, opciones, carga = "listo" }) {
   const [busqueda, setBusqueda] = useState("");
   if (carga === "cargando") return <Esqueleto />;
+  // Sin estaciones (o si no cargaron) la ficha ya lo explica y ofrece volver a
+  // cargar: un título «Estaciones» sin nada debajo no aporta.
+  if (carga === "vacio" || carga === "error") return null;
   const props = { parametro, meta, seleccion, onSeleccionar, opciones };
   // La búsqueda ignora tildes, mayúsculas y palabras como «de» o «la», igual que
   // la regla que agrupa las estaciones de dos fuentes.

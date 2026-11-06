@@ -60,8 +60,8 @@ function GuiaOms({ estado }) {
     const supera = estado.promedio_ica > guia.valor;
     return (
       <p className="oms">
-        La guía de la OMS recomienda no superar {formatearNumero(guia.valor)} µg/m³ en {guia.periodo}. Ese promedio{" "}
-        {supera ? "la supera" : "está por debajo"}.
+        La guía de la OMS recomienda no superar {formatearNumero(guia.valor)} µg/m³ en {guia.periodo}. El promedio de esta
+        estación ({formatearNumero(estado.promedio_ica)} µg/m³) {supera ? "la supera" : "está por debajo"}.
       </p>
     );
   }
@@ -179,6 +179,8 @@ function DatoFuente({ registro, parametro, meta, onVerHistorico, ahora, alertas,
       <section className="fuente-dato">
         <h3>{registro.fuente}</h3>
         <div className="avisos"><AvisoMarcada marcada={estado.ultima_marcada} hayValido={false} ahora={ahora} /></div>
+        {/* En el histórico se ven las mediciones marcadas, con su valor repetido o fuera de rango. */}
+        <button className="boton" onClick={() => onVerHistorico(registro.id)}>Ver el histórico de esta fuente</button>
       </section>
     );
   }

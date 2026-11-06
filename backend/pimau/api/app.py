@@ -39,6 +39,10 @@ def _renovar_indicadores():
                 inicio = time.monotonic()
                 _cache["estaciones"] = (time.monotonic(), consultas.estaciones(sesion))
                 _cache["umbrales"] = (time.monotonic(), consultas.umbrales(sesion))
+                # Saber si un parametro tiene datos recorre la tabla de mediciones
+                # (varios segundos): sin la cache, el visor esperaba esa consulta
+                # en cada carga.
+                _cache["parametros"] = (time.monotonic(), consultas.parametros(sesion))
                 log.info("Indicadores renovados en %.1f s", time.monotonic() - inicio)
         except Exception:
             log.exception("No se pudieron renovar los indicadores")
@@ -106,7 +110,7 @@ def salud():
 
 @app.get("/api/parametros", summary="Parámetros disponibles", response_model=list[esquemas.Parametro])
 def listar_parametros(sesion: Session = Depends(sesion_bd)):
-    return consultas.parametros(sesion)
+    return _en_cache("parametros", lambda: consultas.parametros(sesion))
 
 
 @app.get("/api/umbrales", summary="Puntos de corte del ICA y guías de la OMS",

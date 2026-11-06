@@ -1044,3 +1044,30 @@ A partir de la comparación con SIATA, IBOCA, AirNow e IQAir
 - **Pruebas:** `cicloDiario` con prueba unitaria (26 pasan), y pruebas de extremo
   a extremo para el ciclo, la navegación a «Acerca de» y su revisión con axe en
   escritorio y celular, claro y oscuro.
+
+## 2026-11-05 — Revisión completa con datos reales, peor caso, sin datos y error
+
+Recorrido del visor en escritorio (1280 px) y celular (375 y 320 px) con los
+cuatro casos del selector de desarrollo. Lo que se encontró y se arregló:
+
+- **El Histórico contaba los datos no confiables como buenos.** Universidad
+  Javeriana tiene el PM2.5 en 0 todo el mes, marcado como sospechoso; el
+  Histórico decía «Promedio del periodo: 0 µg/m³» y «510 horas con dato»,
+  mientras el promedio diario y el ICA ya los excluían. Ahora no se dibujan ni
+  entran en las cifras, se cuentan como «No confiables» y la tabla muestra su
+  valor con el motivo. Prueba de extremo a extremo nueva.
+- **El Histórico abría con datos de 2019:** mostraba la primera estación en orden
+  alfabético (Base Aérea, sin datos desde 2020). Ahora abre la de dato más reciente.
+- **`/api/parametros` tardaba de 2 a 7 s** porque revisaba la tabla de mediciones
+  en cada visita, y el visor quedaba en «Cargando las estaciones…». Pasó a la
+  caché que se renueva en segundo plano (como las estaciones): 3 a 9 ms.
+- **Ficha sin datos válidos:** no tenía «Ver el histórico de esta fuente», así que
+  no había cómo ver las mediciones marcadas. Ahora lo tiene.
+- **Guía de la OMS:** decía «Ese promedio la supera» aunque la ficha no mostrara
+  el promedio (cuando no hay categoría del ICA). Ahora dice el valor.
+- **Sin estaciones o con error de la API:** se quitó el título «Estaciones» sin
+  lista debajo, el selector de variable sin opciones queda inactivo y el
+  Histórico no muestra un formulario vacío.
+- Sin problemas: alertas, ficha en el tope del ICA, nombres largos, inicio de
+  sesión con datos incorrectos y con la API caída, «Acerca de» y el ciclo del
+  día; ninguna vista se desborda a lo ancho, ni a 320 px.

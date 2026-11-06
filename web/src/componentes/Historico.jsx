@@ -8,6 +8,7 @@ import AvisoError from "./AvisoError.jsx";
 import CicloDiario from "./CicloDiario.jsx";
 
 const MAXIMO_DIAS_HORARIO = 93;
+const MARCAS_NO_CONFIABLES = { sospechoso: "valor repetido", fuera_de_rango: "fuera de rango" };
 // El puntaje de anomalía va de 0 a 1 y las señaladas quedan entre 0,62 y 0,8:
 // con un solo decimal no se distinguen.
 const PUNTAJE = new Intl.NumberFormat("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -49,8 +50,13 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino,
   const [error, setError] = useState(null);
   const [verTabla, setVerTabla] = useState(false);
   // Sin una estación elegida (o si el enlace nombra una que no existe o no mide
-  // la variable) se muestra la primera de la lista.
-  const estacionId = opciones.some((o) => o.id === estacionElegida) ? estacionElegida : opciones[0]?.id ?? null;
+  // la variable) se muestra la de dato más reciente: la primera en orden
+  // alfabético podía ser una estación sin datos desde hace años.
+  const masReciente = opciones.reduce((mejor, o) => {
+    const instante = o.registro.parametros[parametro]?.instante || "";
+    return !mejor || instante > (mejor.registro.parametros[parametro]?.instante || "") ? o : mejor;
+  }, null);
+  const estacionId = opciones.some((o) => o.id === estacionElegida) ? estacionElegida : masReciente?.id ?? null;
   const comparada = opciones.find((o) => o.id === comparar && o.id !== estacionId) || null;
   // Periodo de la serie que se ve, para pedir la comparación sobre el mismo.
   const ultimaConsulta = useRef(null);
@@ -138,14 +144,21 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino,
     if (ultimaConsulta.current) pedirComparacion(id, ultimaConsulta.current);
   }
 
+  // Las horas marcadas como no confiables (RF-03) se tratan como en el promedio
+  // diario y en el ICA: no se dibujan ni entran en las cifras, pero se cuentan y
+  // la tabla muestra su valor. Antes un sensor detenido en 0 daba un promedio de 0.
+  const confiable = (d) => (MARCAS_NO_CONFIABLES[d.bandera] ? null : d.valor);
   // La serie comparada se cruza con la principal por instante (o por día).
-  const valoresComparados = new Map((comparada && serieComparada?.datos || []).map((d) => [d.instante || d.dia, d.valor]));
-  const puntos = (serie?.datos || []).map((d) => ({ t: d.instante || d.dia, valor: d.valor, anomalia: d.anomalia,
+  const valoresComparados = new Map((comparada && serieComparada?.datos || []).map((d) => [d.instante || d.dia, confiable(d)]));
+  const puntos = (serie?.datos || []).map((d) => ({ t: d.instante || d.dia, valor: confiable(d), anomalia: d.anomalia,
                                                     puntaje: d.puntaje_anomalia,
+                                                    marcado: MARCAS_NO_CONFIABLES[d.bandera] && d.valor != null
+                                                      ? { valor: d.valor, motivo: MARCAS_NO_CONFIABLES[d.bandera] } : null,
                                                     comparada: valoresComparados.get(d.instante || d.dia) ?? null }));
   const hayComparacion = valoresComparados.size > 0;
   const anomalos = puntos.filter((p) => p.anomalia).length;
-  const faltantes = puntos.filter((p) => p.valor == null).length;
+  const marcados = puntos.filter((p) => p.marcado).length;
+  const faltantes = puntos.filter((p) => p.valor == null && !p.marcado).length;
   const validos = puntos.filter((p) => p.valor != null);
   const validosComparados = puntos.filter((p) => p.comparada != null);
   const promedioDe = (lista, campo) => (lista.length ? lista.reduce((s, p) => s + p[campo], 0) / lista.length : null);
@@ -181,11 +194,12 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino,
     <section className="historico">
       <h2>Histórico</h2>
       <p className="nota">Consulte la serie de una estación, compárela con otra o con la norma y descargue los datos.</p>
-      {!todas.length && <p className="nota">Todavía no hay estaciones para consultar.</p>}
+      {/* Sin estaciones (la API no respondió o no hay datos) el formulario no tiene nada que consultar. */}
+      {!todas.length && <p className="nota">No hay estaciones para consultar todavía.</p>}
       {todas.length > 0 && !opciones.length && (
         <p className="nota">Ninguna estación publica {nombre}. Elija otra variable.</p>
       )}
-      <form className="filtros" onSubmit={(e) => { e.preventDefault(); consultar(); }}>
+      {todas.length > 0 && <form className="filtros" onSubmit={(e) => { e.preventDefault(); consultar(); }}>
         <label>Variable
           <SelectorParametro parametros={parametros} valor={parametro} onCambiar={cambiarParametro} />
         </label>
@@ -225,7 +239,7 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino,
             </select>
           </label>
         )}
-      </form>
+      </form>}
       {error && <AvisoError titulo="No se pudo consultar la serie." error={error} />}
 
       {serie && (
@@ -243,6 +257,7 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino,
             )}
             <div><dt>{agregacion === "hora" ? "Horas con dato" : "Días con dato"}</dt><dd>{validos.length}</dd></div>
             <div><dt>Sin dato</dt><dd>{puntos.length ? `${Math.round((100 * faltantes) / puntos.length)} %` : "—"}</dd></div>
+            {marcados > 0 && <div><dt>No confiables</dt><dd>{marcados}</dd></div>}
             {agregacion === "hora" && <div><dt>Valores anómalos</dt><dd>{anomalos}</dd></div>}
           </dl>
           <p className="unidad-eje">
@@ -317,11 +332,12 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino,
             )}
           </ul>
           <p className="resumen">
-            Los huecos de la línea son {unidad} sin dato: se dejan vacíos y no se rellenan.
+            Los huecos de la línea son {unidad} sin dato{marcados > 0 && " o con datos marcados como no confiables (el sensor repite el mismo valor o el valor es imposible), que tampoco entran en las cifras"}:
+            se dejan vacíos y no se rellenan.
             {hayComparacion && ` La comparación se muestra en los mismos ${unidad} de la serie principal.`}
             {(verAceptable || verOms) &&
               " Cada línea de referencia corresponde al periodo que indica su clave, no necesariamente al de la gráfica."}
-            {((limiteAceptable != null && !verAceptable) || (guiaOms != null && !verOms)) &&
+            {validos.length > 0 && ((limiteAceptable != null && !verAceptable) || (guiaOms != null && !verOms)) &&
               ` Las referencias de la norma o de la OMS que superan el doble del valor máximo del periodo no se dibujan${
                 limiteAceptable != null ? ` (fin de "Aceptable" en el ICA: ${formatearNumero(limiteAceptable)} µg/m³)` : ""}.`}
           </p>
@@ -346,7 +362,8 @@ export default function Historico({ grupos, umbrales, parametros, meta, destino,
                   {puntos.map((p) => (
                     <tr key={p.t}>
                       <td>{formatearFecha(fechaEje(p.t), agregacion === "hora")}</td>
-                      <td className="numero">{p.valor == null ? "sin dato" : formatearNumero(p.valor)}</td>
+                      <td className="numero">{p.marcado ? `${formatearNumero(p.marcado.valor)} (no confiable: ${p.marcado.motivo})`
+                        : p.valor == null ? "sin dato" : formatearNumero(p.valor)}</td>
                       {hayComparacion && <td className="numero">{p.comparada == null ? "sin dato" : formatearNumero(p.comparada)}</td>}
                       {agregacion === "hora" && <td>{p.anomalia ? `Sí, puntaje ${formatearPuntaje(p.puntaje)}` : ""}</td>}
                     </tr>

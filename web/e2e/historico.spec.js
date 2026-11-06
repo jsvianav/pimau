@@ -60,3 +60,26 @@ test("el ciclo del día dice a qué hora suele estar más alto y tiene su tabla"
   await page.getByRole("button", { name: "Todo" }).click();
   await expect(ciclo.locator(".nota")).toContainText("93 días o menos");
 });
+
+test("las horas marcadas como no confiables no entran en el promedio y se cuentan aparte", async ({ page }) => {
+  await instalarApi(page);
+  // Un sensor detenido en 0: diez horas válidas de 20 µg/m³ y diez repetidas en 0.
+  await page.route(/\/api\/estaciones\/\d+\/series\?/, (route) => {
+    const inicio = Date.parse("2026-10-01T05:00:00Z");
+    const datos = Array.from({ length: 20 }, (_, i) => ({
+      instante: new Date(inicio + i * 3600000).toISOString(), valor: i < 10 ? 20 : 0,
+      bandera: i < 10 ? "valido" : "sospechoso", anomalia: false, puntaje_anomalia: null,
+    }));
+    return route.fulfill({ json: { estacion: { id: 1, nombre: "Prueba", fuente: "SATIC (red OAC22)" }, parametro: "PM25",
+                                   agregacion: "hora", datos } });
+  });
+  await abrirVisor(page);
+  await irA(page, "Histórico");
+  await page.locator(".lienzo").waitFor();
+  const cifras = page.locator(".cifras");
+  await expect(cifras).toContainText("Promedio del periodo20 µg/m³");
+  await expect(cifras).toContainText("Horas con dato10");
+  await expect(cifras).toContainText("No confiables10");
+  await page.getByRole("button", { name: "Ver los datos como tabla" }).click();
+  await expect(page.locator(".tabla-datos tbody")).toContainText("0 (no confiable: valor repetido)");
+});
