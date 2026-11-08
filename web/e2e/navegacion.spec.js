@@ -123,3 +123,16 @@ test("«Acerca de» se abre desde el panel y tiene su propia dirección", async 
   await page.goBack();
   await expect(page.getByRole("heading", { name: "Acerca de PIMAU" })).toHaveCount(0);
 });
+
+test("sin datos de las últimas 48 horas el mapa pasa solo a todo el histórico", async ({ page }) => {
+  await instalarApi(page);
+  // Cinco días después de los datos simulados: ninguna estación tiene datos recientes.
+  await page.clock.install({ time: Date.now() + 5 * 86400000 });
+  await abrirVisor(page);
+  await expect(page.getByRole("radio", { name: "Todo el histórico" })).toBeChecked();
+  await expect(page.locator(".estado-panel, .contexto").first()).toContainText("así que el mapa muestra todo el histórico");
+  // Volver a «Datos recientes» lo respeta: no salta de nuevo al histórico.
+  await page.getByRole("radio", { name: "Datos recientes (48 horas)" }).check();
+  await expect(page.getByRole("radio", { name: "Datos recientes (48 horas)" })).toBeChecked();
+  await expect(page.getByRole("button", { name: "Ver todo el histórico" }).first()).toBeVisible();
+});

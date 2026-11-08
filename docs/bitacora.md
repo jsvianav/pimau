@@ -1071,3 +1071,13 @@ cuatro casos del selector de desarrollo. Lo que se encontró y se arregló:
 - Sin problemas: alertas, ficha en el tope del ICA, nombres largos, inicio de
   sesión con datos incorrectos y con la API caída, «Acerca de» y el ciclo del
   día; ninguna vista se desborda a lo ancho, ni a 320 px.
+
+## 2026-11-08 — El mapa pasa solo a «Todo el histórico» si no hay datos recientes
+
+En producción el último dato es del 4 de noviembre, porque SATIC sigue
+respondiendo 403 a la IP de Azure. Con la vigencia por defecto (48 horas), el
+mapa abría vacío. Ahora, si al abrir ninguna estación tiene la variable en las
+últimas 48 horas y nadie eligió la vigencia, el mapa pasa a «Todo el histórico» y
+lo explica con la fecha del último dato. Pasa una sola vez: si la persona vuelve
+a «Datos recientes», se respeta. Prueba de extremo a extremo con el reloj del
+navegador cinco días adelante.

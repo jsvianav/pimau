@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api.js";
-import { agruparEstaciones, esReciente, estadoMasReciente, fechaCorta, nombreCorto, ultimoDatoDelGrupo } from "./util.js";
+import { agruparEstaciones, esReciente, estadoMasReciente, fechaCorta, formatearFecha, nombreCorto, ultimoDatoDelGrupo } from "./util.js";
 import SelectorParametro from "./componentes/SelectorParametro.jsx";
 import Ficha from "./componentes/Ficha.jsx";
 import ListaEstaciones from "./componentes/ListaEstaciones.jsx";
@@ -67,6 +67,16 @@ export default function App() {
   // Por defecto el mapa muestra solo lo medido en las últimas 48 horas, para no
   // pintar con el mismo color un dato de hoy y uno de hace años.
   const [soloRecientes, setSoloRecientes] = useState(inicial.soloRecientes ?? true);
+  // Si al abrir no hay datos de las últimas 48 horas (por ejemplo, una fuente
+  // bloquea al servidor), el mapa pasa solo a «Todo el histórico» en vez de
+  // abrir vacío. Solo una vez y solo si nadie eligió la vigencia.
+  const vigenciaElegida = useRef(new URLSearchParams(window.location.search).has("vigencia"));
+  const [historicoAutomatico, setHistoricoAutomatico] = useState(false);
+  function elegirVigencia(valor) {
+    vigenciaElegida.current = true;
+    setHistoricoAutomatico(false);
+    setSoloRecientes(valor);
+  }
   const [ahora, setAhora] = useState(() => new Date());
   const [alertas, setAlertas] = useState([]);
   const oscuro = useModoOscuro();
@@ -176,11 +186,23 @@ export default function App() {
   // Estado de los datos: va sobre el mapa en pantallas anchas y arriba del panel
   // en las demás, donde no cabe entre las tarjetas.
   const sinRecientes = soloRecientes && !recientes;
+  useEffect(() => {
+    if (!vigenciaElegida.current && grupos.length && sinRecientes) {
+      vigenciaElegida.current = true;
+      setHistoricoAutomatico(true);
+      setSoloRecientes(false);
+    }
+  }, [grupos.length, sinRecientes]);
   const estadoDatos = ultimoDato && (sinRecientes ? (
     <>
       <p>Ninguna estación tiene {nombreCorto(parametro)} de las últimas 48 horas.</p>
-      <button className="enlace" type="button" onClick={() => setSoloRecientes(false)}>Ver todo el histórico</button>
+      <button className="enlace" type="button" onClick={() => elegirVigencia(false)}>Ver todo el histórico</button>
     </>
+  ) : historicoAutomatico && !soloRecientes ? (
+    <p>
+      Ninguna estación tiene {nombreCorto(parametro)} de las últimas 48 horas (el dato más reciente es del{" "}
+      {formatearFecha(ultimoDato)}), así que el mapa muestra todo el histórico: cada estación con su último dato.
+    </p>
   ) : !soloRecientes ? (
     <p>Todo el histórico: cada estación muestra su último dato, que puede ser de hace años.</p>
   ) : (
@@ -260,11 +282,11 @@ export default function App() {
                 <fieldset className="selector-vigencia">
                   <legend>Mostrar</legend>
                   <label>
-                    <input type="radio" name="vigencia" checked={soloRecientes} onChange={() => setSoloRecientes(true)} />
+                    <input type="radio" name="vigencia" checked={soloRecientes} onChange={() => elegirVigencia(true)} />
                     Datos recientes (48 horas)
                   </label>
                   <label>
-                    <input type="radio" name="vigencia" checked={!soloRecientes} onChange={() => setSoloRecientes(false)} />
+                    <input type="radio" name="vigencia" checked={!soloRecientes} onChange={() => elegirVigencia(false)} />
                     Todo el histórico
                   </label>
                 </fieldset>
