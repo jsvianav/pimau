@@ -132,8 +132,14 @@ class ConectorSatic(ConectorMediciones):
             return
         desde = (f"desde el {datetime.fromisoformat(exito):%Y-%m-%d %H:%M} UTC" if exito
                  else "sin ninguna descarga correcta")
-        self.advertencias.append(f"Advertencia: la descarga automática de SATIC falla {desde}"
-                                 + (f" ({estado['error']})" if estado.get("error") else ""))
+        if estado.get("error"):
+            self.advertencias.append(f"Advertencia: la descarga automática de SATIC falla {desde} "
+                                     f"({estado['error']})")
+        else:
+            # Sin error registrado, la descarga no falló: no ha vuelto a correr
+            # (por ejemplo, el servicio estuvo apagado). Decir «falla» confundía.
+            self.advertencias.append(f"Advertencia: no hay descargas nuevas de SATIC {desde}; "
+                                     "el descargador no ha vuelto a correr o está apagado")
 
     def extraer(self, desde: datetime | None) -> Iterator[RegistroMedicion]:
         self._revisar_descarga()

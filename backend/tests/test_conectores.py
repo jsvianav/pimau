@@ -228,6 +228,12 @@ def test_satic_advierte_cuando_la_descarga_automatica_lleva_horas_fallando(tmp_p
     list(conector.extraer(None))
     assert conector.advertencias == []
 
+    # Sin error, pero sin descargas en horas: el descargador estuvo apagado, no falló.
+    conector = satic.ConectorSatic(bandeja=tmp_path, ahora=ahora + timedelta(hours=5))
+    list(conector.extraer(None))
+    assert conector.advertencias == ["Advertencia: no hay descargas nuevas de SATIC desde el 2026-10-22 21:00 UTC; "
+                                     "el descargador no ha vuelto a correr o está apagado"]
+
 
 def test_satic_promedia_el_ruido_por_energia():
     # 50 y 70 dB no promedian 60: el nivel equivalente (67 dB) queda cerca del más alto.
