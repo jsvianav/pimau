@@ -118,6 +118,3 @@ docker compose run --rm --entrypoint sh respaldo -c \
 La base de datos no publica su puerto: solo los demás contenedores llegan a
 ella por la red interna de Docker.
 
-## Licencia
-
-Por definir con el director del trabajo de grado.
