@@ -73,9 +73,23 @@ _JS_ABRIR = """({ lat, lon }) => {
   capa.fire('click', { latlng: capa.getLatLng() });
 }"""
 
+# Títulos de todas las gráficas de la estación, en el mismo orden que sus botones
+# de descarga. Desde noviembre de 2026 SATIC muestra el mínimo, el promedio y el
+# máximo de cada variable; antes solo los promedios.
 _JS_TITULOS = """() => [...document.querySelectorAll('*')]
-  .filter(x => x.children.length === 0 && /_AVG - .+\\(/.test(x.textContent))
+  .filter(x => x.children.length === 0 && /^[A-Z0-9]+_[A-Z]+ - .+\\(/.test(x.textContent.trim()))
   .map(x => x.textContent.trim())"""
+
+
+def series_a_descargar(titulos: list[str]) -> list[int]:
+    """Posiciones de las gráficas que se descargan: solo los promedios (_AVG).
+
+    El título y el botón de cada gráfica van en el mismo orden, así que la
+    posición del título es la del botón. Antes se tomaban solo los títulos de
+    los promedios y se emparejaban con los primeros botones: cuando SATIC agregó
+    los mínimos y los máximos, el archivo «PM25_AVG» traía la temperatura mínima.
+    """
+    return [k for k, t in enumerate(titulos) if t.split(" - ")[0].endswith("_AVG")]
 
 
 # Resultado del ultimo intento, en la misma bandeja. La ingesta lo lee para que
@@ -152,7 +166,13 @@ def descargar(destino: Path, rango: str = "Últimas 24 horas") -> int:
                 pagina.wait_for_timeout(2000)
                 titulos = pagina.evaluate(_JS_TITULOS)
                 botones = pagina.locator("button.ml-5")
-                for k in range(min(botones.count(), len(titulos))):
+                if botones.count() != len(titulos):
+                    # Sin la misma cantidad no se sabe qué botón es de qué gráfica:
+                    # se omite la estación antes que guardar una variable con otro nombre.
+                    log.warning("%s: %s gráficas y %s botones; no se descarga", estacion["nombre"],
+                                len(titulos), botones.count())
+                    continue
+                for k in series_a_descargar(titulos):
                     with pagina.expect_download(timeout=60_000) as espera:
                         botones.nth(k).click()
                     # Se guarda con otro nombre y se renombra al final, para que
@@ -163,7 +183,7 @@ def descargar(destino: Path, rango: str = "Últimas 24 horas") -> int:
                     os.replace(temporal, final)
                     guardados += 1
                     pagina.wait_for_timeout(800)
-                log.info("%s: %s variables", estacion["nombre"], len(titulos))
+                log.info("%s: %s variables", estacion["nombre"], len(series_a_descargar(titulos)))
             except Exception:
                 log.warning("No se pudo descargar %s", estacion["nombre"], exc_info=True)
         navegador.close()

@@ -1081,3 +1081,66 @@ mapa abría vacío. Ahora, si al abrir ninguna estación tiene la variable en la
 lo explica con la fecha del último dato. Pasa una sola vez: si la persona vuelve
 a «Datos recientes», se respeta. Prueba de extremo a extremo con el reloj del
 navegador cinco días adelante.
+
+## 2026-11-09 — Rediseño visual del visor a partir de visores de otros países
+
+Se comparó el visor con plataformas comerciales (IQAir, aqicn, PurpleAir,
+AirGradient, Google, Airly, Apple Weather) y públicas (AirNow, índice europeo de
+la EEA, GOV.UK y UK-AIR, OpenAQ, UBA de Alemania, Breathe London, NSW, SIATA,
+IBOCA), y se tomó de cada una lo que servía sin cambiar lo que ya decidió la
+tesis (colores del ICA, tipografías, tokens y accesibilidad):
+
+- **El número del ICA en el mapa** (PurpleAir, AirNow, aqicn): cada estación con
+  categoría es una insignia con el índice adentro, en negro o blanco según el
+  color. El color ya no va solo.
+- **Ficha con el índice como en un instrumento** (IQAir, Apple Weather): el
+  número sobre el color de su categoría, la categoría al lado, un recuadro con
+  un tinte de ese color y la escala de 0 a 500 con sus límites. Las cifras
+  (promedio de 24 horas, último valor horario y guía de la OMS) pasan de tres
+  párrafos a una rejilla.
+- **Resumen de la ciudad** cuando no hay estación elegida (IQAir, AirNow):
+  cuántas estaciones hay en cada categoría y cuáles tienen el índice más alto y
+  más bajo. Es un conteo, no un índice de la ciudad, y solo con datos recientes.
+- **Lista con insignia** (IQAir): el índice a la derecha de cada fila y el
+  estado bajo el nombre; buscador con ícono.
+- **Leyenda como una sola rampa** (AirGradient, PurpleAir) y estado de los datos
+  en la cabecera del panel, en vez de flotar sobre el mapa.
+- **Encabezado** con el signo de la marca y las secciones como píldoras;
+  «Administración» va al final y apartada. El ícono de la pestaña usa el color
+  de acento.
+- **Histórico:** cifras en una banda, atajos como control de segmentos, relleno
+  bajo la serie y filtros que no dejan caer el botón de consultar.
+- **Acerca de:** las cuatro fuentes en tarjetas, con quién las publica.
+- **Celular:** el panel sube sobre el borde del mapa como una hoja, sin arrastre.
+
+Otros cambios: `textoSobre` usa #111111 (el #1a1a1a daba 4,35:1 sobre el rojo
+del ICA); `vite.config.js` acepta `PIMAU_API` para ver el visor local con los
+datos de la API desplegada; `elegirEstacion` de las pruebas espera el fundido de
+la ficha antes de que axe mida el contraste. Se actualizaron tres pruebas por el
+resumen de la ciudad y la rejilla de cifras.
+
+Verificación: lint, 26 pruebas unitarias, build, presupuesto (58,4 kB de JS y
+7,9 kB de CSS) y las 78 pruebas de extremo a extremo y de accesibilidad pasan.
+Las e2e se corrieron con el Chromium 1223 ya instalado, porque el que pide
+Playwright 1.63 (1243) no está en este equipo (`npx playwright install`).
+
+Pendiente, sin hacer: recomendaciones de salud por categoría (F1, espera una
+fuente oficial), barras por hora con color de categoría (el ICA de partículas es
+de 24 horas, así que colorear cada hora lo tergiversaría), hoja inferior con
+arrastre en el celular y probar en un celular real.
+
+## 2026-11-12 — SATIC agregó mínimos y máximos y el descargador se descuadró
+
+SATIC pasó de mostrar solo el promedio de cada variable a mostrar el mínimo, el
+promedio y el máximo: 26 gráficas por estación. El descargador tomaba los
+títulos de los promedios y los emparejaba con los primeros botones de descarga,
+así que el archivo guardado como «PM25_AVG» traía la temperatura mínima. Ningún
+dato quedó en una variable equivocada, porque el conector toma la variable de la
+columna `nom_corto` de cada fila y no del nombre del archivo; pero el PM2.5, la
+dirección del viento y el ruido dejaron de llegar desde el 8 de noviembre.
+
+Arreglo: se leen los títulos de todas las gráficas, cada botón se empareja con su
+propio título y se descargan solo los promedios (`series_a_descargar`, con
+prueba). Si una estación no tiene tantos títulos como botones, se omite y queda
+en el registro. Verificado: 135 archivos, ninguno con una variable distinta a
+la de su nombre.

@@ -171,6 +171,18 @@ def test_satic_sin_archivos_no_falla(tmp_path):
     assert list(satic.ConectorSatic(bandeja=tmp_path / "no_existe").extraer(None)) == []
 
 
+def test_descarga_satic_elige_los_promedios_por_su_posicion_entre_todas_las_graficas():
+    # Orden real de la página desde noviembre de 2026: mínimo, promedio y máximo.
+    from pimau.ingesta.descarga_satic import series_a_descargar
+    titulos = ["HUM_MIN - CAMPESTRE (HUM_MIN)", "HUM_AVG - CAMPESTRE (HUM_AVG)", "HUM_MAX - CAMPESTRE (HUM_MAX)",
+               "PM10_AVG - CAMPESTRE (PM10_AVG)", "PM10_MIN - CAMPESTRE (PM10_MIN)",
+               "PM25_AVG - CAMPESTRE (PM25_AVG)", "RAIN_TICKS - CAMPESTRE (RAIN_TICKS)",
+               "NOISE_AVG - CAMPESTRE (NOISE_AVG)"]
+    assert [titulos[k].split(" - ")[0] for k in series_a_descargar(titulos)] == [
+        "HUM_AVG", "PM10_AVG", "PM25_AVG", "NOISE_AVG"]
+    assert series_a_descargar(titulos) == [1, 3, 5, 7]
+
+
 def test_descarga_satic_usa_un_nombre_fijo_por_estacion_y_variable():
     from pimau.ingesta.descarga_satic import nombre_archivo
     assert nombre_archivo("PM25_AVG - NEW CAMBRIDGE (PM25_AVG)") == "PM25_AVG_-_NEW_CAMBRIDGE.xlsx"
